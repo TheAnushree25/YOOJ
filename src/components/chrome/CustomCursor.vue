@@ -96,6 +96,15 @@ onBeforeUnmount(() => {
   inset: 0;
   z-index: 200;
   pointer-events: none;
+  // Inverted against whatever it is over, rather than painted one colour.
+  //
+  // The system cursor is hidden on pointer devices, so this is the only
+  // cursor there is — and drawn in bone it vanished completely over the near
+  // white reading panel. A reader could not see what they were pointing at and
+  // the close control read as unclickable even though it was receiving the
+  // click. Difference blending means it is always the opposite of its ground:
+  // dark on the light sections, light on the field.
+  mix-blend-mode: difference;
 }
 
 .cursor__dot {
@@ -105,7 +114,7 @@ onBeforeUnmount(() => {
   width: 5px;
   height: 5px;
   border-radius: 50%;
-  background: var(--c-bone);
+  background: #FFFFFF;
   will-change: transform;
   transition: opacity var(--t-hover) var(--e-none);
 
@@ -122,19 +131,14 @@ onBeforeUnmount(() => {
   place-items: center;
   width: 34px;
   height: 34px;
-  border: 1px solid rgb(var(--rgb-bone) / 0.3);
+  border: 1px solid rgb(255 255 255 / 0.45);
   border-radius: 50%;
   will-change: transform;
   transition: border-color var(--t-hover) var(--e-none), background-color var(--t-hover) var(--e-none);
 
   &.is-scale, &.is-label, &.is-next {
-    border-color: var(--c-accent);
-    background: rgb(var(--rgb-accent) / 0.09);
-  }
-
-  &.is-next {
-    border-color: rgb(var(--rgb-bone) / 0.62);
-    background: rgb(var(--rgb-bone) / 0.08);
+    border-color: rgb(255 255 255 / 0.85);
+    background: rgb(255 255 255 / 0.12);
   }
 }
 
@@ -146,7 +150,7 @@ onBeforeUnmount(() => {
 
   path {
     fill: none;
-    stroke: var(--c-bone);
+    stroke: #FFFFFF;
     stroke-width: 1.6;
     vector-effect: non-scaling-stroke;
     stroke-linecap: round;
@@ -159,7 +163,7 @@ onBeforeUnmount(() => {
   font-size: 0.5rem;
   letter-spacing: var(--ls-label);
   text-transform: uppercase;
-  color: var(--c-accent);
+  color: #FFFFFF;
   white-space: nowrap;
 }
 </style>

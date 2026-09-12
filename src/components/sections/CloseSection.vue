@@ -26,7 +26,7 @@ const nav = [
 ];
 
 const reach = [
-  { label: "Email", href: "mailto:hello@halcyon.example" },
+  { label: "Email", href: "mailto:hello@yooj.example" },
   { label: "LinkedIn", href: "#" },
   { label: "Press", href: "#" },
 ];
@@ -52,7 +52,7 @@ const year = new Date().getFullYear();
         </h2>
 
         <div v-reveal="300" class="cl__acts">
-          <ActionButton label="Partner with us" href="mailto:hello@halcyon.example" variant="solid" />
+          <ActionButton label="Partner with us" href="mailto:hello@yooj.example" variant="solid" />
           <ActionButton label="Start your journey" href="#top" @activate="emit('jump', 'top')" />
         </div>
       </div>
@@ -77,7 +77,7 @@ const year = new Date().getFullYear();
     </div>
 
     <div class="cl__base">
-      <p>&copy; {{ year }} Halcyon Labs — a design and engineering demonstration, not a medical device.</p>
+      <p>&copy; {{ year }} YOOJ Labs — a design and engineering demonstration, not a medical device.</p>
       <p class="cl__credit">Built in the open</p>
     </div>
   </footer>

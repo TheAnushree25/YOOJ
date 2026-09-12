@@ -170,7 +170,7 @@ onBeforeUnmount(() => cancelAnimationFrame(frame));
 
     <!-- Corner furniture, above everything. -->
     <aside ref="aside" class="hero__aside">
-      Halcyon is a cognitive wellbeing lab working where measurement, clinical
+      YOOJ is a cognitive wellbeing lab working where measurement, clinical
       practice and ordinary life meet.
     </aside>
   </section>

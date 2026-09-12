@@ -1,4 +1,4 @@
-# Halcyon
+# YOOJ
 
 A scroll-driven single-page site for a fictional cognitive wellbeing lab.
 

@@ -17,7 +17,7 @@ const filled = computed(() => Math.max(0.008, Math.min(1, props.progress)));
   <header class="head">
     <a class="head__mark" href="#top" data-cursor="Top" @click.prevent="emit('jump', 'top')">
       <span class="head__glyph" aria-hidden="true" />
-      <span class="head__name">Halcyon</span>
+      <span class="head__name">YOOJ</span>
     </a>
 
     <div class="head__meta">

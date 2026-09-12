@@ -101,6 +101,17 @@ const crown = () => (24 + beat(0.18, 0.44) * 40) * (1 - beat(0.46, 0.64));
  * still curved, so the ground fills in continuously instead of the corners
  * snapping square at the end.
  */
+/**
+ * The dome's own density.
+ *
+ * It cannot be one number. While the arc is climbing it has the pale panel
+ * behind it, and anything thin there tints bone to grey instead of reading as
+ * night coming up; once the panel has gone it has the field behind it, and
+ * that same density smothers the thing it is supposed to be revealing. So it
+ * is dense for the rise and lifts afterwards.
+ */
+const domeVeil = () => 0.78 - beat(0.5, 0.68) * 0.34;
+
 const domeY = () => (1 - beat(0.18, 0.42)) * 96 - beat(0.40, 0.60) * 16;
 
 /**
@@ -125,7 +136,7 @@ const pathway = [
  * and the line breaks are the browser's business.
  */
 const turn = (
-  "Halcyon moves beyond the straight line, reading the whole of a week as one "
+  "YOOJ moves beyond the straight line, reading the whole of a week as one "
   + "connected signal, towards care that answers a person rather than a form."
 ).split(" ");
 
@@ -161,7 +172,14 @@ onBeforeUnmount(() => trigger?.kill());
 <template>
   <section id="reconnect" ref="root" class="rc">
     <div class="rc__stage">
-      <!-- Beat one: the pale ground, present from the first frame. -->
+      <!-- The pale ground. Held on its own clock, not the statement's: the
+           dome has to rise *against* something light, which is the whole read
+           of the beat. Faded with the words, the frame went dark the moment
+           they left and the arc then arrived on a ground it could not be seen
+           against. This leaves once the dome covers the frame anyway. -->
+      <div class="rc__ground" :style="{ opacity: 1 - beat(0.36, 0.47) }" aria-hidden="true" />
+
+      <!-- Beat one: the statement, present from the first frame. -->
       <div class="rc__panel" :style="{ opacity: 1 - beat(0.17, 0.29) }">
         <p class="label rc__eyebrow">Reconnecting</p>
         <p class="rc__statement">
@@ -180,6 +198,7 @@ onBeforeUnmount(() => trigger?.kill());
           :style="{
             transform: `translate3d(-50%, ${domeY()}%, 0)`,
             borderRadius: `50% 50% 0 0 / ${crown()}% ${crown()}% 0 0`,
+            backgroundColor: `rgb(var(--rgb-void) / ${domeVeil()})`,
           }"
         >
           <!-- Beat three: geometry, struck from off-frame so only arcs cross it. -->
@@ -317,11 +336,17 @@ onBeforeUnmount(() => trigger?.kill());
   // field, which is why the whole beat washed out to pink.
 }
 
+.rc__ground {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background: var(--c-bone);
+}
+
 .rc__panel {
   position: absolute;
   inset: 0;
   z-index: 1;
-  background: var(--c-bone);
   display: grid;
   align-content: center;
   justify-items: center;
@@ -368,9 +393,14 @@ onBeforeUnmount(() => trigger?.kill());
   // The dome is this section's dark ground, so it is a tint over the shared
   // field rather than a surface of its own — the geometry inside it still
   // needs an edge to be clipped by, which is why it is not simply removed.
-  background:
-    radial-gradient(54% 62% at 74% 40%, rgb(var(--rgb-accent) / 0.22) 0%, transparent 62%),
-    rgb(var(--rgb-void) / 0.34);
+  // Dense enough to read as deep ground while it is still rising over the
+  // pale panel — a thin veil there tints bone to grey rather than reading as
+  // an arc of night coming up — and still translucent enough that the field's
+  // own movement carries through it once the panel has gone.
+  // The colour is bound in the template — it changes with the beat. Only the
+  // light shaping lives here.
+  background-image:
+    radial-gradient(54% 62% at 74% 40%, rgb(var(--rgb-accent) / 0.2) 0%, transparent 62%);
   will-change: transform;
   overflow: hidden;
 }

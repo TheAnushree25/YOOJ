@@ -162,7 +162,7 @@ const flight = () => ({
 const title = ["Instruments for", "a mind that", "never holds still"];
 
 const body =
-  "Halcyon builds where continuous measurement, clinical judgement and ordinary "
+  "YOOJ builds where continuous measurement, clinical judgement and ordinary "
   + "life meet. Our instruments read the pattern rather than the moment, so a "
   + "change in someone's week is visible while there is still something useful "
   + "to do about it.";
