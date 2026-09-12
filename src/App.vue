@@ -195,12 +195,33 @@ onBeforeUnmount(() => {
 // root element inherits its parent's scope id as well as its own, so a class
 // this generic silently reached the section that shares the name and fixed it
 // to the viewport on top of the hero.
+// Named for what it is, and deliberately not `.field` — a child component's
+// root element inherits its parent's scope id as well as its own, so a class
+// this generic silently reached the section that shares the name and fixed it
+// to the viewport on top of the hero.
 .backdrop {
   position: fixed;
   inset: 0;
   z-index: 0;
 
   canvas { width: 100%; height: 100%; }
+
+  // The veil over the field, in one place and applied once.
+  //
+  // Each dark section used to carry its own. Two problems with that, and both
+  // showed as a hard line between sections: identical gradients are still
+  // phased against whichever box paints them, and — worse — a sticky wash with
+  // a cancelling negative margin overflows its own section, so at a boundary
+  // two veils stacked and the ground abruptly doubled in density. Painted here
+  // it cannot overlap itself, and every section that shows the field gets
+  // exactly the same ground.
+  &::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: var(--veil);
+    pointer-events: none;
+  }
 }
 
 .content {

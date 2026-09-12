@@ -131,7 +131,6 @@ onBeforeUnmount(() => trigger?.kill());
 <template>
   <section id="perspectives" ref="root" class="pv">
     <div class="pv__stage">
-      <div class="pv__wash" aria-hidden="true" />
 
       <!-- Beat one: the title, centred, clearing as the first quote arrives. -->
       <div
@@ -199,24 +198,6 @@ onBeforeUnmount(() => trigger?.kill());
   padding: 0 var(--gutter);
 }
 
-// The same ground the principles stand on, carried across so the two read as
-// one movement rather than two panels that happen to be adjacent. Locked to
-// the stage rather than the section, which is already the case here.
-.pv__wash {
-  // Translucent on purpose. The dark ground of this page is the shared
-  // ShaderGradient field behind every section, not a gradient painted here —
-  // these layers only shape the light falling across it. Given an opaque base
-  // they would hide the field completely and the site would have a running
-  // WebGL layer nobody ever sees.
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  background:
-    linear-gradient(180deg, rgb(var(--rgb-void) / 0.72) 0%, rgb(var(--rgb-void) / 0.38) 9%, transparent 21%),
-    radial-gradient(50% 46% at 62% 104%, rgb(var(--rgb-accent) / 0.92) 0%, rgb(var(--rgb-accent) / 0.42) 40%, transparent 76%),
-    radial-gradient(54% 44% at -6% 2%, #0A0206 0%, transparent 66%),
-    linear-gradient(150deg, rgb(var(--rgb-ink) / 0.6) 6%, rgb(var(--rgb-deep) / 0.34) 42%, transparent 80%);
-}
 
 .pv__title {
   position: absolute;

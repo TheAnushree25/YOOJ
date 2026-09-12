@@ -42,6 +42,15 @@
   --g-color-3: #750227;
   --g-bg:      #000000;
 
+  /// The veil every dark section lays over the field.
+  ///
+  /// One declaration, used by all of them, because two sections with tints of
+  /// their own meet in a visible seam — and the page is meant to read as one
+  /// continuous ground with the field running behind it, not as a stack of
+  /// panels. Even, directionless, and dense enough that bone type is legible
+  /// wherever the field happens to be bright.
+  --veil: rgb(var(--rgb-void) / 0.6);
+
   // Motion. Published easing curves, named so intent survives the number.
   --e-none:         cubic-bezier(0.25, 0.25, 0.75, 0.75);
   --e-out-quad:     cubic-bezier(0.25, 0.46, 0.45, 0.94);

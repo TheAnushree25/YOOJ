@@ -83,7 +83,6 @@ onBeforeUnmount(() => trigger?.kill());
 
 <template>
   <section id="tenets" ref="root" class="tn">
-    <div class="tn__wash" aria-hidden="true" />
 
     <!-- Runs down the seam between the count and the list, curving across to
          meet the column. The same thread the section above it hands over. -->
@@ -121,34 +120,6 @@ onBeforeUnmount(() => trigger?.kill());
   isolation: isolate;
 }
 
-// Deep navy in the top-left corner running to open cyan at the right edge, with
-// the light gathered around two thirds down — the one section on the page lit
-// from the side rather than from behind.
-// Locked to the viewport rather than to the section, which is what the
-// reference does: scroll its principles and the light stays put on the right
-// while the words go past it. Section-locked, the glow travelled up the frame
-// and passed under the fixed header — and the header blends with difference,
-// which resolves white type over open cyan to a dark red you cannot read.
-// Sticky with a cancelling negative margin so it holds without adding height.
-.tn__wash {
-  position: sticky;
-  top: 0;
-  z-index: 0;
-  height: 100vh;
-  height: calc(var(--vh, 1vh) * 100);
-  margin-bottom: -100vh;
-  margin-bottom: calc(var(--vh, 1vh) * -100);
-  background:
-    // A scrim across the top of the frame, not the top of the section — the
-    // wash is viewport-locked, so this darkens the strip the header sits in at
-    // every scroll position and the chapter line stays pale type on a deep
-    // ground, the way it reads everywhere else on the page.
-    linear-gradient(180deg, rgb(var(--rgb-void) / 0.74) 0%, rgb(var(--rgb-void) / 0.4) 9%, transparent 21%),
-    radial-gradient(42% 48% at 99% 66%, rgb(var(--rgb-accent) / 0.95) 0%, rgb(var(--rgb-accent) / 0.5) 38%, transparent 74%),
-    radial-gradient(52% 26% at 88% -10%, var(--c-ink) 0%, transparent 74%),
-    radial-gradient(58% 46% at -4% 4%, #0A0206 0%, transparent 66%),
-    linear-gradient(102deg, rgb(var(--rgb-ink) / 0.55) 4%, rgb(var(--rgb-deep) / 0.3) 34%, transparent 74%);
-}
 
 .tn__thread {
   position: absolute;

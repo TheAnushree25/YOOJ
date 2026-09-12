@@ -36,7 +36,6 @@ const year = new Date().getFullYear();
 
 <template>
   <footer id="contact" class="cl">
-    <div class="cl__wash" aria-hidden="true" />
 
     <!-- The thread one last time, running down the axis the heading closes on
          and stopping short of the floor rather than meeting it. -->
@@ -96,29 +95,6 @@ const year = new Date().getFullYear();
   padding: clamp(6rem, 16vh, 11rem) 0 clamp(1.6rem, 4vh, 2.6rem);
 }
 
-// Deep in the top-left corner, opening to cyan across the upper right and
-// again, more softly, low on the right — two lights rather than one ramp, which
-// is what keeps a dark full-screen panel from reading as flat.
-.cl__wash {
-  // Translucent on purpose. The dark ground of this page is the shared
-  // ShaderGradient field behind every section, not a gradient painted here —
-  // these layers only shape the light falling across it. Given an opaque base
-  // they would hide the field completely and the site would have a running
-  // WebGL layer nobody ever sees.
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  background:
-    // The header is fixed and blends with difference, which turns white type
-    // over open cyan into an unreadable dark red. The section is exactly one
-    // viewport and sits at the end of the document, so the header can only ever
-    // overlap this top strip — darkening it here is enough.
-    linear-gradient(180deg, rgb(var(--rgb-void) / 0.8) 0%, rgb(var(--rgb-void) / 0.42) 8%, transparent 19%),
-    radial-gradient(44% 52% at 92% 14%, rgb(var(--rgb-accent) / 0.92) 0%, rgb(var(--rgb-accent) / 0.34) 40%, transparent 74%),
-    radial-gradient(46% 40% at 88% 92%, rgb(var(--rgb-accent) / 0.34) 0%, transparent 72%),
-    radial-gradient(56% 46% at -6% 2%, #080105 0%, transparent 68%),
-    linear-gradient(116deg, rgb(var(--rgb-ink) / 0.62) 4%, rgb(var(--rgb-deep) / 0.34) 40%, transparent 86%);
-}
 
 .cl__thread {
   position: absolute;

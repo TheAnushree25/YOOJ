@@ -162,9 +162,9 @@ onBeforeUnmount(() => trigger?.kill());
   <section id="reconnect" ref="root" class="rc">
     <div class="rc__stage">
       <!-- Beat one: the pale ground, present from the first frame. -->
-      <div class="rc__panel">
-        <p class="label rc__eyebrow" :style="{ opacity: 1 - beat(0.17, 0.29) }">Reconnecting</p>
-        <p class="rc__statement" :style="{ opacity: 1 - beat(0.17, 0.29) }">
+      <div class="rc__panel" :style="{ opacity: 1 - beat(0.17, 0.29) }">
+        <p class="label rc__eyebrow">Reconnecting</p>
+        <p class="rc__statement">
           <span v-for="(line, i) in statement" :key="i" class="rc__line">
             <span :style="{ transform: `translate3d(0, ${(1 - beat(0.005 + i * 0.022, 0.13 + i * 0.022)) * 110}%, 0)` }">
               {{ line }}
@@ -311,13 +311,17 @@ onBeforeUnmount(() => trigger?.kill());
   height: calc(var(--vh, 1vh) * 100);
   overflow: hidden;
   isolation: isolate;
-  background: var(--c-bone);
+  // No ground of its own. The pale panel below carries the light beat, and
+  // everything after it is the field showing through the dome — an opaque
+  // stage here meant the dome was a tint over bone rather than over the
+  // field, which is why the whole beat washed out to pink.
 }
 
 .rc__panel {
   position: absolute;
   inset: 0;
   z-index: 1;
+  background: var(--c-bone);
   display: grid;
   align-content: center;
   justify-items: center;
@@ -365,8 +369,8 @@ onBeforeUnmount(() => trigger?.kill());
   // field rather than a surface of its own — the geometry inside it still
   // needs an edge to be clipped by, which is why it is not simply removed.
   background:
-    radial-gradient(54% 62% at 74% 40%, rgb(var(--rgb-accent) / 0.3) 0%, transparent 62%),
-    linear-gradient(158deg, rgb(var(--rgb-ink) / 0.74) 2%, rgb(var(--rgb-deep) / 0.4) 46%, rgb(var(--rgb-action) / 0.3) 100%);
+    radial-gradient(54% 62% at 74% 40%, rgb(var(--rgb-accent) / 0.22) 0%, transparent 62%),
+    rgb(var(--rgb-void) / 0.34);
   will-change: transform;
   overflow: hidden;
 }
