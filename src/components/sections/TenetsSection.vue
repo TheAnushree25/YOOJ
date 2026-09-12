@@ -1,0 +1,313 @@
+<script setup lang="ts">
+import { onBeforeUnmount, onMounted, ref } from "vue";
+import { prefersReduced, scrubThrough } from "../../composables/useMotion";
+
+/**
+ * The fourth movement: a count held still while its parts go past.
+ *
+ * One enormous numeral stands in the left half and barely moves; the six things
+ * it counts scroll up the right. The whole effect is the difference in rate —
+ * the reader travels the length of a list and the number is still there, which
+ * is a more useful thing to say about a set of principles than any transition
+ * between them would be.
+ *
+ * Ordinary document scroll, not a sticky stage. There is nothing here that has
+ * to be choreographed against a timeline: the column holds itself in the frame
+ * with `position: sticky`, and the only scrubbed value is the numeral's slow
+ * drift against it. A held frame would have meant inventing a reason for the
+ * list to arrive in beats, and the list has no beats — it is a list.
+ */
+
+const root = ref<HTMLElement | null>(null);
+const p = ref(0);
+let trigger: ReturnType<typeof scrubThrough> = null;
+
+/**
+ * The numeral's drift, in viewport heights.
+ *
+ * It rides up through the column over the section's travel rather than sitting
+ * dead centre. Sticky alone reads as a graphic pasted to the viewport; a rate
+ * that is slower than the list but not zero reads as depth.
+ */
+const drift = () => 13 - p.value * 42;
+
+const intro =
+  "Through six principles held in common we set the shape of the work: what we "
+  + "measure, what we decline to claim, and who the answer belongs to.";
+
+/**
+ * Placeholder copy, written to the right length rather than to the right words.
+ * Each entry is a label of two or three tracked words and a paragraph of four
+ * to five lines at this measure, which is what the layout was built against.
+ */
+const tenets = [
+  {
+    k: "Measure continuously",
+    p: "A week is the unit, not a moment. We read sleep, load, mood and focus as they move together, because the interesting signal is in how they move and not in where any one of them sits on a given afternoon.",
+  },
+  {
+    k: "Explain or do not ship",
+    p: "If we cannot say why a flag was raised in language the person it concerns would recognise, the flag does not leave the lab. Accuracy that cannot be inspected is not accuracy; it is a claim waiting to be believed.",
+  },
+  {
+    k: "Consent is the interface",
+    p: "Every signal held about a person is visible to them, switchable by them and portable away from us. Nothing is collected that we could not explain in a single sentence to the person it came from.",
+  },
+  {
+    k: "Escalation beats prediction",
+    p: "Reaching the right clinician quickly is worth more than forecasting a crisis precisely. We optimise the handover rather than the score, because the handover is the part that changes what happens next.",
+  },
+  {
+    k: "Instruments, not verdicts",
+    p: "Nothing built here decides anything about anybody. The work is to put a clearer picture in front of a clinician sooner, and to show a person their own pattern in words they already use about themselves.",
+  },
+  {
+    k: "Answerable to practice",
+    p: "Every instrument is built with the clinicians who will carry it and judged by whether it survives a real clinic in a bad week. Anything that only works in the demonstration is not finished.",
+  },
+];
+
+onMounted(() => {
+  if (!root.value) return;
+  if (prefersReduced()) { p.value = 0.5; return; }
+  // The same window the column is stuck for, so the drift starts when the
+  // numeral arrives in the frame and ends as it leaves.
+  trigger = scrubThrough(root.value, (v) => (p.value = v), {
+    start: "top top",
+    end: "bottom bottom",
+  });
+});
+
+onBeforeUnmount(() => trigger?.kill());
+</script>
+
+<template>
+  <section id="tenets" ref="root" class="tn">
+    <div class="tn__wash" aria-hidden="true" />
+
+    <!-- Runs down the seam between the count and the list, curving across to
+         meet the column. The same thread the section above it hands over. -->
+    <svg class="tn__thread" viewBox="0 0 120 1000" preserveAspectRatio="none" aria-hidden="true">
+      <path d="M 4 0 L 4 250 C 4 360 116 380 116 500 L 116 1000" />
+    </svg>
+
+    <div class="tn__grid">
+      <div class="tn__count">
+        <span class="tn__numeral" :style="{ transform: `translate3d(0, ${drift()}vh, 0)` }">6</span>
+      </div>
+
+      <div class="tn__body">
+        <h2 class="tn__h">Principles</h2>
+        <p class="tn__intro">{{ intro }}</p>
+
+        <ol class="tn__list">
+          <li v-for="t in tenets" :key="t.k" v-reveal="80" class="tn__item">
+            <p class="tn__label">{{ t.k }}</p>
+            <p class="tn__copy">{{ t.p }}</p>
+          </li>
+        </ol>
+      </div>
+    </div>
+  </section>
+</template>
+
+<style scoped lang="scss">
+// Deliberately no `overflow` here. The count column is sticky, and an ancestor
+// with a clipped overflow becomes its scroll container — the numeral would then
+// hold still against a box that never scrolls and never stick at all. The
+// clipping the drift needs is on the column itself, where it belongs.
+.tn {
+  position: relative;
+  isolation: isolate;
+}
+
+// Deep navy in the top-left corner running to open cyan at the right edge, with
+// the light gathered around two thirds down — the one section on the page lit
+// from the side rather than from behind.
+// Locked to the viewport rather than to the section, which is what the
+// reference does: scroll its principles and the light stays put on the right
+// while the words go past it. Section-locked, the glow travelled up the frame
+// and passed under the fixed header — and the header blends with difference,
+// which resolves white type over open cyan to a dark red you cannot read.
+// Sticky with a cancelling negative margin so it holds without adding height.
+.tn__wash {
+  position: sticky;
+  top: 0;
+  z-index: 0;
+  height: 100vh;
+  height: calc(var(--vh, 1vh) * 100);
+  margin-bottom: -100vh;
+  margin-bottom: calc(var(--vh, 1vh) * -100);
+  background:
+    // A scrim across the top of the frame, not the top of the section — the
+    // wash is viewport-locked, so this darkens the strip the header sits in at
+    // every scroll position and the chapter line stays pale type on a deep
+    // ground, the way it reads everywhere else on the page.
+    linear-gradient(180deg, rgb(var(--rgb-void) / 0.74) 0%, rgb(var(--rgb-void) / 0.4) 9%, transparent 21%),
+    radial-gradient(42% 48% at 99% 66%, rgb(var(--rgb-accent) / 0.95) 0%, rgb(var(--rgb-accent) / 0.5) 38%, transparent 74%),
+    radial-gradient(52% 26% at 88% -10%, var(--c-ink) 0%, transparent 74%),
+    radial-gradient(58% 46% at -4% 4%, #0A0206 0%, transparent 66%),
+    linear-gradient(102deg, rgb(var(--rgb-ink) / 0.55) 4%, rgb(var(--rgb-deep) / 0.3) 34%, transparent 74%);
+}
+
+.tn__thread {
+  position: absolute;
+  left: 43%;
+  top: 0;
+  z-index: 2;
+  width: 6.4%;
+  height: min(62%, 62rem);
+  overflow: visible;
+  pointer-events: none;
+
+  path {
+    fill: none;
+    stroke: rgb(var(--rgb-bone) / 0.22);
+    stroke-width: 1;
+    vector-effect: non-scaling-stroke;
+  }
+}
+
+.tn__grid {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+
+// Holds itself in the frame for the length of the list. `align-self: start` is
+// what keeps the grid from stretching it to the row's full height, which would
+// leave nothing for it to stick within.
+.tn__count {
+  position: sticky;
+  top: 0;
+  align-self: start;
+  height: 100vh;
+  height: calc(var(--vh, 1vh) * 100);
+  display: grid;
+  place-items: center;
+  // Sits right of its column's centre, where the reference puts it — far
+  // enough off the edge to read as placed rather than as a margin decoration.
+  padding-left: 7%;
+  overflow: hidden;
+  pointer-events: none;
+  user-select: none;
+}
+
+.tn__numeral {
+  font-size: clamp(11rem, min(50vw, 94vh), 60rem);
+  line-height: 0.78;
+  font-weight: 200;
+  letter-spacing: -0.04em;
+  // Pale at the shoulder, near-white where the curve comes back round — the
+  // glyph is large enough that a flat fill reads as a printed shape.
+  background: linear-gradient(154deg, #E5B4A0 0%, #F2D8CC 46%, #FDF6F2 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  will-change: transform;
+}
+
+// The tail matters as much as the head. The next section is a sticky stage
+// that slides its own ground up from below, so whatever is still on screen
+// when that edge arrives reads as belonging to it — the last principle was
+// being cut in half by a horizon that was not its own. Half a viewport of
+// room after it means the column has left before the edge appears.
+.tn__body {
+  padding: clamp(5rem, 16vh, 11rem) var(--gutter) clamp(11rem, 46vh, 26rem)
+    clamp(0.75rem, 2.2vw, 3rem);
+}
+
+.tn__h {
+  font-size: var(--t-h1);
+  line-height: 1;
+  letter-spacing: -0.03em;
+  font-weight: 250;
+  color: var(--c-bone);
+}
+
+// A step above the body ladder and below the headings: the reference sets this
+// paragraph noticeably larger than the list copy, and it is the only thing
+// keeping the top of the column from reading as another list entry.
+.tn__intro {
+  margin-top: clamp(1rem, 2.6vh, 1.8rem);
+  max-width: 26ch;
+  font-size: clamp(1.15rem, 1.75vw, 1.75rem);
+  line-height: 1.34;
+  font-weight: 250;
+  color: var(--c-bone);
+}
+
+// Indented past the heading. The count, the statement and the list each start
+// at their own left edge, which is what gives the column its stagger.
+.tn__list {
+  margin-top: clamp(4.5rem, 14vh, 9rem);
+  padding-left: clamp(1rem, 7vw, 8rem);
+  display: grid;
+  gap: clamp(2.6rem, 7vh, 4.6rem);
+  list-style: none;
+}
+
+.tn__item { max-width: 40ch; }
+
+.tn__label {
+  display: flex;
+  align-items: baseline;
+  gap: 0.85em;
+  margin-bottom: clamp(0.7rem, 1.8vh, 1.15rem);
+  font-family: "Space Grotesk", ui-monospace, monospace;
+  font-size: var(--t-label);
+  letter-spacing: var(--ls-label);
+  text-transform: uppercase;
+  color: var(--c-bone);
+
+  &::before {
+    content: "";
+    flex: none;
+    width: 0.42em;
+    height: 0.42em;
+    border-radius: 50%;
+    background: var(--c-accent);
+  }
+}
+
+.tn__copy {
+  font-size: var(--t-lead);
+  line-height: 1.48;
+  font-weight: 250;
+  color: rgb(var(--rgb-bone) / 0.82);
+}
+
+// Below this the two columns stop being two columns: the numeral would have to
+// shrink past the point where it reads as the count, so it goes behind the
+// words as a watermark instead of beside them.
+@media (max-width: 60rem) {
+  .tn__grid { grid-template-columns: minmax(0, 1fr); }
+
+  // Both in the one cell, so the count sits behind the words rather than above
+  // them, and stays sticky — parked at the section's top it was gone after the
+  // first screenful, which is the one thing the numeral must not do.
+  .tn__count,
+  .tn__body { grid-row: 1; grid-column: 1; }
+
+  .tn__count {
+    z-index: 0;
+    padding-left: 0;
+    opacity: 0.13;
+  }
+
+  .tn__body { position: relative; z-index: 1; }
+
+  .tn__numeral {
+    font-size: min(92vw, 56vh);
+    // Held still here. The drift is a second rate against a list beside it;
+    // behind the list it just pulls the watermark off the top of the frame.
+    transform: none !important;
+  }
+
+  .tn__thread { display: none; }
+
+  .tn__body { padding-inline: var(--gutter); }
+  .tn__list { padding-left: 0; }
+}
+</style>

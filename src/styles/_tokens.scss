@@ -1,0 +1,79 @@
+// Design tokens. One source for colour, type, motion and rhythm.
+:root {
+  // Palette — drawn out of the field itself.
+  //
+  // The ground behind every section is a wine gradient, so the page is built
+  // in that family rather than tinted over it: a cool navy laid on crimson
+  // goes muddy purple wherever the two meet, and no amount of adjusting the
+  // alpha rescues it. Everything here is either the field's own hue at a
+  // different depth, or the one warm light that answers it.
+  //
+  // Almost no hue variance, all the contrast from luminance — the same
+  // discipline a dark editorial page needs to stay readable.
+  --c-ink:        #140309;
+  --c-abyss:      #2A0712;
+  --c-deep:       #520E22;
+  /// The action colour: the field lifted to full saturation, so a call to
+  /// action reads as the brightest thing of its own kind on the page.
+  --c-indigo:     #9E1235;
+  /// The one light hue. Warm, because a cool accent on wine is a clash rather
+  /// than a contrast — this reads as light falling on the ground, not as a
+  /// second colour competing with it.
+  --c-accent:     #F0A58C;
+  --c-accent-dim: #B0705E;
+  --c-bone:       #FBF2EF;
+  --c-bone-dim:   rgb(var(--rgb-bone) / 0.58);
+  --c-bone-faint: rgb(var(--rgb-bone) / 0.20);
+  --c-line:       rgb(var(--rgb-bone) / 0.13);
+
+  /// The same colours as bare triplets, so any rule needing its own alpha can
+  /// compose one instead of restating the channels. Hardcoded `rgba(...)` is
+  /// what let a previous palette change leave forty literals behind.
+  --rgb-ink:    20 3 9;
+  --rgb-deep:   82 14 34;
+  --rgb-action: 158 18 53;
+  --rgb-accent: 240 165 140;
+  --rgb-bone:   251 242 239;
+  /// Deeper than ink: the shadow the field is vignetted into.
+  --rgb-void:   6 1 4;
+
+  --g-color-1: #3C010E;
+  --g-color-2: #750227;
+  --g-color-3: #750227;
+  --g-bg:      #000000;
+
+  // Motion. Published easing curves, named so intent survives the number.
+  --e-none:         cubic-bezier(0.25, 0.25, 0.75, 0.75);
+  --e-out-quad:     cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  --e-out-cubic:    cubic-bezier(0.215, 0.61, 0.355, 1);
+  --e-out-quart:    cubic-bezier(0.165, 0.84, 0.44, 1);
+  --e-out-expo:     cubic-bezier(0.19, 1, 0.22, 1);
+  --e-in-out-quad:  cubic-bezier(0.455, 0.03, 0.515, 0.955);
+  --e-in-out-cubic: cubic-bezier(0.645, 0.045, 0.355, 1);
+  --e-in-out-quart: cubic-bezier(0.77, 0, 0.175, 1);
+
+  // The one duration every hover micro-state shares. Kept as a token because
+  // a page where each control picks its own timing reads as unfinished.
+  --t-hover: 0.35s;
+
+  // Fluid type, set to the proportions measured off the reference at 1024px:
+  // a display line at ~5.6vw, body at ~1.6vw, and labels at ~1vw carrying very
+  // wide tracking. The restraint is the point — the headline reads large
+  // because everything around it is small, not because it is enormous.
+  --t-display: clamp(2.4rem, 5.9vw, 6rem);
+  --t-h1:      clamp(2.2rem, 5.6vw, 5.6rem);
+  --t-h2:      clamp(1.6rem, 3.4vw, 3.4rem);
+  --t-h3:      clamp(1.15rem, 1.9vw, 1.9rem);
+  --t-lead:    clamp(1rem, 1.5vw, 1.45rem);
+  --t-body:    clamp(0.9rem, 1.05vw, 1.05rem);
+  --t-label:   clamp(0.6rem, 0.68vw, 0.7rem);
+
+  /// Labels are tracked far wider than type usually is — it is what makes a
+  /// nine-pixel word read as a rule rather than as small text.
+  --ls-label: 0.3em;
+
+  // Rhythm
+  --gutter: clamp(1.25rem, 3.4vw, 3.25rem);
+  --stack:  clamp(4rem, 11vh, 9rem);
+  --vh: 1vh;
+}

@@ -1,0 +1,150 @@
+@use "tokens";
+@use "reset";
+
+.stage {
+  position: relative;
+  width: 100%;
+}
+
+// Every section is a card in the scrolled stage. Padding is fluid so the
+// composition keeps its proportions rather than its pixel measurements.
+.section {
+  position: relative;
+  padding: var(--stack) var(--gutter);
+  width: 100%;
+}
+
+.wrap {
+  width: 100%;
+  max-width: 96rem;
+  margin-inline: auto;
+}
+
+.label {
+  font-family: "Space Grotesk", ui-monospace, monospace;
+  font-size: var(--t-label);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--c-accent);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.7em;
+
+  &::before {
+    content: "";
+    width: 1.9em;
+    height: 1px;
+    background: currentColor;
+    opacity: 0.7;
+  }
+
+  &--bare::before { display: none; }
+}
+
+.display {
+  font-size: var(--t-display);
+  line-height: 1;
+  letter-spacing: -0.025em;
+  font-weight: 250;
+}
+
+// Tracking tightens as the size grows, which is what keeps a light grotesque
+// from looking loose at display sizes and cramped at body sizes.
+.h1 { font-size: var(--t-h1); line-height: 1; letter-spacing: -0.025em; font-weight: 250; }
+.h2 { font-size: var(--t-h2); line-height: 1.06; letter-spacing: -0.024em; font-weight: 250; }
+.h3 { font-size: var(--t-h3); line-height: 1.24; letter-spacing: -0.012em; font-weight: 400; }
+
+.lead {
+  font-size: var(--t-lead);
+  line-height: 1.52;
+  color: var(--c-bone-dim);
+  // Capped in characters rather than pixels: measure is what makes a line
+  // readable, and it does not change when the viewport does.
+  max-width: 46ch;
+  text-wrap: pretty;
+}
+
+.rule {
+  height: 1px;
+  width: 100%;
+  background: var(--c-line);
+  transform-origin: left center;
+}
+
+// Reveal primitives. The JS observer flips `is-in`; CSS owns the motion so a
+// reduced-motion preference can switch it off without touching the script.
+.reveal {
+  opacity: 0;
+  transform: translate3d(0, 1.6rem, 0);
+  transition: opacity 1.05s var(--e-out-quart), transform 1.05s var(--e-out-quart);
+  transition-delay: var(--d, 0ms);
+
+  &.is-in { opacity: 1; transform: none; }
+}
+
+.reveal-line {
+  display: block;
+  overflow: hidden;
+
+  > span {
+    display: block;
+    transform: translate3d(0, 105%, 0);
+    transition: transform 1.15s var(--e-out-quart);
+    transition-delay: var(--d, 0ms);
+  }
+
+  &.is-in > span { transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal, .reveal-line > span { opacity: 1; transform: none; }
+}
+
+
+/**
+ * A full-bleed image sitting behind a section's copy.
+ *
+ * Always behind, always dimmed, and always `pointer-events: none`: these are
+ * atmosphere, not content. Anything a reader needs to see is type.
+ */
+.ambient {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    // Scaled past the frame so a parallax shift never exposes an edge.
+    transform: scale(1.12);
+    will-change: transform;
+  }
+
+  // Screened rather than laid on top, so the field's own gradient still reads
+  // through and the two look like one lit space instead of two stacked images.
+  &--screen img { mix-blend-mode: screen; }
+  &--soft img   { opacity: 0.42; }
+  &--faint img  { opacity: 0.24; }
+}
+
+/**
+ * The one section that breaks the run of dark ones.
+ *
+ * Seven dark sections in a row read as a single long block however different
+ * their contents are; one pale section resets the eye and makes the dark ones
+ * feel deliberate. It carries its own colours rather than inheriting, because
+ * every token on the page assumes a dark ground.
+ */
+.section--light {
+  background: var(--c-bone);
+  color: var(--c-ink);
+  isolation: isolate;
+
+  .label { color: var(--c-indigo); }
+  .lead { color: rgb(var(--rgb-ink) / 0.62); }
+  .rule { background: rgb(var(--rgb-ink) / 0.14); }
+  .h1, .h2, .h3, .display { color: var(--c-indigo); }
+}

@@ -1,0 +1,61 @@
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body, h1, h2, h3, h4, p, figure, blockquote, dl, dd, ul, ol {
+  margin: 0;
+  padding: 0;
+}
+
+ul, ol { list-style: none; }
+
+html {
+  -webkit-text-size-adjust: 100%;
+  // The document scrolls. An earlier cut locked it and scrolled a fixed
+  // container instead, which meant every ScrollTrigger had to be told about a
+  // scroller that did not exist until the parent mounted — and the ones that
+  // registered first silently measured against the window and never fired.
+  // Scrolling the thing the browser already scrolls removes that whole class
+  // of bug; the WebGL field is fixed behind it either way.
+  scroll-behavior: auto;
+}
+
+body {
+  min-height: 100%;
+  // Lenis eases this; the bar itself is noise next to an art-directed scroll.
+  scrollbar-width: none;
+  &::-webkit-scrollbar { display: none; }
+  background: var(--c-abyss);
+  color: var(--c-bone);
+  font-family: "Inter Variable", system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size: var(--t-body);
+  line-height: 1.6;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+img, svg, canvas { display: block; max-width: 100%; }
+
+a { color: inherit; text-decoration: none; }
+
+button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  padding: 0;
+}
+
+// The custom cursor stands in for the system one on pointer devices only.
+@media (hover: hover) and (pointer: fine) {
+  body, a, button { cursor: none; }
+}
+
+::selection { background: var(--c-accent); color: var(--c-ink); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
