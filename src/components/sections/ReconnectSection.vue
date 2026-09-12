@@ -147,16 +147,6 @@ const told = (i: number) => {
 };
 
 
-/** The one line the figure is traced with. Held here so the stroke and the
- *  spark that rides it can never be given different geometry. */
-const TRACE = "M 150 120 C 150 20 470 20 470 190 C 470 360 150 330 150 500 C 150 640 430 640 500 560";
-
-/** The stroke is 1400 long; the dash retreats as the curve is drawn. */
-const CURVE = 1400;
-
-/** How far along the curve the drawing head has reached, in stroke units. */
-const drawn = () => beat(0.85, 1) * CURVE;
-
 onMounted(() => {
   if (!root.value) return;
   if (prefersReduced()) { p.value = 1; return; }
@@ -272,30 +262,6 @@ onBeforeUnmount(() => trigger?.kill());
               transform: `translate(${o[0] * beat(0.82 + i * 0.009, 0.97 + i * 0.009)}px, ${o[1] * beat(0.82 + i * 0.009, 0.97 + i * 0.009)}px)`,
             }"
           />
-
-          <!-- One line through the figure, drawn rather than revealed: the
-               dash retreating is what makes it read as being traced. -->
-          <path
-            class="rc__curve"
-            :d="TRACE"
-            :style="{ strokeDasharray: CURVE, strokeDashoffset: CURVE - drawn() }"
-          />
-
-          <!-- And the light that is drawing it. A short bright dash pinned to
-               the head of the stroke, so the line does not appear so much as
-               get struck. Same path, so it cannot drift off the curve. -->
-          <path
-            class="rc__spark"
-            :d="TRACE"
-            :style="{
-              strokeDasharray: `30 ${CURVE * 2}`,
-              strokeDashoffset: -(drawn() - 30),
-              opacity: beat(0.85, 0.88) - beat(0.985, 1),
-            }"
-          />
-
-          <circle class="rc__pip" cx="336" cy="250" :r="13" :style="{ opacity: beat(0.9, 0.96) }" />
-          <circle class="rc__pip" cx="336" cy="470" :r="13" :style="{ opacity: beat(0.94, 1) }" />
         </svg>
 
         <p class="rc__turn-copy">

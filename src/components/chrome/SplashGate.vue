@@ -50,7 +50,7 @@ onMounted(async () => {
 
   // A hard ceiling so a stalled third-party request can never trap the reader
   // behind the gate. `setTimeout` keeps running where rAF does not.
-  setTimeout(() => bump(100), 4500);
+  setTimeout(() => bump(100), 500);
 });
 
 const enter = () => {

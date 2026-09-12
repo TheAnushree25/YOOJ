@@ -195,9 +195,10 @@ onBeforeUnmount(() => cancelAnimationFrame(frame));
   inset: -10%;
   z-index: 0;
   background:
-    radial-gradient(58% 74% at 78% 46%, var(--c-accent) 0%, rgb(var(--rgb-accent) / 0.45) 34%, transparent 68%),
-    radial-gradient(70% 90% at 12% 8%, var(--c-ink) 12%, transparent 62%),
-    linear-gradient(118deg, rgb(var(--rgb-ink) / 0.72) 6%, rgb(var(--rgb-deep) / 0.42) 46%, rgb(var(--rgb-accent) / 0.3) 100%);
+    radial-gradient(76% 62% at 88% 34%, rgb(var(--rgb-accent) / 0.38) 0%, transparent 72%),
+    radial-gradient(58% 70% at 75% 85%, #FFFFFF 0%, transparent 66%),
+    radial-gradient(60% 80% at 15% 30%, var(--c-ink) 20%, transparent 70%),
+    linear-gradient(112deg, #140309 0%, #1A040B 28%, #3D0A1A 38%, #8E303E 46%, #FEFAF8 56%, var(--c-bone) 76%, #F6E4DA 100%);
   filter: saturate(1.05);
   animation: wash-drift 22s var(--e-in-out-cubic) infinite alternate;
 }
@@ -304,7 +305,8 @@ onBeforeUnmount(() => cancelAnimationFrame(frame));
   max-width: 26ch;
   font-size: var(--t-body);
   line-height: 1.5;
-  color: var(--c-bone);
+  color: var(--c-indigo);
+  font-weight: 400;
   text-align: left;
   will-change: transform, opacity;
 
