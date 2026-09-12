@@ -142,8 +142,9 @@ export const fragment = /* glsl */ `
     // Into plane space: centred, aspect-corrected, rotated and offset the way
     // the original's camera sees it.
     vec2 p = vec2((uv.x - 0.5) * aspect, uv.y - 0.5) * 2.0;
-    float c = cos(uRotation);
-    float s = sin(uRotation);
+    float turn = uRotation + sin(uTime * 0.021) * 0.16;
+    float c = cos(turn);
+    float s = sin(turn);
     p = vec2(p.x * c - p.y * s, p.x * s + p.y * c);
     p += uOffset;
 
@@ -152,6 +153,20 @@ export const fragment = /* glsl */ `
     p += (uPointer - 0.5) * 0.22;
 
     float t = uTime * uSpeed;
+
+    /**
+     * The field is never twice the same.
+     *
+     * The noise already flows, but a flowing surface under a fixed colour ramp
+     * reads as one image being stirred — the colour never actually changes.
+     * These three drifts are what make it a gradient that evolves: the plane
+     * turns, the light walks around it, and the stops the ramp is read between
+     * breathe apart and together. All far slower than the surface itself, so
+     * nothing on screen appears to move because of them; the frame is simply
+     * different whenever you come back to it.
+     */
+    float era = uTime * 0.045;
+
     float h = height(p, t);
 
     // The slope, taken by differencing the height either side. This is what
@@ -164,19 +179,38 @@ export const fragment = /* glsl */ `
     ) / (2.0 * e);
     vec3 normal = normalize(vec3(-slope, 1.0));
 
-    // Three stops along the surface, exactly as the original mixes them.
+    // Three stops along the surface, exactly as the original mixes them —
+    // with the thresholds drifting, so the balance between them keeps moving.
     float ramp = clamp(h * 0.5 + 0.5, 0.0, 1.0);
-    vec3 col = mix(uColor1, uColor2, smoothstep(0.18, 0.72, ramp));
-    col = mix(col, uColor3, smoothstep(0.62, 1.0, ramp));
+    float lo = 0.18 + sin(era) * 0.10;
+    float hi = 0.72 + sin(era * 0.73 + 1.7) * 0.12;
+    vec3 col = mix(uColor1, uColor2, smoothstep(lo, hi, ramp));
+    col = mix(col, uColor3, smoothstep(0.58 + sin(era * 0.51 + 3.1) * 0.12, 1.0, ramp));
 
-    // A single key from the upper left, which is where the preset's studio
-    // light sits, plus the reflection control as a tight highlight.
-    vec3 key = normalize(vec3(-0.55, 0.72, 0.62));
+    // A key from the upper left, where the preset's studio light sits, walking
+    // slowly around the surface so the lit side of every fold keeps changing.
+    vec3 key = normalize(vec3(-0.55 + sin(era * 0.8) * 0.4, 0.72, 0.62 + cos(era * 0.8) * 0.22));
     float lambert = max(dot(normal, key), 0.0);
-    float spec = pow(max(dot(reflect(-key, normal), vec3(0.0, 0.0, 1.0)), 0.0), 24.0);
+
+    // A broad sheen, not a point highlight.
+    //
+    // At a tight exponent this term found every small slope in the noise and
+    // lit it to near-white — the field was covered in little comets. Widened
+    // to a soft roll-off and multiplied by the diffuse term, it can only
+    // brighten a face that is already lit, which is what a reflection does.
+    float sheen = pow(max(dot(reflect(-key, normal), vec3(0.0, 0.0, 1.0)), 0.0), 5.0);
 
     col *= 0.72 + lambert * 0.44;
-    col += uReflection * spec;
+
+    // Multiplied in, never added.
+    //
+    // This colour's green channel is close to zero, so adding even a hundredth
+    // of white light to every channel equally raises green by orders of
+    // magnitude and the crimson desaturates to a pale streak. That is what the
+    // white comets across the field were: not highlights, but the hue being
+    // washed out wherever the surface faced the light. Scaling keeps the hue
+    // and brightens what is already there.
+    col *= 1.0 + uReflection * sheen * lambert * 0.8;
     col *= uBrightness;
 
     // The page's own travel warms the field slightly, so the site has a
@@ -188,10 +222,6 @@ export const fragment = /* glsl */ `
     float vig = smoothstep(1.5, 0.3, length(vec2((uv.x - 0.5) * aspect, uv.y - 0.5)));
     col = mix(uBg, col, 0.34 + vig * 0.66);
 
-    // Grain. Breaks the banding that large flat gradients show on cheap panels.
-    float grain = (fract(sin(dot(uv * uResolution + fract(uTime), vec2(127.1, 311.7))) * 43758.5453) - 0.5) * 0.012;
-    col += grain;
-
     // Back to sRGB before writing.
     //
     // Three converts every Color to linear space on construction, so the
@@ -200,6 +230,16 @@ export const fragment = /* glsl */ `
     // displays the whole field about a gamma too dark, and the page reads as
     // black. This is the encode that closes that loop.
     col = pow(max(col, vec3(0.0)), vec3(1.0 / 2.2));
+
+    // Grain, applied after the encode rather than before it.
+    //
+    // In linear space a fixed offset is enormous relative to a channel that is
+    // almost zero, so grain added there speckles the darks and tints them. In
+    // display space the same offset is the same perceived step everywhere,
+    // which is all it is for: breaking the banding an eight-bit panel shows
+    // across a large smooth gradient.
+    float grain = (fract(sin(dot(uv * uResolution + fract(uTime), vec2(127.1, 311.7))) * 43758.5453) - 0.5) * 0.016;
+    col += grain;
 
     gl_FragColor = vec4(col, 1.0);
   }
