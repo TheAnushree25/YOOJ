@@ -29,7 +29,7 @@ const hasCutout = ref(true);
 const subject = ref<HTMLElement | null>(null);
 const { x, y } = usePointer();
 
-const titleLines = ["Care that", "keeps up with", "a living mind"];
+const titleLines = ["Empower", "your mental", "health journey"];
 
 // The hero is on screen when the gate opens, so it is told when to play
 // rather than watching for itself.
@@ -150,7 +150,7 @@ onBeforeUnmount(() => cancelAnimationFrame(frame));
         immediate
       />
       <div ref="cta" class="hero__cta">
-        <ActionButton label="Start your journey" href="#contact" variant="solid" />
+        <ActionButton label="Start your YOOJ journey" href="#contact" variant="solid" />
       </div>
     </div>
 
@@ -170,8 +170,8 @@ onBeforeUnmount(() => cancelAnimationFrame(frame));
 
     <!-- Corner furniture, above everything. -->
     <aside ref="aside" class="hero__aside">
-      YOOJ is a cognitive wellbeing lab working where measurement, clinical
-      practice and ordinary life meet.
+      Good healthcare shouldn't depend on where you live. YOOJ is building a
+      connected primary-care network for the people who keep India moving.
     </aside>
   </section>
 </template>
