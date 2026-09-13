@@ -25,9 +25,10 @@ const ease = (t: number) => t * t * (3 - 2 * t);
 const beat = (from: number, to: number) => ease(clamp01((p.value - from) / (to - from)));
 
 const intro = [
-  "Collective voices of people describing",
-  "the care they have actually had.",
-  "This is why we do what we do.",
+  "For millions of working Indians, healthcare is not",
+  "one experience. It’s a series of compromises —",
+  "cost, distance, inconsistency and uncertainty.",
+  "These are the moments YOOJ was built to change.",
 ];
 
 /** Illustrative composites, not real patients. */
@@ -141,8 +142,8 @@ onBeforeUnmount(() => trigger?.kill());
         }"
       >
         <h2 class="pv__h">
-          <span class="pv__mask"><span>Personal</span></span>
-          <span class="pv__mask"><span>Perspectives</span></span>
+          <span class="pv__mask"><span>The people</span></span>
+          <span class="pv__mask"><span>living the gap.</span></span>
         </h2>
         <p class="pv__intro">
           <span v-for="(line, i) in intro" :key="i" class="pv__mask"><span>{{ line }}</span></span>

@@ -16,13 +16,13 @@ import SplitHeading from "../ui/SplitHeading.vue";
  * closing section land as an ending rather than as another chapter.
  */
 
-const title = ["The next shape of", "cognitive care"];
+const title = ["The future", "of everyday", "healthcare"];
 
 const body =
-  "Tideline is the instrument we have in development. It reads a person's week "
-  + "as one continuous signal — sleep, load, mood and focus moving together — and "
-  + "puts the shape of a change in front of a clinician while there is still "
-  + "something useful to do about it.";
+  "JeevanBhar is YOOJ’s primary-care membership — a lifetime health identity "
+  + "that connects every visit, prescription and diagnostic result across the YOOJ "
+  + "network. Issued free at your first visit, it works offline and travels with "
+  + "you from one YOOJ centre to another.";
 </script>
 
 <template>
@@ -38,10 +38,10 @@ const body =
       />
 
       <div class="sl__note">
-        <p v-reveal class="sl__eyebrow">Meet Tideline</p>
+        <p v-reveal class="sl__eyebrow">Meet JeevanBhar</p>
         <p v-reveal="120" class="sl__body">{{ body }}</p>
         <div v-reveal="240" class="sl__act">
-          <ActionButton label="Discover the instrument" href="#contact" variant="solid" />
+          <ActionButton label="Discover solution" href="#contact" variant="solid" />
         </div>
       </div>
     </div>

@@ -39,11 +39,16 @@ const beat = (from: number, to: number) => ease(span(from, to));
  * viewports of scrolling that began with nothing to read.
  */
 const statement = [
-  "Our minds answer to the world",
-  "around them, yet the care we offer",
-  "keeps asking them to answer",
-  "a form instead.",
+  "500 million working Indians",
+  "deserve better healthcare.",
+  "Not someday. Not only when",
+  "things get serious. Every day.",
 ];
+
+/** The belief, stated plainly beneath it. */
+const belief =
+  "YOOJ exists to make quality primary healthcare accessible, affordable and "
+  + "consistent across Tier 2 and Tier 3 India.";
 
 /**
  * Why a single reading is not a diagnosis.
@@ -54,10 +59,11 @@ const statement = [
  * reveal — which is what the first two of these were doing at desktop width.
  */
 const argument = [
-  "Care today runs in a straight line,",
-  "gathering findings months apart and",
-  "rarely joining them into one picture",
-  "of a person as they actually are.",
+  "Primary healthcare operates in fragments,",
+  "with every visit treated as a separate event,",
+  "leaving patients to carry their history",
+  "from doctor to pharmacy to diagnostics",
+  "and back again.",
 ];
 
 /**
@@ -119,13 +125,11 @@ const domeY = () => (1 - beat(0.18, 0.42)) * 96 - beat(0.40, 0.60) * 16;
  * what the last one learned. Drawn as a row so its length is the argument.
  */
 const pathway = [
-  "Intake",
-  "First assessment",
-  "Waiting",
-  "Re-assessment",
-  "Diagnosis",
-  "Referral",
-  "Back to intake",
+  "Doctor",
+  "Prescription",
+  "Pharmacy",
+  "Diagnostics",
+  "Next visit",
 ];
 
 /**
@@ -136,8 +140,8 @@ const pathway = [
  * and the line breaks are the browser's business.
  */
 const turn = (
-  "YOOJ moves beyond the straight line, reading the whole of a week as one "
-  + "connected signal, towards care that answers a person rather than a form."
+  "YOOJ moves beyond fragmented care, connecting the doctors, pharmacies, "
+  + "diagnostics and records that already exist into one trusted healthcare network."
 ).split(" ");
 
 /** A word's brightness in the closing beat. The edge runs ahead of itself. */
@@ -171,7 +175,7 @@ onBeforeUnmount(() => trigger?.kill());
 
       <!-- Beat one: the statement, present from the first frame. -->
       <div class="rc__panel" :style="{ opacity: 1 - beat(0.17, 0.29) }">
-        <p class="label rc__eyebrow">Reconnecting</p>
+        <p class="label rc__eyebrow">Our belief</p>
         <p class="rc__statement">
           <span v-for="(line, i) in statement" :key="i" class="rc__line">
             <span :style="{ transform: `translate3d(0, ${(1 - beat(0.005 + i * 0.022, 0.13 + i * 0.022)) * 110}%, 0)` }">
@@ -179,6 +183,7 @@ onBeforeUnmount(() => trigger?.kill());
             </span>
           </span>
         </p>
+        <p class="rc__belief">{{ belief }}</p>
       </div>
 
       <!-- Beat two: the deep ground climbs through it as a wide circular arc. -->
@@ -271,7 +276,7 @@ onBeforeUnmount(() => trigger?.kill());
 
       <!-- The standing marker, swapping its word as the argument turns. -->
       <p class="label rc__marker" :style="{ opacity: beat(0.30, 0.40) }">
-        {{ p > 0.84 ? "Beyond a straight line" : "Reconnecting" }}
+        {{ p > 0.84 ? "YOOJ" : "Reconnecting healthcare" }}
       </p>
     </div>
   </section>
@@ -598,5 +603,15 @@ onBeforeUnmount(() => trigger?.kill());
   .rc__stage { position: relative; height: auto; min-height: 100vh; }
   .rc__panel { display: none; }
   .rc__dome { transform: translateX(-50%) !important; }
+}
+
+// The belief, set under the statement at the reading size.
+.rc__belief {
+  max-width: 26rem;
+  margin: clamp(1rem, 2.6vh, 1.6rem) 0 0;
+  font-size: var(--t-lead);
+  line-height: 1.45;
+  font-weight: 300;
+  color: var(--c-bone-dim);
 }
 </style>

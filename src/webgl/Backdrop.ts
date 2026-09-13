@@ -5,6 +5,35 @@ import {
 import { fragment, vertex } from "./shaders/backdrop.glsl";
 
 /**
+ * How a page asks for its own ground.
+ *
+ * One shader, two palettes. The front page is a deep wine field and the Aleph
+ * page is a pale one, and the difference between them is entirely these
+ * numbers — so they are arguments rather than two copies of a shader that
+ * would drift apart the first time either was adjusted. `prefix` names the
+ * token group the colours are read from, which keeps the palette in the
+ * stylesheet where the rest of the page's colour lives.
+ */
+export interface FieldOptions {
+  prefix?: string;
+  amplitude?: number;
+  density?: number;
+  frequency?: number;
+  speed?: number;
+  strength?: number;
+  brightness?: number;
+  reflection?: number;
+  /** Ambient floor: how dark the unlit side of a fold is allowed to go. */
+  shade?: number;
+  /** rotationZ, in degrees. */
+  rotation?: number;
+  /** positionX / positionY. */
+  offset?: [number, number];
+  /** color1, color2, color3, bg — used when a token is absent. */
+  fallback?: [string, string, string, string];
+}
+
+/**
  * The full-bleed field behind every section.
  *
  * A single full-screen triangle-ish quad under an orthographic camera: there is
@@ -39,14 +68,22 @@ export class Backdrop {
     return new Color(raw || fallback);
   }
 
-  constructor(canvas: HTMLCanvasElement) {
+  constructor(canvas: HTMLCanvasElement, field: FieldOptions = {}) {
+    const {
+      prefix = "--g",
+      amplitude = 1.25, density = 1.3, frequency = 5.5,
+      speed = 0.4, strength = 4.0, brightness = 1.3, reflection = 0.1, shade = 0.72,
+      rotation = 50, offset = [-1.4, 0],
+      fallback = ["#3C010E", "#750227", "#FEB3B8", "#3C010E"],
+    } = field;
+    const stop = (n: number) => Backdrop.token(`${prefix}-color-${n}`, fallback[n - 1]);
     this.renderer = new WebGLRenderer({
       canvas,
       antialias: false,
       alpha: false,
       powerPreference: "high-performance",
     });
-    this.renderer.setClearColor(Backdrop.token("--g-bg", "#000000"), 1);
+    this.renderer.setClearColor(Backdrop.token(`${prefix}-bg`, fallback[3]), 1);
 
     this.material = new ShaderMaterial({
       vertexShader: vertex,
@@ -60,23 +97,24 @@ export class Backdrop {
         uPointer: { value: this.pointer },
         // Three stops and a ground, read from the stylesheet so the field and
         // the page can never be given different palettes.
-        uColor1: { value: Backdrop.token("--g-color-1", "#3C010E") },
-        uColor2: { value: Backdrop.token("--g-color-2", "#750227") },
-        uColor3: { value: Backdrop.token("--g-color-3", "#750227") },
-        uBg: { value: Backdrop.token("--g-bg", "#000000") },
+        uColor1: { value: stop(1) },
+        uColor2: { value: stop(2) },
+        uColor3: { value: stop(3) },
+        uBg: { value: Backdrop.token(`${prefix}-bg`, fallback[3]) },
 
         // The ShaderGradient controls, one uniform each.
-        uAmplitude: { value: 1.0 },
-        uDensity: { value: 1.3 },
-        uFrequency: { value: 5.5 },
-        uSpeed: { value: 0.4 },
-        uStrength: { value: 4.0 },
-        uBrightness: { value: 1.3 },
-        uReflection: { value: 0.1 },
+        uAmplitude: { value: amplitude },
+        uDensity: { value: density },
+        uFrequency: { value: frequency },
+        uSpeed: { value: speed },
+        uStrength: { value: strength },
+        uBrightness: { value: brightness },
+        uReflection: { value: reflection },
+        uShade: { value: shade },
         // rotationZ, in radians.
-        uRotation: { value: (50 * Math.PI) / 180 },
+        uRotation: { value: (rotation * Math.PI) / 180 },
         // positionX / positionY.
-        uOffset: { value: new Vector2(-1.4, 0) },
+        uOffset: { value: new Vector2(offset[0], offset[1]) },
       },
     });
 

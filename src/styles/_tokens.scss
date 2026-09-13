@@ -39,8 +39,8 @@
 
   --g-color-1: #3C010E;
   --g-color-2: #750227;
-  --g-color-3: #750227;
-  --g-bg:      #000000;
+  --g-color-3: #FEB3B8;
+  --g-bg:      #3C010E;
 
   /// The veil every dark section lays over the field.
   ///
@@ -50,6 +50,36 @@
   /// panels. Even, directionless, and dense enough that bone type is legible
   /// wherever the field happens to be bright.
   --veil: rgb(var(--rgb-void) / 0.6);
+
+  /// The Aleph page: a pale field, and the type ladder measured off it.
+  ///
+  /// The sizes are the reference's own, read at a 1440 viewport — 80 / 60 / 50
+  /// / 26 / 20 / 12 / 10, with the display steps tracked -2px and the labels
+  /// +1.6px. The display steps scale with the frame because they are the
+  /// composition; the reading sizes do not, because a 20px paragraph is 20px
+  /// whatever the window is doing.
+  --ga-color-1: #FEB3B8;
+  --ga-color-2: #FED2D5;
+  --ga-color-3: #FFF5F6;
+  --ga-bg:      #FEB3B8;
+  /// The one ink on the pale page. Everything is set in it.
+  --ga-ink:     #3C010E;
+  /// The one saturated mark on the pale page: the dot every label carries.
+  --ga-dot:     #9E1235;
+
+  --ta-display: clamp(2.6rem, 5.56vw, 5rem);   // 80px at 1440
+  --ta-payoff:  clamp(2.1rem, 4.17vw, 3.75rem); // 60px
+  --ta-link:    clamp(1.9rem, 3.47vw, 3.13rem); // 50px
+  --ta-lead:    clamp(1.25rem, 1.81vw, 1.63rem); // 26px
+  --ta-body:    1.25rem;                        // 20px
+  --ta-fine:    0.75rem;                        // 12px
+  --ta-label:   0.625rem;                       // 10px
+  --la-display: 1;        // lh equals the size at every display step
+  --la-lead:    1.231;    // 32 / 26
+  --la-body:    1.4;      // 28 / 20
+  --la-label:   1.5;      // 15 / 10
+  --ls-display: -0.025em; // -2px at 80
+  --ls-fine:    0.16em;   // 1.6px at 10
 
   // Motion. Published easing curves, named so intent survives the number.
   --e-none:         cubic-bezier(0.25, 0.25, 0.75, 0.75);

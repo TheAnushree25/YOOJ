@@ -148,3 +148,45 @@
   .rule { background: rgb(var(--rgb-ink) / 0.14); }
   .h1, .h2, .h3, .display { color: var(--c-indigo); }
 }
+
+
+/**
+ * A ground that will not hold still.
+ *
+ * The field behind the page is a shader and it drifts on its own, but the
+ * sections that paint their own ground — the rooms, the sky, the two pale
+ * pages — were flat CSS and sat perfectly still underneath it. Read together
+ * that is a page whose background changes in some places and not others, which
+ * is worse than one that never changes at all.
+ *
+ * Oversizing the gradient and walking its position is what moves it: on a
+ * radial that slides the light itself, on a linear it shifts where the ramp
+ * falls. One long cycle, alternating rather than looping, so it never jumps
+ * back to the start — and slow enough that nothing on screen appears to be
+ * moving. The ground is simply somewhere else whenever the reader returns.
+ */
+.ground-drift {
+  background-position: 24% 30%;
+  animation: ground-drift 54s var(--e-in-out-quad) infinite alternate;
+}
+
+/** Offset, so two grounds meeting at a seam are never in step. */
+.ground-drift--slow {
+  background-position: 70% 62%;
+  animation: ground-drift-slow 78s var(--e-in-out-quad) infinite alternate;
+}
+
+@keyframes ground-drift {
+  from { background-position: 24% 30%; }
+  to   { background-position: 78% 74%; }
+}
+
+@keyframes ground-drift-slow {
+  from { background-position: 70% 62%; }
+  to   { background-position: 28% 34%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ground-drift,
+  .ground-drift--slow { animation: none; }
+}

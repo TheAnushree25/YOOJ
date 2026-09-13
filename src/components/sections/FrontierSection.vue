@@ -159,13 +159,13 @@ const flight = () => ({
 
 /* ------------------------------------------------------------------ words */
 
-const title = ["Instruments for", "a mind that", "never holds still"];
+const title = ["Building", "the future of", "everyday healthcare"];
 
 const body =
-  "YOOJ builds where continuous measurement, clinical judgement and ordinary "
-  + "life meet. Our instruments read the pattern rather than the moment, so a "
-  + "change in someone's week is visible while there is still something useful "
-  + "to do about it.";
+  "YOOJ connects qualified local doctors, pharmacies and diagnostics through a "
+  + "common standard, shared infrastructure and one continuous patient record — "
+  + "making everyday healthcare more accessible, consistent and trusted across "
+  + "Tier 2 and Tier 3 India.";
 
 /**
  * The three tiles. The first is the traveller, already on screen for the whole
@@ -174,24 +174,24 @@ const body =
 const tiles = [
   {
     slot: "apex",
-    label: ["A mind,", "in motion"],
-    note: "Weeks of signal, read as one shape.",
-    title: ["A week,", "seen whole"],
-    body: "We read a week rather than a moment. Sleep, load, mood and focus are gathered continuously and held together as one signal, so the thing a clinician looks at is the shape of a change over time and not a single answer given on a single afternoon. Placeholder copy.",
+    label: ["YOOJ", "Clinic"],
+    note: "Care that feels closer.",
+    title: ["Care that feels", "closer."],
+    body: "Qualified primary care, closer to where people live and work. YOOJ combines local doctors with a common quality standard, a better clinic experience and connected patient records.",
   },
   {
     slot: "left",
-    label: ["Signal in", "ordinary days"],
-    note: "Sleep, load and mood as they are lived.",
-    title: ["Measured where", "life happens"],
-    body: "The measurements come from the days people are already living, not from a room they had to travel to. Nothing asks anybody to perform wellness on demand, and nothing is collected that we could not explain in one sentence to the person it came from. Placeholder copy.",
+    label: ["YOOJ", "Pharmacy"],
+    note: "The right medicine. Without the doubt.",
+    title: ["The right medicine.", "Without the doubt."],
+    body: "Genuine medicines, supplied through the YOOJ network and dispensed through a generic-first model. Better procurement means better access and better pricing — without compromising what the patient receives.",
   },
   {
     slot: "right",
-    label: ["Clinical practice,", "held close"],
-    note: "Built with clinicians, answerable to them.",
-    title: ["Human wisdom,", "applied"],
-    body: "Every instrument is built alongside the clinicians who will carry it and judged by whether it survives a real clinic in a bad week. The work is to put a clearer picture in front of a practitioner sooner — never to reach a verdict on their behalf. Placeholder copy.",
+    label: ["YOOJ", "Diagnostics"],
+    note: "Diagnostics that stay with your care.",
+    title: ["Diagnostics that stay", "with your care."],
+    body: "Samples collected at YOOJ centres move through a connected diagnostic hub, with pathology, X-ray, ultrasound and cold-chain infrastructure supporting the network. Results become part of the patient’s continuing care.",
   },
 ] as const;
 
@@ -279,7 +279,7 @@ onBeforeUnmount(() => { trigger?.kill(); arrival?.kill(); });
               :style="{ strokeDashoffset: (1 - arrive(0.55, 1)) * 640 }"
             />
           </svg>
-          <p class="fr__eyebrow">Frontier work</p>
+          <p class="fr__eyebrow">The YOOJ network</p>
           <p class="fr__body">{{ body }}</p>
         </div>
       </div>
@@ -334,7 +334,7 @@ onBeforeUnmount(() => { trigger?.kill(); arrival?.kill(); });
         </div>
       </aside>
 
-      <p class="fr__marker">{{ p > 0.84 ? "Three ways in" : "Frontier work" }}</p>
+      <p class="fr__marker">{{ p > 0.84 ? "Three ways in" : "Beyond fragmented care" }}</p>
     </div>
   </section>
 </template>

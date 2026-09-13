@@ -32,8 +32,8 @@ let trigger: ReturnType<typeof scrubThrough> = null;
 const drift = () => 13 - p.value * 42;
 
 const intro =
-  "Through six principles held in common we set the shape of the work: what we "
-  + "measure, what we decline to claim, and who the answer belongs to.";
+  "One transformation. Every YOOJClinic. That’s how YOOJ builds a network "
+  + "without erasing the people already in it.";
 
 /**
  * Placeholder copy, written to the right length rather than to the right words.
@@ -42,28 +42,20 @@ const intro =
  */
 const tenets = [
   {
-    k: "Measure continuously",
-    p: "A week is the unit, not a moment. We read sleep, load, mood and focus as they move together, because the interesting signal is in how they move and not in where any one of them sits on a given afternoon.",
+    k: "01 — Refurbish",
+    p: "Make the space worthy of care. We physically upgrade the clinic — from signage and interiors to waiting areas, shelving and essential equipment.",
   },
   {
-    k: "Explain or do not ship",
-    p: "If we cannot say why a flag was raised in language the person it concerns would recognise, the flag does not leave the lab. Accuracy that cannot be inspected is not accuracy; it is a claim waiting to be believed.",
+    k: "02 — Rewire",
+    p: "Connect what was always apart. We connect the clinic to YOOJ’s infrastructure — JeevanBhar, the generic medicine supply chain and diagnostic network.",
   },
   {
-    k: "Consent is the interface",
-    p: "Every signal held about a person is visible to them, switchable by them and portable away from us. Nothing is collected that we could not explain in a single sentence to the person it came from.",
+    k: "03 — Rebrand",
+    p: "Keep the name. Add the promise. The doctor’s identity and community legacy stay. YOOJ adds a recognizable standard patients can trust.",
   },
   {
-    k: "Escalation beats prediction",
-    p: "Reaching the right clinician quickly is worth more than forecasting a crisis precisely. We optimise the handover rather than the score, because the handover is the part that changes what happens next.",
-  },
-  {
-    k: "Instruments, not verdicts",
-    p: "Nothing built here decides anything about anybody. The work is to put a clearer picture in front of a clinician sooner, and to show a person their own pattern in words they already use about themselves.",
-  },
-  {
-    k: "Answerable to practice",
-    p: "Every instrument is built with the clinicians who will carry it and judged by whether it survives a real clinic in a bad week. Anything that only works in the demonstration is not finished.",
+    k: "04 — Revive",
+    p: "Make a surviving clinic thrive. Better systems. Better access. Better patient continuity. A clinic that was surviving becomes one that can grow. Better for the patient. Better for the doctor.",
   },
 ];
 
@@ -92,11 +84,11 @@ onBeforeUnmount(() => trigger?.kill());
 
     <div class="tn__grid">
       <div class="tn__count">
-        <span class="tn__numeral" :style="{ transform: `translate3d(0, ${drift()}vh, 0)` }">6</span>
+        <span class="tn__numeral" :style="{ transform: `translate3d(0, ${drift()}vh, 0)` }">4</span>
       </div>
 
       <div class="tn__body">
-        <h2 class="tn__h">Principles</h2>
+        <h2 class="tn__h">The 4 R’s</h2>
         <p class="tn__intro">{{ intro }}</p>
 
         <ol class="tn__list">

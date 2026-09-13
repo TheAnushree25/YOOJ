@@ -20,9 +20,9 @@ const emit = defineEmits<{ jump: [id: string] }>();
 const title = ["Begin the", "work of a", "steadier mind"];
 
 const nav = [
-  { id: "reconnect", label: "Reconnecting" },
-  { id: "frontier", label: "Frontier work" },
-  { id: "tenets", label: "Principles" },
+  { id: "reconnect", label: "Reconnecting healthcare" },
+  { id: "frontier", label: "Beyond fragmented care" },
+  { id: "tenets", label: "The 4 R’s" },
 ];
 
 const reach = [
