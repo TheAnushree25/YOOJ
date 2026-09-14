@@ -27,7 +27,7 @@ const body =
 
 <template>
   <section id="solution" class="sl">
-    <div class="sl__wash" aria-hidden="true" />
+    <div class="sl__wash ground-drift" aria-hidden="true" />
 
     <div class="sl__inner">
       <SplitHeading
@@ -54,22 +54,17 @@ const body =
   isolation: isolate;
   overflow: hidden;
   padding: clamp(7rem, 20vh, 14rem) 0 clamp(12rem, 34vh, 24rem);
-  background: var(--c-bone);
+  background: var(--ga-bg);
 }
 
-// Light through a window: broad, soft diagonal bands rather than a smooth ramp.
-// The reference's ground is not a gradient but a fan, and the bands are what
-// keep a near-white section from reading as an empty div.
+// The light ground — the site's one pale gradient, drifting.
 .sl__wash {
   position: absolute;
   inset: 0;
   z-index: 0;
-  background:
-    linear-gradient(158deg, transparent 22%, rgba(255, 255, 255, 0.92) 42%, rgba(255, 255, 255, 0.5) 52%, transparent 66%),
-    linear-gradient(202deg, transparent 28%, rgba(255, 255, 255, 0.7) 50%, transparent 70%),
-    linear-gradient(136deg, rgba(255, 255, 255, 0.62) 4%, transparent 30%),
-    radial-gradient(62% 58% at 2% 96%, #EBC0AC 0%, rgb(var(--rgb-accent) / 0.4) 40%, transparent 74%),
-    linear-gradient(112deg, #EFC7B4 0%, #F6DFD4 30%, #FDF7F4 60%, #F7E6DD 100%);
+  background: var(--ground-light);
+  // Beside the shorthand, which resets it, and not in the drift class.
+  background-size: 190% 190%;
 }
 
 .sl__inner {

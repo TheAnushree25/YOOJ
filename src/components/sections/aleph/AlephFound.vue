@@ -34,11 +34,11 @@ onMounted(() => {
     onDark.value = false;
     return;
   }
-  trigger = scrubThrough(root.value, (v) => {
+  trigger = scrubThrough(root.value, (v, active) => {
     p.value = v;
     // The chrome changes sides here and nowhere else — this is the first thing
     // on the page standing on a light ground since the room went dark.
-    onDark.value = false;
+    if (active) onDark.value = false;
   }, { start: "top 92%", end: "bottom bottom" });
 });
 
@@ -90,9 +90,7 @@ onBeforeUnmount(() => trigger?.kill());
   // nothing to move when the ground drifts — measured, it shifted by a single
   // channel step over ten seconds, which is a page that technically animates
   // and visibly does not. The radial gives the drift something to carry.
-  background:
-    radial-gradient(58% 46% at 46% 38%, #FFFFFF 0%, rgba(255, 245, 246, 0.6) 46%, transparent 78%),
-    linear-gradient(180deg, #FFF5F6 0%, #FFEFF0 56%, #FEC9CD 100%);
+  background: var(--ground-light);
   // Declared here, beside the shorthand, and not in the drift class.
   // `background:` resets `background-size` to auto, and a scoped rule outranks
   // an unscoped one — so the size set on .ground-drift was being thrown away

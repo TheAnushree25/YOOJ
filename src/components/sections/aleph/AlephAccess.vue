@@ -43,11 +43,11 @@ const entry = ref<Record<string, string>>({ name: "", number: "", city: "", emai
 onMounted(() => {
   if (!root.value) return;
   if (prefersReduced()) { p.value = 1; onDark.value = true; return; }
-  trigger = scrubThrough(root.value, (v) => {
+  trigger = scrubThrough(root.value, (v, active) => {
     p.value = v;
     // The last section is dark again, so the chrome changes back with it. The
     // pale page between them is the only light ground left on this route.
-    onDark.value = true;
+    if (active) onDark.value = true;
   }, { start: "top 88%", end: "bottom bottom" });
 });
 
@@ -142,11 +142,7 @@ onBeforeUnmount(() => trigger?.kill());
   text-align: center;
   color: #FFF5F6;
   overflow: hidden;
-  background:
-    linear-gradient(118deg, transparent 34%, rgba(254, 179, 184, 0.10) 34%, rgba(254, 179, 184, 0.10) 52%, transparent 52%),
-    linear-gradient(62deg, transparent 42%, rgba(255, 255, 255, 0.05) 42%, rgba(255, 255, 255, 0.05) 61%, transparent 61%),
-    radial-gradient(62% 50% at 50% 56%, rgba(158, 18, 53, 0.55) 0%, rgba(117, 2, 39, 0.3) 44%, transparent 78%),
-    linear-gradient(160deg, #3C010E 0%, #520E22 48%, #2A0712 100%);
+  background: var(--ground-dark);
   // Declared here, beside the shorthand, and not in the drift class.
   // `background:` resets `background-size` to auto, and a scoped rule outranks
   // an unscoped one — so the size set on .ground-drift was being thrown away

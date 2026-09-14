@@ -3,6 +3,7 @@ import { onBeforeUnmount, onMounted, ref } from "vue";
 import { prefersReduced, scrubThrough } from "../../../composables/useMotion";
 import { CardScene } from "../../../webgl/CardScene";
 import { onDark } from "../../../lib/session";
+import StepRing from "../../ui/StepRing.vue";
 
 /**
  * The card, turned and then broken.
@@ -63,6 +64,14 @@ const beats = [
  */
 const said = () => (p.value < 0.26 ? 0 : p.value < 0.46 ? 1 : 2);
 
+/** How far through the live statement the reader is: the ring's arc. */
+const through = () => {
+  const s = said();
+  const from = s === 0 ? 0 : s === 1 ? 0.26 : 0.46;
+  const to = s === 0 ? 0.26 : s === 1 ? 0.46 : 0.66;
+  return clamp01((p.value - from) / (to - from));
+};
+
 /**
  * How far the frame has turned from the pale page to the dark room.
  *
@@ -95,12 +104,14 @@ onMounted(() => {
     return;
   }
 
-  trigger = scrubThrough(root.value, (v) => {
+  trigger = scrubThrough(root.value, (v, active) => {
     p.value = v;
     scene?.setProgress(v);
     // The room turns here, so this is the only place that knows when the page
-    // stops being the pale one and the chrome above has to change sides.
-    onDark.value = v > 0.78;
+    // stops being the pale one and the chrome above has to change sides. Only
+    // while the reader is actually in it — off screen this fires too, and an
+    // unguarded write here is a claim on the whole page.
+    if (active) onDark.value = v > 0.78;
   }, { start: "top top", end: "bottom bottom" });
 });
 
@@ -145,7 +156,16 @@ onBeforeUnmount(() => {
       </div>
 
       <p class="am__label" :style="{ opacity: 1 - night() * 0.45 }">From fragmented to connected</p>
-      <p class="am__step">{{ String(said() + 3).padStart(2, "0") }}</p>
+      <!-- The reference's ring, beside the card: the statement's number, with
+           an arc drawing round it as that statement is read. Leaves with the
+           copy, before the card fills the frame. -->
+      <StepRing
+        class="am__ring"
+        :index="said() + 2"
+        :total="5"
+        :progress="through()"
+        :style="{ opacity: beat(0.03, 0.1) - beat(0.58, 0.68) }"
+      />
     </div>
   </section>
 </template>
@@ -174,9 +194,7 @@ onBeforeUnmount(() => {
   position: absolute;
   inset: 0;
   z-index: 0;
-  background:
-    radial-gradient(72% 42% at 50% 108%, #FEB3B8 0%, rgba(117, 2, 39, 0.55) 34%, transparent 72%),
-    linear-gradient(178deg, #3C010E 0%, #520E22 46%, #750227 100%);
+  background: var(--ground-dark);
   // Declared here, beside the shorthand, and not in the drift class.
   // `background:` resets `background-size` to auto, and a scoped rule outranks
   // an unscoped one — so the size set on .ground-drift was being thrown away
@@ -230,10 +248,10 @@ onBeforeUnmount(() => {
     opacity 0.75s var(--e-out-quart),
     transform 0.9s var(--e-out-expo);
 
-  .is-lead { color: var(--ga-ink); }
-  // The other half of the pair, kept present in a tint: the reference lets
-  // weight say which word is live rather than swapping the text out.
-  .is-trail { color: rgb(60 1 14 / 0.4); }
+  // Both halves in the same ink and the same weight. The trail used to sit in
+  // a tint, and on this ground a tinted "with you" read as a word half
+  // switched off rather than as a lighter voice.
+  .is-lead, .is-trail { color: var(--ga-ink); }
 }
 
 .am__copy {
@@ -278,26 +296,27 @@ onBeforeUnmount(() => {
   }
 }
 
-.am__step {
+// Beside the card, not at the edge of the frame. The card is sized off the
+// viewport height (84% of it, at its own aspect), so its right edge is a
+// height-relative distance from the centre and the ring is placed off that.
+.am__ring {
+  --ring-size: 3.4rem;
   position: absolute;
-  right: var(--gutter);
+  left: 50%;
   top: 50%;
-  transform: translateY(-50%);
+  margin-left: 30vh;
+  translate: 0 -50%;
   z-index: 3;
-  font-family: "Space Grotesk", ui-monospace, monospace;
-  font-size: var(--ta-label);
-  line-height: var(--la-label);
-  letter-spacing: var(--ls-fine);
-  color: rgb(60 1 14 / 0.5);
-  font-variant-numeric: tabular-nums;
-  transition: color 0.6s var(--e-out-quart);
+  transition: opacity 0.6s var(--e-out-quart);
+
+  @media (max-width: 60rem) { display: none; }
 }
 
 // Once the room is lit, the furniture that was set in the page's ink has to
 // change sides or it disappears into the navy.
 .am__stage.is-night {
   --ga-dot: #FEB3B8;
-  .am__label, .am__step { color: rgb(255 255 255 / 0.7); }
+  .am__label { color: rgb(255 255 255 / 0.7); }
 }
 
 @media (prefers-reduced-motion: reduce) {

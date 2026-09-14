@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { prefersReduced, scrubThrough } from "../../../composables/useMotion";
 import { QuantumScene } from "../../../webgl/QuantumScene";
 import { onDark } from "../../../lib/session";
+import StepRing from "../../ui/StepRing.vue";
 
 /**
  * The corridor, and what is said inside it.
@@ -161,6 +162,24 @@ const fly = (i: number) => {
 const passes = computed(() => pieces.map((_, i) => fly(i)));
 
 /**
+ * Which statement the ring is counting, and how far through it the reader is.
+ *
+ * The pieces are strictly sequential — one has to finish before the next
+ * starts — so the last one with any progress at all is the one being read,
+ * and its own progress is the arc. Between two pieces the arc simply sits at
+ * full, which is what a finished step should look like until the next one
+ * takes over.
+ */
+const step = computed(() => {
+  let index = 0;
+  let progress = 0;
+  passes.value.forEach((f, i) => {
+    if (f.t > 0) { index = i; progress = f.t; }
+  });
+  return { index, progress };
+});
+
+/**
  * A list arrives a line at a time.
  *
  * The order is the argument — each line follows from the one above it, so
@@ -261,24 +280,14 @@ onMounted(() => {
      */
     shells: 4,
     traced: 3000,
-    motes: 12000,
+    motes: 3200,
     ink: "#FFF5F6",
     accent: "#FEB3B8",
     /**
-     * The dispersal's own three inks, exactly.
-     *
-     * This field is not a new field. It is the card's particles still in the
-     * air, so it is built the way that dispersal is: matte discs in pale grey,
-     * warm beige and near-black, normal-blended so they occlude one another,
-     * sharp when small and defocused when large. Any drift in the palette here
-     * would read as the burst having been swapped for something else at the
-     * boundary, which is precisely what the join exists to avoid.
+     * The sky. A dozen comets, each in flight for half its own cycle, so
+     * three or four are usually crossing and the rest are resting.
      */
-    pale: "#D8E4F2",
-    warm: "#C9BC9E",
-    dark: "#3C010E",
-    // The lit floor, which the low discs take their colour from.
-    glow: "#FED9DC",
+    comets: 14,
   });
   scene.start();
   window.addEventListener("resize", scene.resize);
@@ -290,12 +299,12 @@ onMounted(() => {
     return;
   }
 
-  trigger = scrubThrough(root.value, (v) => {
+  trigger = scrubThrough(root.value, (v, active) => {
     p.value = v;
     scene?.setProgress(v);
     // Dark from the first frame to the last: this section is entered on the
     // room the one above ends in and never returns to the pale page.
-    onDark.value = true;
+    if (active) onDark.value = true;
   }, { start: "top top", end: "bottom bottom" });
 });
 
@@ -359,6 +368,18 @@ onBeforeUnmount(() => {
         >{{ line }}</p>
       </div>
 
+      <!-- The reference's ring: a hairline circle at the right, drawing an arc
+           as the current statement is read, with the statement's number in
+           it. It goes with the pieces and leaves before the count. -->
+      <StepRing
+        class="aq__ring"
+        :index="step.index"
+        :total="pieces.length"
+        :progress="step.progress"
+        light
+        :style="{ opacity: beat(0.03, 0.07) * (1 - counter.shown) * (1 - sky()) }"
+      />
+
       <!-- The count, on its own after the six pieces. -->
       <div
         class="aq__count"
@@ -372,7 +393,7 @@ onBeforeUnmount(() => {
           <span v-for="place in PLACES" :key="place" class="aq__wheel">
             <span
               class="aq__strip"
-              :style="{ transform: `translate3d(0, ${-column(place) * 10}%, 0)` }"
+              :style="{ transform: `translate3d(0, ${-column(place) * (100 / 11)}%, 0)` }"
             ><i v-for="d in 11" :key="d">{{ (d - 1) % 10 }}</i></span>
           </span>
         <span v-if="COUNT.unit" class="aq__unit">{{ COUNT.unit }}</span>
@@ -443,9 +464,7 @@ onBeforeUnmount(() => {
   position: absolute;
   inset: 0;
   z-index: 0;
-  background:
-    radial-gradient(72% 42% at 50% 108%, #FEB3B8 0%, rgba(117, 2, 39, 0.55) 34%, transparent 72%),
-    linear-gradient(178deg, #3C010E 0%, #520E22 46%, #750227 100%);
+  background: var(--ground-dark);
   // Declared here, beside the shorthand, and not in the drift class.
   // `background:` resets `background-size` to auto, and a scoped rule outranks
   // an unscoped one — so the size set on .ground-drift was being thrown away
@@ -594,6 +613,18 @@ onBeforeUnmount(() => {
   will-change: transform, opacity;
 }
 
+// Right of the frame, on the centre line, as the reference sets it.
+.aq__ring {
+  position: absolute;
+  right: var(--gutter);
+  top: 50%;
+  translate: 0 -50%;
+  z-index: 5;
+  transition: opacity 0.4s var(--e-out-quart);
+
+  @media (max-width: 60rem) { display: none; }
+}
+
 /* --------------------------------------------------------------- the count */
 
 .aq__count {
@@ -610,6 +641,7 @@ onBeforeUnmount(() => {
 .aq__odo {
   display: flex;
   justify-content: center;
+  align-items: center;
   margin: 0;
   font-size: clamp(4rem, 9vw, 8.5rem);
   line-height: 1;
@@ -624,6 +656,10 @@ onBeforeUnmount(() => {
 .aq__unit {
   display: block;
   margin-left: 0.04em;
+  line-height: 1;
+  // The plus sits on the maths axis, a hair under the centre of a lining
+  // figure. Level with the wheels, not with the baseline.
+  transform: translateY(-0.02em);
 }
 
 .aq__wheel {

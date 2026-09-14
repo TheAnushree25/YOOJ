@@ -102,11 +102,11 @@ export function reveal(el: HTMLElement, options: RevealOptions = {}) {
  */
 export function scrubThrough(
   el: HTMLElement,
-  onProgress: (p: number) => void,
+  onProgress: (p: number, active: boolean) => void,
   options: { start?: string; end?: string } = {},
 ) {
   if (prefersReduced()) {
-    onProgress(1);
+    onProgress(1, true);
     return null;
   }
   return ScrollTrigger.create({
@@ -114,7 +114,21 @@ export function scrubThrough(
     start: options.start ?? "top 80%",
     end: options.end ?? "bottom 30%",
     scrub: 1,
-    onUpdate: (self) => onProgress(self.progress),
+    /**
+     * `isActive` is passed through because progress alone cannot be trusted to
+     * mean "the reader is here".
+     *
+     * Every trigger fires onUpdate on a refresh — on mount, when the fonts
+     * land, on any resize — whichever part of the page is actually on screen.
+     * A section off the bottom reports a clamped progress of zero and a section
+     * already passed reports one, and both look exactly like being at the edge
+     * of the section for real. For anything that only reads its own progress
+     * that is harmless. For anything writing shared state it is not: four
+     * sections set the page's dark flag, so on every refresh all four fired in
+     * document order and the last one down the page won, which put the chrome
+     * in night dress at the top of a page that is pale there.
+     */
+    onUpdate: (self) => onProgress(self.progress, self.isActive),
   });
 }
 

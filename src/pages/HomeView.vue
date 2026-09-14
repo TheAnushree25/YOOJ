@@ -4,11 +4,10 @@ import { Backdrop } from "../webgl/Backdrop";
 import { usePointer } from "../composables/usePointer";
 import { useSmoothScroll } from "../composables/useSmoothScroll";
 import { ScrollTrigger } from "../composables/useMotion";
-import { entered } from "../lib/session";
+import { entered, onPale, pulseCorner } from "../lib/session";
 
 import ScrollHint from "../components/chrome/ScrollHint.vue";
 import SiteHeader from "../components/chrome/SiteHeader.vue";
-import SoundToggle from "../components/chrome/SoundToggle.vue";
 import SplashGate from "../components/chrome/SplashGate.vue";
 
 import CloseSection from "../components/sections/CloseSection.vue";
@@ -38,6 +37,34 @@ const chapters = [
 ];
 
 const chapterIndex = ref(0);
+
+/** The chapters that stand on the light ground throughout. The rest are wine. */
+const PALE = new Set(["frontier", "solution"]);
+
+/**
+ * The second section is three grounds in one — a pale panel, the field once
+ * the panel has faded, and a dome climbing over both — so its chapter id is
+ * not an answer. Its state is read off the elements themselves: the panel's
+ * opacity and the dome's rounded crown, both of which the section writes
+ * inline every frame. The dome cannot be asked by hit test (its wrapper takes
+ * no pointer events), but its crown is a half-ellipse the full width of the
+ * dome, and an ellipse is easy to ask directly.
+ */
+const paleInReconnect = (x: number, y: number) => {
+  const panel = document.querySelector<HTMLElement>(".rc__ground");
+  if (!panel || parseFloat(panel.style.opacity || "1") < 0.5) return false;
+  const dome = document.querySelector<HTMLElement>(".rc__dome");
+  if (!dome) return true;
+  const r = dome.getBoundingClientRect();
+  if (x < r.left || x > r.right || y > r.bottom || y < r.top) return true;
+  const crown = parseFloat(dome.style.borderRadius.split("/")[1] ?? "0") / 100;
+  const ry = crown * r.height;
+  // Below the crown band the dome is solid.
+  if (y >= r.top + ry) return false;
+  const dx = (x - (r.left + r.right) / 2) / (r.width / 2);
+  const dy = (y - (r.top + ry)) / ry;
+  return dx * dx + dy * dy > 1;
+};
 
 /** Resolved once rather than per scroll frame; the ids are fixed. */
 let chapterEls: Array<HTMLElement | null> = [];
@@ -69,6 +96,9 @@ const updateChapter = () => {
   const view = window.innerHeight;
   let best = 0;
   let most = -1;
+  // The section under the pulse.
+  const { x: px, y: corner } = pulseCorner();
+  let under = -1;
 
   chapterEls.forEach((el, i) => {
     if (!el) return;
@@ -77,9 +107,12 @@ const updateChapter = () => {
     // the half that is on it. Never negative.
     const seen = Math.max(0, Math.min(view, bottom) - Math.max(0, top));
     if (seen > most) { most = seen; best = i; }
+    if (top <= corner && bottom >= corner) under = i;
   });
 
   chapterIndex.value = best;
+  const id = under >= 0 ? chapters[under]?.id : undefined;
+  onPale.value = id === "reconnect" ? paleInReconnect(px, corner) : PALE.has(id ?? "");
 };
 
 const chapter = computed(() => chapters[chapterIndex.value]?.label ?? "Index");
@@ -116,7 +149,10 @@ const onEnter = () => {
   }, 0);
 };
 
-watch(scrolled, updateChapter);
+// After the render, not before it: the corner test reads inline styles the
+// sections write from the same scroll event, and a pre-flush watcher would
+// measure the previous frame's dome against this frame's position.
+watch(scrolled, updateChapter, { flush: "post" });
 watch([x, y], () => backdrop?.setPointer(x.value, y.value));
 watch(progress, (p) => backdrop?.setProgress(p));
 
@@ -154,6 +190,8 @@ onMounted(() => {
 onBeforeUnmount(() => {
   if (backdrop) window.removeEventListener("resize", backdrop.resize);
   backdrop?.dispose();
+  // The next page measures its own ground.
+  onPale.value = false;
 });
 </script>
 
@@ -185,7 +223,6 @@ onBeforeUnmount(() => {
   <CloseSection @jump="jump" />
 
   <ScrollHint :hidden="progress > 0.02 || !entered" />
-  <SoundToggle />
 </template>
 
 <style scoped lang="scss">

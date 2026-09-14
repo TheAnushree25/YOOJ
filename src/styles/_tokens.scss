@@ -38,9 +38,26 @@
   --rgb-void:   6 1 4;
 
   --g-color-1: #3C010E;
-  --g-color-2: #750227;
+  --g-color-2: #8A1A3E;
   --g-color-3: #FEB3B8;
   --g-bg:      #3C010E;
+
+  /**
+   * The two grounds, as gradients any section can paint.
+   *
+   * The site has exactly two: a deep wine with a rose light on it, and a blush
+   * with a white one. They were supplied as stills — the same bloom with the
+   * light in four places — and every section used to restate its own version
+   * of one or the other, which is how a peach crept into one and a bone into
+   * another. Declared once, here, so a section says which ground it stands on
+   * and nothing else. The light walks because the ground drifts: these are
+   * drawn at nearly twice the box and the position is animated, which is what
+   * carries the light between the poses the stills show.
+   */
+  --ground-dark:
+    radial-gradient(72% 78% at 86% 40%, #F3A7AE 0%, #D0627A 18%, #9C334F 40%, #6A0E2E 66%, #3C010E 100%);
+  --ground-light:
+    radial-gradient(64% 72% at 42% 28%, #FEF4F5 0%, #FEE0E2 34%, #FEC9CD 66%, #FEB3B8 100%);
 
   /// The veil every dark section lays over the field.
   ///
@@ -49,7 +66,10 @@
   /// continuous ground with the field running behind it, not as a stack of
   /// panels. Even, directionless, and dense enough that bone type is legible
   /// wherever the field happens to be bright.
-  --veil: rgb(var(--rgb-void) / 0.6);
+  // Light enough that the field's own gradient — and the rose it is lit with
+  // — is what the dark sections stand on. At six tenths it was a black page
+  // with a hint of wine in it.
+  --veil: rgb(var(--rgb-void) / 0.36);
 
   /// The Aleph page: a pale field, and the type ladder measured off it.
   ///

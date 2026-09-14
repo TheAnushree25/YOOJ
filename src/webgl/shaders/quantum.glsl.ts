@@ -49,22 +49,18 @@ export const fieldVertex = /* glsl */ `
   ${TUNNEL}
 
   uniform float uTime;
-  uniform vec3  uPale;
-  uniform vec3  uWarm;
-  uniform vec3  uDark;
-  /** The lit floor the low discs borrow their colour from. */
-  uniform vec3  uGlow;
   uniform float uSize;
+  /** The star itself. */
+  uniform vec3  uInk;
+  /** The ground's own pink, which a few of them carry faintly. */
+  uniform vec3  uTint;
   /** The tail of the dispersal above, 1 on arrival and gone shortly after. */
   uniform float uBurst;
   /** The field's own travel down the corridor, independent of the reader. */
   uniform float uFlow;
-  /** How far the discs have drawn out into falling light. 0 to 1. */
-  uniform float uStreak;
 
   varying float vFade;
-  varying float vBlur;
-  varying float vStreak;
+  varying float vBig;
   varying vec3  vColor;
 
   float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
@@ -72,165 +68,77 @@ export const fieldVertex = /* glsl */ `
   void main() {
     float r1 = hash(vec2(aSeed, 1.0));
     float r2 = hash(vec2(aSeed, 2.0));
+    float r3 = hash(vec2(aSeed, 3.0));
     float r4 = hash(vec2(aSeed, 4.0));
 
     /**
-     * They rise, they wander, and they keep coming.
+     * A sky, not a snowfall.
      *
-     * Three motions, and the section needs all of them for its whole length —
-     * ten viewports is a long time to hold a frame, and a field that settles
-     * into a hover after the burst has finished turns the rest of it into a
-     * still photograph with text passing over it.
-     *
-     * The rise and the wander are per-point, so the field never moves as a
-     * sheet. The third is the important one: the points travel down the
-     * corridor on their own clock, past the reader and round again, so there is
-     * always something crossing the frame whether or not anyone is scrolling.
-     * It is deliberately the field's own number and not the one that carries
-     * the mark — tie them together and the mark rushes past a reader who has
-     * stopped to read, which is the opposite of what a held frame is for.
-     *
-     * Two sine terms at unrelated rates rather than one, so the paths curl
-     * instead of sliding along parallel tracks.
-     */
-    /**
-     * The rise has to wrap, or the field empties.
-     *
-     * This was an unbounded drift: every point travelled upward for as long as
-     * the page was open and none of them ever came back. Over a section ten
-     * viewports long the reader spends minutes here, and by the end the frame
-     * had quietly drained — the particles had not stopped moving, they had
-     * left. Wrapped through the height of their own box they leave the top and
-     * re-enter at the bottom, so the field is as full at the last statement as
+     * The previous field was made of out-of-focus discs drifting up through
+     * the frame, and at any density that filled the room it sat on the type
+     * like a thumbprint. This one is the reference's: points, mostly, sharp to
+     * the edge and very small, with a handful of large soft lights among them
+     * — and it barely moves. A star that visibly travels is a snowflake. The
+     * drift here is slow enough to be felt on a long hold and never seen
+     * happening, and the wrap keeps the frame as full at the last statement as
      * at the first.
-     *
-     * The floor gradient is not carried by where they are seeded any more,
-     * because a wrap evens that out within a minute whatever it starts as. It
-     * is carried by size and strength instead, further down, which is a
-     * property of where a point is now rather than of where it began.
      */
     float span = 21.0;
-    float rise = uTime * (0.10 + r1 * 0.2);
+    float rise = uTime * (0.02 + r1 * 0.03);
     float y = mod(position.y + rise + span * 0.5, span) - span * 0.5;
 
     vec3 p = vec3(
-      position.x
-        + sin(uTime * 0.19 + aSeed * 8.0) * 0.26
-        + sin(uTime * 0.07 + aSeed * 21.0) * 0.34,
-      y
-        + cos(uTime * 0.14 + aSeed * 5.0) * 0.2
-        + cos(uTime * 0.05 + aSeed * 17.0) * 0.28,
+      position.x + sin(uTime * 0.05 + aSeed * 21.0) * 0.18,
+      y + cos(uTime * 0.04 + aSeed * 17.0) * 0.14,
       corridor(position.z + uFlow)
     );
 
-    /**
-     * The burst does not stop at the section boundary.
-     *
-     * The dispersal above throws the head outward and hands over while the
-     * particles are still travelling. Opening this section on a field that is
-     * already settled ends the explosion at the join — the reader watches it
-     * begin and never sees it finish, which is exactly what reads as the effect
-     * having been taken away. So the field arrives still expanding, wide and
-     * thinning, and comes to rest over the first eighth of the section.
-     *
-     * Scaling outward from the centre rather than pushing along a fixed vector,
-     * because that is what an expansion is: everything moves away from where it
-     * came from, and further out means further travelled.
-     */
+    // The dispersal above hands over while its particles are still travelling;
+    // the sky arrives still expanding and comes to rest over the first eighth.
     p.xy *= 1.0 + uBurst * 0.5;
 
     vec4 mv = modelViewMatrix * vec4(p, 1.0);
     float dist = -mv.z;
 
     /**
-     * How low in the frame this point sits, 0 at the top and 1 at the bottom.
-     *
-     * The half-height of the frame grows with distance, so a world height has
-     * to be divided by it to mean anything on screen. Everything below keys off
-     * this: the reference's field is not an even scatter, it is a drift that
-     * gathers toward the floor, where the discs are bigger, paler and closer
-     * together — which is what makes the lit ground read as the source of them.
-     */
-    float low = clamp(0.5 - p.y / max(dist * 0.933, 0.001), 0.0, 1.0);
-
-    /**
      * The clearing.
      *
-     * Every statement in this section is set in the middle of the frame, and a
-     * field dense enough to be beautiful at the edges is dense enough to eat
-     * white type at the centre. Rather than thinning the whole thing — which
-     * costs the room its depth to fix a problem that only exists in one place —
-     * the field opens where the words are.
-     *
-     * Measured in screen space, not world space: the type occupies a fixed part
-     * of the frame whatever the depth, so a world-space test would clear a
-     * cylinder that is far too wide up close and far too narrow at the back.
-     * Squashed horizontally because a column of text is wider than it is tall.
+     * Every statement in this section is set in the middle of the frame, and
+     * the field opens where the words are. Measured in screen space, not world
+     * space: the type occupies a fixed part of the frame whatever the depth.
      */
     vec2 onScreen = mv.xy / max(dist * 0.4663, 0.001);
-    float clear = smoothstep(0.42, 1.25, length(onScreen * vec2(0.66, 1.0)));
+    float clear = smoothstep(0.5, 1.45, length(onScreen * vec2(0.58, 1.0)));
 
     /**
-     * Size grade.
+     * Two populations.
      *
-     * A fifth power made the big discs so rare that the field was effectively
-     * one size — a sprinkle of specks — and no amount of extra count fixed it,
-     * because every added point was another speck. The reference's field is
-     * mostly mid-sized discs with a scattering of large ones, which is a much
-     * shallower curve; perspective then does the rest, since a mid disc near
-     * the lens is a large one on screen.
+     * One star in twenty-five is a light: a bright centre in a wide soft halo,
+     * a dozen or so on screen at a time. Everything else is a point, one to
+     * three pixels. The perspective term is held back — a point that swelled
+     * as it neared the lens would be a mote again, and the whole reason this
+     * is a sky is that its stars stay stars.
      */
-    float grade = pow(r4, 3.4);
-    gl_PointSize = uSize * uPixel
-      * (0.26 + grade * 3.4) * (0.45 + low * 1.85) * (1.0 + uBurst * 0.85)
-      // Smaller through the clearing, so what remains there reads as distant
-      // rather than as the same field turned down.
-      * mix(0.5, 1.0, clear)
-      // A point sprite is square, so a trail four times its own length has
-      // to be drawn inside a sprite four times the size.
-      * (1.0 + uStreak * 3.6)
-      * uFocus / max(dist, 0.6);
+    float big = step(0.962, r4);
+    vBig = big;
+    float size = mix(1.6 + r2 * 2.2, 7.0 + r2 * 6.0, big);
+    gl_PointSize = max(
+      size * uSize * uPixel * (1.0 + uBurst * 0.6) * mix(0.6, 1.0, clear) * uFocus / max(dist, 4.0),
+      // However far away, a star is a point, and a point is a pixel and a
+      // half — below that it is not a faint star, it is nothing.
+      1.5 * uPixel * mix(0.7, 1.0, clear)
+    );
 
-    // Near means out of focus. This is the whole depth cue and the reason the
-    // field reads as a room rather than as a texture.
-    vBlur = 1.0 - smoothstep(0.0, uFocus, dist);
+    // Shallow and slow, per star, and never in step.
+    float twinkle = 0.72 + 0.28 * sin(uTime * (0.6 + r3 * 1.4) + aSeed * 60.0);
 
-    /**
-     * Three inks, weighted the way the reference's field is: mostly pale, some
-     * warm, a few almost black so the near discs read as objects in front of
-     * the light rather than more of it.
-     *
-     * The dark ink is reserved for small points. Size and colour are drawn
-     * independently, so a dark one is free to come up huge — and a huge dark
-     * disc on a dark ground is not a particle in front of the light, it is a
-     * smudge on the lens.
-     */
-    vec3 ink = r2 < 0.72 ? uPale : uWarm;
-    if (r2 >= 0.9 && grade < 0.22) ink = uDark;
-    // Low in the frame they take the colour of the floor they are lit by.
-    vColor = mix(ink, uGlow, low * 0.4);
-    // Not every disc draws out at once — a field that all stretches together
-    // reads as one object being scaled rather than as rain starting.
-    vStreak = uStreak * smoothstep(0.0, 0.55, uStreak * 1.5 - r2 * 0.7);
+    // White, with one in six carrying the ground's pink, faintly.
+    vColor = mix(uInk, uTint, step(0.83, r1) * 0.7);
 
-    /**
-     * In from the far plane, and out again just before a point would cross the
-     * lens and smear across the whole frame.
-     *
-     * These are out-of-focus lights, not haze. Held at the alpha that suits a
-     * speck they were technically present and visually absent — a field you
-     * could only find by looking for it. A disc has to be solid enough in the
-     * middle to read as an object the light is coming from, and the ground
-     * stays visible because the discs are sparse, not because each one is
-     * nearly transparent.
-     */
-    vFade = (0.3 + r1 * 0.5) * (0.45 + low * 1.0)
-      // And far fainter. Alpha does most of the work here: a disc that is
-      // merely smaller still breaks a letterform it sits on, where one that
-      // is barely there does not.
-      * mix(0.22, 1.0, clear)
-      * smoothstep(0.0, uFocus * 0.22, dist)
-      * (1.0 - smoothstep(uTunnel * 0.68, uTunnel * 0.99, dist));
+    vFade = (0.55 + r3 * 0.45) * twinkle
+      * mix(0.12, 1.0, clear)
+      * smoothstep(0.0, uFocus * 0.2, dist)
+      * (1.0 - smoothstep(uTunnel * 0.7, uTunnel * 0.99, dist));
 
     gl_Position = projectionMatrix * mv;
   }
@@ -240,32 +148,24 @@ export const fieldFragment = /* glsl */ `
   precision highp float;
 
   varying float vFade;
-  varying float vBlur;
-  varying float vStreak;
+  varying float vBig;
   varying vec3  vColor;
 
   void main() {
-    /**
-     * A disc, or a fall of light.
-     *
-     * Squeezing the coordinate horizontally before measuring the distance turns
-     * the same round falloff into a vertical streak — the sprite stays square
-     * and what is drawn inside it does not. Cheaper than a second system of
-     * quads, and it means a disc can become a trail and go back again on one
-     * number, rather than one set of particles having to hand over to another.
-     */
     vec2 q = (gl_PointCoord - 0.5) * 2.0;
-    q.x *= 1.0 + vStreak * 7.0;
-    // The head of a trail is brighter than its tail.
-    float head = mix(1.0, smoothstep(1.0, -0.2, q.y), vStreak);
     float d = length(q);
     if (d > 1.0) discard;
 
-    // A flat disc whose edge softens as it nears the lens. One falloff for both
-    // near and far is what makes a field like this read as fog instead of as
-    // particles at different depths.
-    float soft = mix(0.26, 0.92, vBlur);
-    float a = smoothstep(1.0, 1.0 - soft, d) * vFade * head;
+    // A point: crisp to the edge, with a pixel of anti-aliasing so a two-pixel
+    // star is a dot and not a square.
+    float crisp = 1.0 - smoothstep(0.62, 1.0, d);
+
+    // A light: a bright centre in a wide, weak halo. The halo is what reads
+    // as glow rather than as a bigger dot.
+    float core = 1.0 - smoothstep(0.0, 0.34, d);
+    float halo = pow(1.0 - d, 2.4) * 0.5;
+
+    float a = mix(crisp, min(1.0, core + halo), vBig) * vFade;
     if (a < 0.004) discard;
 
     gl_FragColor = vec4(vColor, a);
@@ -375,6 +275,23 @@ export const markVertex = /* glsl */ `
     vColor = mix(uInk, uAccent, aAccent);
 
     /**
+     * The clearing, as the field has one.
+     *
+     * Widening the mark opens its middle, but it cannot on its own stop the
+     * contour crossing the type: the corridor holds several copies at once and
+     * they project at different sizes, so whatever the near one clears the far
+     * one walks straight back through. The only test that holds at every depth
+     * is a screen-space one — where a point lands in the frame, not where it
+     * sits in the room.
+     *
+     * Dimmed rather than cut. A hole punched in the middle of the logo reads
+     * as broken geometry; a contour that falls back as it passes behind the
+     * words reads as the type being lit from in front, which is what it is.
+     */
+    vec2 onScreen = mv.xy / max(dist * 0.4663, 0.001);
+    float clear = smoothstep(0.34, 1.02, length(onScreen * vec2(0.54, 1.0)));
+
+    /**
      * Which copy the reader is actually looking at.
      *
      * The near one is always larger — perspective sees to that — so if it is
@@ -394,6 +311,7 @@ export const markVertex = /* glsl */ `
      * two blown-out holes. The disc wants the same total, spread thin.
      */
     vFade = cue * (0.3 + r1 * 0.32) * (1.0 - aAccent * 0.9) * (1.0 + pulse * 0.5)
+      * mix(0.13, 1.0, clear)
       * pow(smoothstep(0.0, uFocus * 1.05, dist), 1.6)
       * (1.0 - smoothstep(uTunnel * 0.62, uTunnel * 0.96, dist));
 
@@ -430,120 +348,106 @@ export const markFragment = /* glsl */ `
   }
 `;
 
-/* ------------------------------------------------------------- the strands */
+/* -------------------------------------------------------------- the comets */
 
 /**
- * Beaded trails, falling and splaying.
+ * Shooting stars, made of beads.
  *
- * The light that ends the section does not simply rise: strands come down to
- * meet it, hanging from the top of the frame and curving outward as they
- * descend, the way a willow firework falls. Each is a chain of beads rather
- * than a drawn line — a stroked path at this scale reads as wire, and what is
- * wanted is something made of light.
+ * The reference's trails are not drawn lines — they are runs of small dots
+ * with a bright head, which is what a meteor looks like at the edge of vision
+ * and what a stroked line at this weight does not. Each comet is a chain of
+ * beads that all know which comet they belong to and how far back along it
+ * they sit; the path is closed-form, so nothing is integrated and a comet can
+ * be scrubbed backwards as readily as it plays forwards.
  *
- * The curve is closed-form rather than simulated. A point knows which strand it
- * is on and how far along it sits, and that is enough: descent accelerates with
- * the square of the distance travelled and the outward splay with it, which is
- * exactly the shape a thrown spark makes under gravity. Nothing is integrated,
- * nothing is stored between frames, and the whole thing is scrubbable in both
- * directions — which a particle simulation is not.
+ * Placed at the focal plane rather than in the corridor. They are a thing that
+ * happens in the sky, not a thing the reader flies past, so the reader's own
+ * travel leaves them alone.
  */
-export const strandVertex = /* glsl */ `
+export const cometVertex = /* glsl */ `
   precision highp float;
 
-  /** Which strand, 0 to 1 across the set. */
-  attribute float aStrand;
-  /** How far along it, 0 at the crown and 1 at the tip. */
+  /** Which comet this bead belongs to, 0 to 1. */
+  attribute float aTrail;
+  /** How far back along the trail, 0 at the head and 1 at the end of the tail. */
   attribute float aAlong;
-  attribute float aSeed;
 
   uniform float uTime;
-  /** How far the strands have fallen, 0 to 1. */
-  uniform float uDrop;
   uniform float uPixel;
   uniform float uFocus;
-  uniform vec3  uInk;
-  /** Bead size in pixels at the focal plane, before the taper. */
+  uniform float uAspect;
+  /** Pixels, for the head bead. */
   uniform float uBead;
 
   varying float vFade;
+  varying float vHead;
 
-  float hash(float p) { return fract(sin(p * 127.1) * 43758.5453); }
+  float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 
   void main() {
-    float r1 = hash(aStrand + 1.3);
-    float r2 = hash(aStrand + 7.7);
-    float r3 = hash(aStrand + 19.1);
+    float r1 = hash(vec2(aTrail, 1.0));
+    float r2 = hash(vec2(aTrail, 2.0));
+    float r3 = hash(vec2(aTrail, 3.0));
+    float r4 = hash(vec2(aTrail, 4.0));
+    float r5 = hash(vec2(aTrail, 5.0));
+    float r6 = hash(vec2(aTrail, 6.0));
+
+    // The frame at the focal plane, in world units: half its height, and its
+    // half-width from that. Not named for what it is: half is a reserved
+    // word in GLSL.
+    float tall = uFocus * 0.4663;
+    float wide = tall * uAspect;
 
     /**
-     * Where it hangs from, and which way it leans.
-     *
-     * Every number here is measured against the frame at the focal distance —
-     * about 6.7 units to the side and 4.2 up. Sized generously instead, the
-     * strands hung far above the top of the screen and fell far below it, and
-     * the only part of each one both paid out and inside the frustum was a
-     * sliver a few beads long: the canopy was being drawn correctly and was
-     * almost entirely off screen.
+     * One comet's life: a run across the sky for the first half of its cycle,
+     * then a rest as long again. Every comet has its own period and its own
+     * phase, so the sky is never a shooting gallery and never empty — with a
+     * dozen of them, three or four are usually in flight.
      */
-    float rootX = (r1 - 0.5) * 16.0;
-    float lean = sign(rootX + 0.001) * (0.35 + r2 * 0.85);
+    float period = mix(9.0, 17.0, r4);
+    float cycle = fract(uTime / period + r1);
+    float on = smoothstep(0.0, 0.1, cycle) * (1.0 - smoothstep(0.4, 0.5, cycle));
+    float run = cycle / 0.5;
 
-    // Only the part of the strand that has been paid out is drawn. Staggered,
-    // so they do not all reach for the floor on the same frame.
-    float paid = clamp((uDrop * 1.45 - r3 * 0.45) * 1.3, 0.0, 1.0);
-    float a = aAlong;
-    if (a > paid) { gl_Position = vec4(2.0, 2.0, 2.0, 1.0); return; }
+    // Any heading, and a straight line through a point somewhere in the frame.
+    float ang = r2 * 6.28318;
+    vec2 dir = vec2(cos(ang), sin(ang));
+    vec2 anchor = vec2((r5 - 0.5) * 2.0 * wide, (r6 - 0.5) * 2.0 * tall);
+    float travel = (tall + wide) * 1.1;
+    float len = mix(0.3, 0.8, r3) * tall;
 
-    // Falling, and accelerating as it falls: the crown sits just above the top
-    // of the frame and the tips just below the bottom of it.
-    float fall = a * (0.5 + a * 0.8) * 8.2;
-    // And carried outward by the same travel, quadratically — which is what
-    // turns a row of vertical threads into a canopy.
-    float splay = lean * a * a * 6.4;
-    // A slow sway, per strand, so the canopy breathes.
-    float sway = sin(uTime * 0.5 + aStrand * 24.0 + a * 2.2) * (0.25 + a * 0.7);
+    vec2 head = anchor + dir * (run - 0.5) * travel;
+    vec2 pos = head - dir * aAlong * len;
 
-    vec3 p = vec3(
-      rootX + splay + sway,
-      5.0 - fall,
-      -7.5 - r2 * 4.0
-    );
+    // The same clearing the stars observe: a comet crossing the type dims.
+    float clear = smoothstep(0.5, 1.45, length((pos / tall) * vec2(0.58, 1.0)));
 
-    vec4 mv = modelViewMatrix * vec4(p, 1.0);
-    float dist = max(-mv.z, 0.6);
+    vec4 mv = modelViewMatrix * vec4(pos, -uFocus, 1.0);
 
-    // Beads, not a line: bright and close-set near the crown, sparser and
-    // smaller toward the tip, which is what gives a strand a direction.
-    float grain = hash(aSeed * 31.7);
-    float bead = 0.45 + grain * 0.9;
-    // Tapering toward the tip, which is most of what reads as a strand
-    // rather than as a column of identical dots.
-    gl_PointSize = uBead * (1.0 - a * 0.34) * bead * uPixel * uFocus / dist;
-
-    // Lit along the whole of what has been paid out, with a soft leading edge —
-    // so the strand reads as still arriving without the length behind the head
-    // being dark, which is what a narrow window here produces.
-    float tip = smoothstep(paid, paid - 0.07, a);
-    vFade = uDrop * tip * (0.5 + grain * 0.7) * (1.0 - a * 0.22);
+    vHead = 1.0 - smoothstep(0.0, 0.08, aAlong);
+    gl_PointSize = mix(5.0, 1.4, pow(aAlong, 0.7)) * uBead * uPixel;
+    vFade = on * pow(1.0 - aAlong, 1.6) * 0.92 * mix(0.15, 1.0, clear);
 
     gl_Position = projectionMatrix * mv;
   }
 `;
 
-export const strandFragment = /* glsl */ `
+export const cometFragment = /* glsl */ `
   precision highp float;
 
-  uniform vec3 uInk;
   varying float vFade;
+  varying float vHead;
 
   void main() {
-    float d = length(gl_PointCoord - 0.5) * 2.0;
+    float d = length((gl_PointCoord - 0.5) * 2.0);
     if (d > 1.0) discard;
-    // A hard little core inside a wide halo, which is what a bead of light is.
-    float core = smoothstep(1.0, 0.45, d);
-    float halo = pow(1.0 - d, 2.4);
-    float a = (core * 0.75 + halo * 0.55) * vFade;
+
+    float bead = 1.0 - smoothstep(0.55, 1.0, d);
+    // The head carries a halo the tail does not.
+    float halo = pow(1.0 - d, 2.0) * vHead * 0.8;
+
+    float a = (bead + halo) * vFade;
     if (a < 0.004) discard;
-    gl_FragColor = vec4(uInk, a);
+    gl_FragColor = vec4(vec3(1.0), a);
   }
 `;

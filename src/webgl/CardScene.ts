@@ -79,8 +79,8 @@ export class CardScene {
      * something to catch as it passes through profile; without them the card
      * simply thins to nothing and reappears.
      */
-    this.scene.add(new AmbientLight(0xffffff, 0.6));
-    const key = new DirectionalLight(0xfff0f2, 2.1);
+    this.scene.add(new AmbientLight(0xffffff, 0.5));
+    const key = new DirectionalLight(0xfff0f2, 1.7);
     key.position.set(-3, 4, 5);
     this.scene.add(key);
     const rim = new DirectionalLight(0xfeb3b8, 1.5);
@@ -88,7 +88,7 @@ export class CardScene {
     this.scene.add(rim);
 
     this.body = new MeshStandardMaterial({
-      color: new Color("#5E1026"),
+      color: new Color("#4A0A1E"),
       metalness: 0.92,
       roughness: 0.24,
     });

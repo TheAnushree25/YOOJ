@@ -248,16 +248,18 @@ onBeforeUnmount(() => { trigger?.kill(); arrival?.kill(); });
 <template>
   <section id="frontier" ref="root" class="fr">
     <div class="fr__stage">
-      <div class="fr__wash" aria-hidden="true" />
+      <div class="fr__wash ground-drift" aria-hidden="true" />
 
       <!-- One set of defs for every tile: the gradient lives inside each shape,
            so it turns with the shape rather than staying pinned to the screen. -->
       <svg class="fr__defs" aria-hidden="true" focusable="false">
         <defs>
+          <!-- The site's dark ground, as a face: the wine the ground falls to, the
+               body it is lit through, and the rose it is lit with. -->
           <linearGradient id="fr-face" x1="0.08" y1="0" x2="0.92" y2="1">
-            <stop offset="0" style="stop-color: var(--c-ink)" />
-            <stop offset="0.46" style="stop-color: var(--c-deep)" />
-            <stop offset="1" style="stop-color: var(--c-accent)" />
+            <stop offset="0" style="stop-color: #3C010E" />
+            <stop offset="0.48" style="stop-color: #8A1A3E" />
+            <stop offset="1" style="stop-color: #F3A7AE" />
           </linearGradient>
         </defs>
       </svg>
@@ -355,19 +357,17 @@ onBeforeUnmount(() => { trigger?.kill(); arrival?.kill(); });
   height: calc(var(--vh, 1vh) * 100);
   overflow: hidden;
   isolation: isolate;
-  background: var(--c-bone);
+  background: var(--ga-bg);
 }
 
-// Near-white at the lower left, cooling to a pale wash at the right — the one
-// light ground on the page, and the reason the navy either side of it lands.
+// The light ground — the site's one pale gradient, drifting.
 .fr__wash {
   position: absolute;
   inset: 0;
   z-index: 0;
-  background:
-    radial-gradient(76% 62% at 88% 34%, rgb(var(--rgb-accent) / 0.34) 0%, transparent 72%),
-    radial-gradient(58% 70% at 6% 92%, #FFFFFF 0%, transparent 66%),
-    linear-gradient(112deg, #FEFAF8 0%, var(--c-bone) 42%, #F6E4DA 100%);
+  background: var(--ground-light);
+  // Beside the shorthand, which resets it, and not in the drift class.
+  background-size: 190% 190%;
 }
 
 .fr__defs { position: absolute; width: 0; height: 0; }
@@ -394,9 +394,15 @@ onBeforeUnmount(() => { trigger?.kill(); arrival?.kill(); });
   color: var(--c-indigo);
 }
 
+// Each line is masked so it can rise into view — and a mask cut to the line
+// box at this leading cuts the descender off a "g". The mask is given room
+// below the baseline and the same room is taken back as margin, so the lines
+// keep their leading and the descenders keep their tails.
 .fr__mask {
   display: block;
   overflow: hidden;
+  padding: 0.08em 0 0.2em;
+  margin: -0.08em 0 -0.2em;
 
   > span { display: block; will-change: transform; }
 }
@@ -463,7 +469,7 @@ onBeforeUnmount(() => { trigger?.kill(); arrival?.kill(); });
 
 .fr__trio {
   transition: transform 0.85s var(--e-out-expo), filter 0.85s var(--e-out-quart);
-  --tri: clamp(9rem, 22vw, 17.5rem);
+  --tri: clamp(10rem, 25vw, 20rem);
   --tri-h: calc(var(--tri) * 0.8660);
   // Near enough to touch. The corner arcs already cut a visible notch out of
   // each base, so any real gap on top of that reads as three loose objects
@@ -634,7 +640,7 @@ onBeforeUnmount(() => { trigger?.kill(); arrival?.kill(); });
   align-content: center;
   gap: clamp(1.4rem, 4vh, 2.4rem);
   padding: clamp(4rem, 11vh, 7rem) clamp(2rem, 4vw, 4.5rem);
-  background: linear-gradient(200deg, #FFFFFF 0%, var(--c-bone) 58%, #FAEDE6 100%);
+  background: linear-gradient(200deg, #FFFFFF 0%, #FFF5F6 58%, #FEE0E2 100%);
   box-shadow: -2rem 0 5rem rgb(var(--rgb-ink) / 0.14);
   transform: translate3d(101%, 0, 0);
   visibility: hidden;

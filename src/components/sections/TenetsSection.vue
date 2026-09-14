@@ -164,7 +164,7 @@ onBeforeUnmount(() => trigger?.kill());
   letter-spacing: -0.04em;
   // Pale at the shoulder, near-white where the curve comes back round — the
   // glyph is large enough that a flat fill reads as a printed shape.
-  background: linear-gradient(154deg, #E5B4A0 0%, #F2D8CC 46%, #FDF6F2 100%);
+  background: linear-gradient(154deg, #FEB3B8 0%, #FEDCDE 46%, #FFF5F6 100%);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;

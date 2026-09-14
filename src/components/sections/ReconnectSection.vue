@@ -2,6 +2,7 @@
 import { onBeforeUnmount, onMounted, ref } from "vue";
 import { prefersReduced, scrubThrough } from "../../composables/useMotion";
 import { SEED_FIELD, SEED_INK, SEED_RINGS } from "../../lib/seed";
+import StepRing from "../ui/StepRing.vue";
 
 /**
  * The second movement: four beats played across one held frame.
@@ -41,30 +42,45 @@ const beat = (from: number, to: number) => ease(span(from, to));
 const statement = [
   "500 million working Indians",
   "deserve better healthcare.",
-  "Not someday. Not only when",
-  "things get serious. Every day.",
 ];
-
-/** The belief, stated plainly beneath it. */
-const belief =
-  "YOOJ exists to make quality primary healthcare accessible, affordable and "
-  + "consistent across Tier 2 and Tier 3 India.";
 
 /**
- * Why a single reading is not a diagnosis.
+ * Three passages, read in turn over the dome once it has risen.
  *
- * Each entry has to fit the measure on one line. The mask that reveals a line
- * clips whatever sits below it, so an entry long enough to wrap slides up as a
- * two-line block with its own second line cut in half for the length of the
- * reveal — which is what the first two of these were doing at desktop width.
+ * Each arrives a line at a time in the same low-left slot, holds, and leaves
+ * before the next takes its place — so the slot reads as one voice saying
+ * three things rather than three blocks stacked. Every entry has to fit the
+ * measure on one line: the mask that reveals a line clips whatever sits below
+ * it, so an entry long enough to wrap slides up as a two-line block with its
+ * own second line cut in half for the length of the reveal.
+ *
+ * `at` is where a passage begins arriving and `to` where it has gone.
  */
-const argument = [
-  "Primary healthcare operates in fragments,",
-  "with every visit treated as a separate event,",
-  "leaving patients to carry their history",
-  "from doctor to pharmacy to diagnostics",
-  "and back again.",
-];
+const passages = [
+  {
+    at: 0.28, to: 0.45,
+    lines: ["Not someday.", "Not only when things get serious.", "Every day."],
+  },
+  {
+    at: 0.45, to: 0.65,
+    lines: [
+      "YOOJ exists to make quality",
+      "primary healthcare accessible,",
+      "affordable and consistent",
+      "across Tier 2 and Tier 3 India.",
+    ],
+  },
+  {
+    at: 0.65, to: 0.87,
+    lines: [
+      "Primary healthcare operates in fragments,",
+      "with every visit treated as a separate event,",
+      "leaving patients to carry their history",
+      "from doctor to pharmacy to diagnostics",
+      "and back again.",
+    ],
+  },
+] as const;
 
 /**
  * Three arcs, not a lattice.
@@ -82,6 +98,26 @@ const rings = [
 ];
 
 /**
+ * The contours: rings struck from one centre, like something dropped into
+ * still water and seen from above. They open slowly as the reader travels —
+ * the outer ones a beat behind the inner — so the cluster breathes rather
+ * than sits printed on the ground. Radii in the drawing's own units.
+ */
+const ripples = [120, 290, 480, 700];
+
+/** Which passage the ring counts, and how far through it the reader is. */
+const step = () => {
+  const i = passages.findIndex((x) => p.value >= x.at && p.value < x.to);
+  if (i >= 0) return { index: i, progress: span(passages[i].at, passages[i].to) };
+  if (p.value >= 0.87) return { index: 3, progress: span(0.87, 1) };
+  return { index: 0, progress: 0 };
+};
+
+/** A line's arrival, 0 to 1: it rises through its mask and clears from blur. */
+const lineIn = (pass: { at: number }, i: number) =>
+  beat(pass.at + 0.01 + i * 0.008, pass.at + 0.06 + i * 0.008);
+
+/**
  * The crown's vertical radius, in percent of the dome's height.
  *
  * Two moves in one number, and they run in opposite directions on purpose.
@@ -97,7 +133,7 @@ const rings = [
  * what takes the dome to the full screen, and it is the same gesture as the
  * bloom carried past its own halfway point.
  */
-const crown = () => (24 + beat(0.18, 0.44) * 40) * (1 - beat(0.46, 0.64));
+const crown = () => (24 + beat(0.18, 0.34) * 40) * (1 - beat(0.34, 0.46));
 
 /**
  * The dome's offset, in percent of its own height.
@@ -116,21 +152,10 @@ const crown = () => (24 + beat(0.18, 0.44) * 40) * (1 - beat(0.46, 0.64));
  * that same density smothers the thing it is supposed to be revealing. So it
  * is dense for the rise and lifts afterwards.
  */
-const domeVeil = () => 0.78 - beat(0.5, 0.68) * 0.34;
+const domeVeil = () => 1 - beat(0.36, 0.48) * 0.12;
 
-const domeY = () => (1 - beat(0.18, 0.42)) * 96 - beat(0.40, 0.60) * 16;
+const domeY = () => (1 - beat(0.18, 0.32)) * 96 - beat(0.30, 0.42) * 16;
 
-/**
- * A care pathway as it is usually walked: one stage at a time, each restarting
- * what the last one learned. Drawn as a row so its length is the argument.
- */
-const pathway = [
-  "Doctor",
-  "Prescription",
-  "Pharmacy",
-  "Diagnostics",
-  "Next visit",
-];
 
 /**
  * The turn the section ends on, word by word.
@@ -146,7 +171,7 @@ const turn = (
 
 /** A word's brightness in the closing beat. The edge runs ahead of itself. */
 const told = (i: number) => {
-  const head = beat(0.84, 0.97) * (turn.length * 1.2);
+  const head = beat(0.89, 0.985) * (turn.length * 1.2);
   return 0.16 + Math.min(1, Math.max(0, (head - i) / (turn.length * 0.2))) * 0.84;
 };
 
@@ -171,19 +196,19 @@ onBeforeUnmount(() => trigger?.kill());
            of the beat. Faded with the words, the frame went dark the moment
            they left and the arc then arrived on a ground it could not be seen
            against. This leaves once the dome covers the frame anyway. -->
-      <div class="rc__ground" :style="{ opacity: 1 - beat(0.36, 0.47) }" aria-hidden="true" />
+      <div class="rc__ground ground-drift--slow" :style="{ opacity: 1 - beat(0.22, 0.30) }" aria-hidden="true" />
 
-      <!-- Beat one: the statement, present from the first frame. -->
-      <div class="rc__panel" :style="{ opacity: 1 - beat(0.17, 0.29) }">
+      <!-- Beat one: the statement, present from the first frame, rising a line
+           at a time on the pale panel. -->
+      <div class="rc__panel" :style="{ opacity: 1 - beat(0.20, 0.26) }">
         <p class="label rc__eyebrow">Our belief</p>
         <p class="rc__statement">
           <span v-for="(line, i) in statement" :key="i" class="rc__line">
-            <span :style="{ transform: `translate3d(0, ${(1 - beat(0.005 + i * 0.022, 0.13 + i * 0.022)) * 110}%, 0)` }">
+            <span :style="{ transform: `translate3d(0, ${(1 - beat(0.005 + i * 0.03, 0.12 + i * 0.03)) * 110}%, 0)` }">
               {{ line }}
             </span>
           </span>
         </p>
-        <p class="rc__belief">{{ belief }}</p>
       </div>
 
       <!-- Beat two: the deep ground climbs through it as a wide circular arc. -->
@@ -193,9 +218,21 @@ onBeforeUnmount(() => trigger?.kill());
           :style="{
             transform: `translate3d(-50%, ${domeY()}%, 0)`,
             borderRadius: `50% 50% 0 0 / ${crown()}% ${crown()}% 0 0`,
-            backgroundColor: `rgb(var(--rgb-void) / ${domeVeil()})`,
+            '--dome-veil': domeVeil(),
           }"
         >
+          <!-- The light: a soft shaft passing through the contours, carried
+               across the frame by the reader's travel and swaying on its own
+               clock in between, so it is never still. In the tree before the
+               rings, so they are drawn over it. -->
+          <div
+            class="rc__beamWrap"
+            :style="{ transform: `translate3d(${beat(0.28, 0.96) * 95}vw, 0, 0)` }"
+            aria-hidden="true"
+          >
+            <div class="rc__beam" />
+          </div>
+
           <!-- Beat three: geometry, struck from off-frame so only arcs cross it. -->
           <svg class="rc__rings" viewBox="0 0 1600 900" aria-hidden="true" preserveAspectRatio="xMidYMid slice">
             <circle
@@ -203,57 +240,72 @@ onBeforeUnmount(() => trigger?.kill());
               :key="i"
               :cx="c.x" :cy="c.y" :r="c.r"
               :style="{
-                opacity: beat(0.34 + i * 0.05, 0.58 + i * 0.05) * c.weight,
-                transform: `translate(${c.dx * beat(0.34, 0.7)}px, ${c.dy * beat(0.34, 0.7)}px) scale(${0.96 + beat(0.34 + i * 0.05, 0.7) * 0.04})`,
+                opacity: beat(0.24 + i * 0.04, 0.42 + i * 0.04) * c.weight,
+                transform: `translate(${c.dx * beat(0.24, 0.92)}px, ${c.dy * beat(0.24, 0.92)}px) scale(${0.96 + beat(0.24 + i * 0.04, 0.92) * 0.04})`,
                 transformOrigin: `${c.x}px ${c.y}px`,
               }"
             />
+
+            <!-- The contours, at the right of the frame where the copy is not. -->
+            <g :style="{ opacity: beat(0.30, 0.44) * (1 - beat(0.80, 0.86)) }">
+              <circle
+                v-for="(r, i) in ripples"
+                :key="`c${i}`"
+                cx="1180"
+                cy="470"
+                :r="r"
+                :style="{
+                  opacity: 0.3 - i * 0.05,
+                  transform: `translate(${-40 * beat(0.3, 0.95)}px, ${-24 * beat(0.3, 0.95)}px) scale(${0.9 + beat(0.3 + i * 0.03, 0.95) * 0.14})`,
+                  transformOrigin: '1180px 470px',
+                }"
+              />
+            </g>
           </svg>
         </div>
       </div>
 
-      <!-- Beat three copy, low and left, arriving a line at a time. -->
-      <div class="rc__argument" :style="{ opacity: beat(0.36, 0.46) - beat(0.54, 0.62) }">
+      <!-- The bloom the section ends on, rising from the lower right as the
+           turn is read. -->
+      <div
+        class="rc__bloom"
+        :style="{ opacity: beat(0.8, 0.96), transform: `scale(${(0.6 + beat(0.8, 1) * 0.8).toFixed(3)})` }"
+        aria-hidden="true"
+      />
+
+      <!-- The reference's numbered ring, high in the frame: which passage is
+           being read, with an arc drawing round it as the reader goes. -->
+      <StepRing
+        class="rc__ring"
+        :index="step().index"
+        :total="4"
+        :progress="step().progress"
+        light
+        :style="{ opacity: beat(0.30, 0.36) }"
+      />
+
+      <!-- Beats two to four: the three passages, low and left over the dome,
+           each arriving a line at a time and gone before the next. They share
+           one slot, so each lands where the last stood. -->
+      <div
+        v-for="(pass, n) in passages"
+        :key="n"
+        class="rc__argument"
+        :style="{ opacity: beat(pass.at, pass.at + 0.05) - beat(pass.to - 0.04, pass.to) }"
+        :aria-hidden="p < pass.at || p > pass.to"
+      >
         <p class="rc__argument-copy">
-          <span v-for="(line, i) in argument" :key="i" class="rc__line">
-            <span :style="{ transform: `translate3d(0, ${(1 - beat(0.37 + i * 0.022, 0.50 + i * 0.022)) * 110}%, 0)` }">
+          <span v-for="(line, i) in pass.lines" :key="i" class="rc__line">
+            <span :style="{ transform: `translate3d(0, ${(1 - lineIn(pass, i)) * 110}%, 0)`, filter: `blur(${((1 - lineIn(pass, i)) * 6).toFixed(2)}px)` }">
               {{ line }}
             </span>
           </span>
         </p>
       </div>
 
-      <!-- Beat four: the pathway, drifting as the reader travels. It arrives
-           later than the argument it answers, holds for a long stretch so the
-           row can actually be read end to end, and travels further in that
-           window than it used to in the whole section. -->
-      <div class="rc__pathway" :style="{ opacity: beat(0.58, 0.65) - beat(0.80, 0.86) }">
-        <!-- Two transforms, on two elements, doing two different jobs: the rail
-             carries the reader's own travel and the track runs on its own clock
-             underneath it. On one element the animation and the bound style
-             would overwrite each other every frame. -->
-        <div class="rc__rail" :style="{ transform: `translate3d(${-beat(0.57, 0.85) * 24}%, 0, 0)` }">
-          <div class="rc__track">
-            <!-- Two identical passes. The loop translates by exactly half the
-                 track, so the second pass is already under the eye when the
-                 first leaves and the seam never shows. -->
-            <template v-for="pass in 2" :key="pass">
-              <template v-for="stage in pathway" :key="`${pass}-${stage}`">
-                <div class="rc__node"><span>{{ stage }}</span></div>
-                <span class="rc__arrow" aria-hidden="true">&rarr;</span>
-              </template>
-            </template>
-          </div>
-        </div>
-        <p class="rc__pathway-copy">
-          Each stage restarts what the last one learned, and the person tells the
-          story again from the beginning.
-        </p>
-      </div>
-
       <!-- Beat five: the turn. The figure the site opened with, drawn on
            again, with one line pulled through it as the reader reads. -->
-      <div class="rc__turn" :style="{ opacity: beat(0.82, 0.88) }">
+      <div class="rc__turn" :style="{ opacity: beat(0.87, 0.91) }">
         <svg class="rc__seed" :viewBox="`0 0 ${SEED_FIELD.w} ${SEED_FIELD.h}`" aria-hidden="true">
           <!-- Struck from the centre and carried out to their places, exactly
                as the gate opens. Same figure, same gesture, second time. -->
@@ -263,8 +315,8 @@ onBeforeUnmount(() => trigger?.kill());
             :cx="SEED_FIELD.cx" :cy="SEED_FIELD.cy" :r="SEED_FIELD.r"
             :class="{ 'rc__hub': i === 0 }"
             :style="{
-              opacity: beat(0.82 + i * 0.009, 0.92 + i * 0.009) * (i === 0 ? 1 : SEED_INK),
-              transform: `translate(${o[0] * beat(0.82 + i * 0.009, 0.97 + i * 0.009)}px, ${o[1] * beat(0.82 + i * 0.009, 0.97 + i * 0.009)}px)`,
+              opacity: beat(0.87 + i * 0.009, 0.95 + i * 0.009) * (i === 0 ? 1 : SEED_INK),
+              transform: `translate(${o[0] * beat(0.87 + i * 0.009, 0.99 + i * 0.009)}px, ${o[1] * beat(0.87 + i * 0.009, 0.99 + i * 0.009)}px)`,
             }"
           />
         </svg>
@@ -275,8 +327,8 @@ onBeforeUnmount(() => trigger?.kill());
       </div>
 
       <!-- The standing marker, swapping its word as the argument turns. -->
-      <p class="label rc__marker" :style="{ opacity: beat(0.30, 0.40) }">
-        {{ p > 0.84 ? "YOOJ" : "Reconnecting healthcare" }}
+      <p class="label rc__marker" :style="{ opacity: beat(0.26, 0.34) }">
+        {{ p > 0.88 ? "YOOJ" : "Reconnecting healthcare" }}
       </p>
     </div>
   </section>
@@ -285,13 +337,14 @@ onBeforeUnmount(() => trigger?.kill());
 <style scoped lang="scss">
 // Five viewports of travel. The stage inside holds for all of it, so this is a
 // duration rather than a height.
-// Seven viewports. The section carries five beats now — statement, dome,
-// geometry, pathway, and the turn at the end — and at five each of them was
-// arriving before the last had been read.
+// Eleven viewports for five beats — the statement on the pale panel, three
+// passages over the risen dome, and the turn at the end. At seven the
+// passages spent most of their slice arriving and leaving; each now holds
+// still for the better part of a viewport of travel once its lines are in.
 .rc {
   position: relative;
-  height: 720vh;
-  height: calc(var(--vh, 1vh) * 720);
+  height: 1080vh;
+  height: calc(var(--vh, 1vh) * 1080);
 }
 
 .rc__stage {
@@ -311,7 +364,9 @@ onBeforeUnmount(() => trigger?.kill());
   position: absolute;
   inset: 0;
   z-index: 0;
-  background: var(--c-bone);
+  background: var(--ground-light);
+  // Beside the shorthand, which resets it, and not in the drift class.
+  background-size: 190% 190%;
 }
 
 .rc__panel {
@@ -361,19 +416,25 @@ onBeforeUnmount(() => trigger?.kill());
   width: 210vw;
   height: 190vh;
   border-radius: 50% 50% 0 0 / 46% 46% 0 0;
-  // The dome is this section's dark ground, so it is a tint over the shared
-  // field rather than a surface of its own — the geometry inside it still
-  // needs an edge to be clipped by, which is why it is not simply removed.
-  // Dense enough to read as deep ground while it is still rising over the
-  // pale panel — a thin veil there tints bone to grey rather than reading as
-  // an arc of night coming up — and still translucent enough that the field's
-  // own movement carries through it once the panel has gone.
-  // The colour is bound in the template — it changes with the beat. Only the
-  // light shaping lives here.
-  background-image:
-    radial-gradient(54% 62% at 74% 40%, rgb(var(--rgb-accent) / 0.2) 0%, transparent 62%);
+  // The dome is this section's dark ground: the site's wine gradient, on a
+  // layer of its own so the geometry above it is not faded with it. It used
+  // to be a black tint over the shared field, which was the one place on the
+  // page the ground went to near-black rather than to wine. It rises opaque —
+  // a thin tint over the pale panel reads as bone going grey, not as night
+  // coming up — and eases back a little once the panel has gone.
   will-change: transform;
   overflow: hidden;
+
+  &::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: var(--ground-dark);
+    background-size: 190% 190%;
+    background-position: 70% 62%;
+    animation: ground-poses 12s var(--e-in-out-quad) -6s infinite;
+    opacity: var(--dome-veil, 1);
+  }
 }
 
 .rc__rings {
@@ -398,8 +459,10 @@ onBeforeUnmount(() => trigger?.kill());
   bottom: clamp(5rem, 14vh, 8rem);
   z-index: 3;
   // In ch so the measure tracks the type size, and capped against the viewport
-  // so the guarantee that each line fits survives a narrow screen.
-  max-width: min(44ch, calc(100vw - var(--gutter) * 2));
+  // so the guarantee that each line fits survives a narrow screen. Fifty-two:
+  // the longest line is forty-six characters of proportional type, and at
+  // forty-four it broke "event," onto a line of its own.
+  max-width: min(52ch, calc(100vw - var(--gutter) * 2));
 }
 
 .rc__argument-copy {
@@ -409,80 +472,75 @@ onBeforeUnmount(() => trigger?.kill());
   color: var(--c-bone);
 }
 
-.rc__pathway {
+/* ---------------------------------------------------------------- the light */
+
+// The shaft. Sized against the dome it lives in — 210vw by 190vh — so the
+// percentages here are of that, not of the frame. The softness is in the
+// gradient stops, not a filter: a blur on a layer this size is re-rasterised
+// every frame its child moves, and this one's child never stops moving.
+.rc__beamWrap {
+  position: absolute;
+  left: 14%;
+  top: -20%;
+  width: 20%;
+  height: 140%;
+  pointer-events: none;
+  will-change: transform;
+}
+
+.rc__beam {
   position: absolute;
   inset: 0;
-  z-index: 3;
-  display: grid;
-  align-content: center;
-  gap: clamp(2.4rem, 8vh, 5rem);
-  pointer-events: none;
+  background:
+    linear-gradient(90deg, transparent 0%, rgb(243 167 174 / 0.14) 32%, rgb(243 167 174 / 0.14) 68%, transparent 100%),
+    linear-gradient(90deg, transparent 30%, rgb(254 220 222 / 0.34) 50%, transparent 70%);
+  mix-blend-mode: screen;
+  animation: rc-beam 9s var(--e-in-out-quad) infinite alternate;
 }
 
-// Wider than the frame on purpose: the row runs off both edges, so the pathway
-// reads as longer than the screen can hold, which is the point being made.
-.rc__rail {
-  width: max-content;
-  will-change: transform;
+@keyframes rc-beam {
+  from { transform: rotate(-30deg) translate3d(-8%, 0, 0); opacity: 0.85; }
+  to   { transform: rotate(-30deg) translate3d(8%, 0, 0);  opacity: 1; }
 }
 
-.rc__track {
-  display: flex;
-  align-items: center;
-  gap: clamp(0.8rem, 2.4vw, 2rem);
-  padding-inline: var(--gutter);
-  width: max-content;
-  // Never stops. A pathway that only moves while the reader scrolls reads as a
-  // diagram being dragged; one that keeps going reads as a loop somebody is
-  // stuck inside, which is the thing the row is there to say.
-  animation: rc-rail 34s linear infinite;
-  will-change: transform;
-}
-
-@keyframes rc-rail {
-  from { transform: translate3d(0, 0, 0); }
-  // Exactly half: the track holds two identical passes, so half a track is one
-  // whole pass and the reset lands on a frame identical to the one before it.
-  to   { transform: translate3d(-50%, 0, 0); }
-}
-
-.rc__node {
-  display: grid;
-  place-items: center;
-  flex: none;
-  width: clamp(9rem, 17vw, 15rem);
-  aspect-ratio: 1;
-  // Glass discs rather than wire: a faint fill lifts each node off the ground
-  // so the row reads as objects in the scene, and the lighter rim keeps them
-  // beneath the horizon arcs in the hierarchy instead of competing with them.
-  border: 1px solid rgb(var(--rgb-bone) / 0.2);
-  background: rgb(var(--rgb-bone) / 0.035);
+// The closing bloom, frame-relative and over the dome, under the words.
+.rc__bloom {
+  position: absolute;
+  right: -36vw;
+  bottom: -40vw;
+  width: 84vw;
+  height: 84vw;
+  z-index: 2;
   border-radius: 50%;
-  padding: 1.2rem;
-  text-align: center;
+  transform-origin: 50% 50%;
+  // Strong at the centre and wide: this is the light the section ends on,
+  // and it has to be read as a dawn coming up under the words, not a tint.
+  background: radial-gradient(circle at 50% 50%,
+    rgb(255 236 238 / 0.82) 0%, rgb(254 200 205 / 0.5) 22%, rgb(243 167 174 / 0.24) 42%, transparent 64%);
+  mix-blend-mode: screen;
+  pointer-events: none;
+  will-change: transform, opacity;
+}
 
-  span {
-    font-family: "Space Grotesk", monospace;
-    font-size: var(--t-label);
-    letter-spacing: var(--ls-label);
-    text-transform: uppercase;
-    color: rgb(var(--rgb-bone) / 0.82);
+// High and a little left of centre, as the reference sets it — clear of the
+// copy in the lower left and of the contours on the right.
+.rc__ring {
+  --ring-size: 3.4rem;
+  position: absolute;
+  left: 46%;
+  top: 22%;
+  z-index: 4;
+  transition: opacity 0.5s var(--e-out-quart);
+
+  @media (max-width: 60rem) {
+    left: auto;
+    right: var(--gutter);
+    top: 16%;
   }
 }
 
-.rc__arrow {
-  flex: none;
-  color: rgb(var(--rgb-bone) / 0.5);
-  font-size: clamp(0.9rem, 1.4vw, 1.2rem);
-}
-
-.rc__pathway-copy {
-  padding-inline: var(--gutter);
-  max-width: 42ch;
-  font-size: var(--t-lead);
-  line-height: 1.45;
-  font-weight: 250;
-  color: var(--c-bone);
+@media (prefers-reduced-motion: reduce) {
+  .rc__beam { animation: none; }
 }
 
 /* ------------------------------------------------------- the closing turn */
@@ -599,19 +657,9 @@ onBeforeUnmount(() => trigger?.kill());
 // scrolling that resolve to nothing.
 @media (prefers-reduced-motion: reduce) {
   .rc { height: auto; }
-  .rc__track { animation: none; }
   .rc__stage { position: relative; height: auto; min-height: 100vh; }
   .rc__panel { display: none; }
   .rc__dome { transform: translateX(-50%) !important; }
 }
 
-// The belief, set under the statement at the reading size.
-.rc__belief {
-  max-width: 26rem;
-  margin: clamp(1rem, 2.6vh, 1.6rem) 0 0;
-  font-size: var(--t-lead);
-  line-height: 1.45;
-  font-weight: 300;
-  color: var(--c-bone-dim);
-}
 </style>

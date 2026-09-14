@@ -10,7 +10,9 @@ import AlephCard from "../components/sections/aleph/AlephCard.vue";
 import AlephQuantum from "../components/sections/aleph/AlephQuantum.vue";
 import AlephFound from "../components/sections/aleph/AlephFound.vue";
 import AlephAccess from "../components/sections/aleph/AlephAccess.vue";
-import { onDark } from "../lib/session";
+import { entered, onDark } from "../lib/session";
+import { ScrollTrigger } from "../composables/useMotion";
+import SplashGate from "../components/chrome/SplashGate.vue";
 
 /**
  * Aleph: the pale page.
@@ -24,7 +26,7 @@ import { onDark } from "../lib/session";
  */
 
 const canvas = ref<HTMLCanvasElement | null>(null);
-const { progress, mount } = useSmoothScroll();
+const { progress, mount, lock, unlock, toTop } = useSmoothScroll();
 const { x, y } = usePointer();
 
 let backdrop: Backdrop | null = null;
@@ -49,13 +51,43 @@ onMounted(() => {
       shade: 0.93,
       rotation: 28,
       offset: [-0.8, 0.2],
+      // The light stills: upper centre-left, left, and back.
+      poses: [[0.42, 0.77], [0.28, 0.5], [0.42, 0.7], [0.58, 0.55]],
+      cadence: 3,
     });
     backdrop.start();
     window.addEventListener("resize", backdrop.resize);
   }
 
   mount();
+
+  // Held at the top until the gate is answered, as the front page is. The
+  // gate belongs to the visit, so a reader who has already come through it on
+  // the front page is not shown it again here.
+  if (!entered.value) {
+    toTop();
+    lock();
+    const settle = () => requestAnimationFrame(() => { if (!entered.value) toTop(); });
+    if (document.readyState === "complete") settle();
+    else window.addEventListener("load", settle, { once: true });
+  }
 });
+
+/**
+ * The gate lifts.
+ *
+ * A hard refresh, and only now: every trigger on this page measured itself
+ * while the document was held still behind the gate, and some of those
+ * measurements are taken against fonts that had not landed.
+ */
+const onEnter = () => {
+  entered.value = true;
+  setTimeout(() => {
+    toTop();
+    unlock();
+    ScrollTrigger.refresh(true);
+  }, 0);
+};
 
 onBeforeUnmount(() => {
   if (backdrop) window.removeEventListener("resize", backdrop.resize);
@@ -71,11 +103,17 @@ const advance = () => backdrop?.setProgress(progress.value);
   <div class="al" :class="{ 'is-night': onDark }" @pointermove="track" @scroll.passive="advance">
     <div class="al__field"><canvas ref="canvas" /></div>
 
+    <SplashGate v-if="!entered" @enter="onEnter" />
+
     <header class="al__head">
       <RouterLink class="al__mark" to="/" data-cursor="scale">YOOJ</RouterLink>
       <div class="al__meta">
-        <span class="al__rule" aria-hidden="true" />
-        <span class="al__here">Aleph</span>
+        <!-- The rule is the page's own progress: it fills left to right and is
+             full at the foot of the document, as the front page's is. -->
+        <span class="al__rule" aria-hidden="true">
+          <i :style="{ transform: `scaleX(${Math.max(0.008, Math.min(1, progress))})` }" />
+        </span>
+        <span class="al__here">Solutions</span>
         <span class="al__dots" aria-hidden="true">
           <i v-for="n in 9" :key="n" />
         </span>
@@ -91,7 +129,7 @@ const advance = () => backdrop?.setProgress(progress.value);
       <AlephAccess />
     </main>
 
-    <p class="al__hint" :class="{ 'is-gone': progress > 0.02 }">Scroll to explore</p>
+    <p class="al__hint" :class="{ 'is-gone': progress > 0.02 || !entered }">Scroll to explore</p>
   </div>
 </template>
 
@@ -161,9 +199,20 @@ const advance = () => backdrop?.setProgress(progress.value);
 }
 
 .al__rule {
+  position: relative;
   grid-column: 1 / -1;
   height: 1px;
-  background: rgb(60 1 14 / 0.3);
+  background: rgb(60 1 14 / 0.22);
+  overflow: hidden;
+
+  i {
+    position: absolute;
+    inset: 0;
+    background: var(--ga-ink);
+    transform-origin: 0 50%;
+    will-change: transform;
+    transition: background-color 0.45s var(--e-out-quart);
+  }
 }
 
 .al__here {
@@ -218,7 +267,8 @@ const advance = () => backdrop?.setProgress(progress.value);
   .al__mark,
   .al__here { color: #FFFFFF; }
 
-  .al__rule { background: rgb(255 255 255 / 0.45); }
+  .al__rule { background: rgb(255 255 255 / 0.28); }
+  .al__rule i { background: #FFFFFF; }
 
   .al__dots i { background: rgb(255 255 255 / 0.7); }
 

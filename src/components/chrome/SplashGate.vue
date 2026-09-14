@@ -61,7 +61,7 @@ const enter = () => {
 </script>
 
 <template>
-  <div class="sg" :class="{ 'is-leaving': leaving }">
+  <div class="sg ground-drift" :class="{ 'is-leaving': leaving }">
     <div class="sg__field">
       <svg
         class="sg__seed"
@@ -99,18 +99,17 @@ const enter = () => {
 </template>
 
 <style scoped lang="scss">
-// Lit from the upper left and falling away to the deepest navy on the page —
-// the one screen with no content on it, so the ground is the whole composition.
+// The site's dark ground, and nothing else — the one screen with no content
+// on it, so the ground is the whole composition.
 .sg {
   position: fixed;
   inset: 0;
   z-index: 100;
   display: grid;
   place-items: center;
-  background:
-    radial-gradient(58% 54% at 26% 14%, var(--c-accent-dim) 0%, rgb(var(--rgb-accent) / 0.34) 42%, transparent 76%),
-    radial-gradient(64% 60% at 88% 96%, #0A0206 0%, transparent 70%),
-    linear-gradient(142deg, #8E2A3E 0%, var(--c-deep) 38%, var(--c-abyss) 68%, #0A0206 100%);
+  background: var(--ground-dark);
+  // Beside the shorthand, which resets it, and not in the drift class.
+  background-size: 190% 190%;
   transition: opacity 0.85s var(--e-in-out-quart), visibility 0.85s;
 
   &.is-leaving {

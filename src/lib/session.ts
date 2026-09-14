@@ -21,3 +21,17 @@ export const entered = ref(false);
  * subtle bug, it is a header that is simply not there.
  */
 export const onDark = ref(false);
+
+/**
+ * Whether the bottom corner of the frame is over a pale ground.
+ *
+ * The front page is dark with three light sections in it, and the one piece of
+ * furniture that is fixed over all of them is the pulse in the corner. It
+ * cannot see what is behind it; the page can, and says so here. Measured at
+ * the corner rather than at the middle of the viewport, because that is where
+ * the thing that needs to know is.
+ */
+export const onPale = ref(false);
+
+/** Where the pulse sits, in viewport pixels: the point the ground is tested at. */
+export const pulseCorner = () => ({ x: window.innerWidth - 74, y: window.innerHeight - 60 });

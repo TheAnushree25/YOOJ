@@ -31,6 +31,10 @@ export interface FieldOptions {
   offset?: [number, number];
   /** color1, color2, color3, bg — used when a token is absent. */
   fallback?: [string, string, string, string];
+  /** The four places the light goes, in uv with y up. The supplied stills. */
+  poses?: [[number, number], [number, number], [number, number], [number, number]];
+  /** Seconds from one pose to the next. */
+  cadence?: number;
 }
 
 /**
@@ -75,6 +79,10 @@ export class Backdrop {
       speed = 0.4, strength = 4.0, brightness = 1.3, reflection = 0.1, shade = 0.72,
       rotation = 50, offset = [-1.4, 0],
       fallback = ["#3C010E", "#750227", "#FEB3B8", "#3C010E"],
+      // The dark stills: light upper right, right, lower right, and a fourth
+      // a little in from the edge so the cycle has somewhere to breathe.
+      poses = [[0.88, 0.9], [0.97, 0.53], [0.95, 0.1], [0.78, 0.55]],
+      cadence = 3,
     } = field;
     const stop = (n: number) => Backdrop.token(`${prefix}-color-${n}`, fallback[n - 1]);
     this.renderer = new WebGLRenderer({
@@ -115,6 +123,8 @@ export class Backdrop {
         uRotation: { value: (rotation * Math.PI) / 180 },
         // positionX / positionY.
         uOffset: { value: new Vector2(offset[0], offset[1]) },
+        uPoses: { value: poses.map(([x, y]) => new Vector2(x, y)) },
+        uCadence: { value: cadence },
       },
     });
 

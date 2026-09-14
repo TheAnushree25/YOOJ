@@ -3,6 +3,23 @@ import { onBeforeUnmount, ref } from "vue";
 import { ScrollTrigger } from "./useMotion";
 
 /**
+ * The page's running engine, module-scoped.
+ *
+ * A component deep inside a section sometimes has to move the page itself —
+ * the question deck's arrow is the case. Calling the composable again to get a
+ * handle would build a second Lenis on the same document and the two would
+ * fight over it, so the one already running is kept here instead.
+ *
+ * Null until a view mounts, which is the honest state: outside a page there is
+ * nothing to scroll.
+ */
+let engine: Lenis | null = null;
+
+/** Eases the document to an absolute offset. A no-op before a view mounts. */
+export const pageScrollTo = (top: number, duration = 1.1) =>
+  engine?.scrollTo(top, { duration });
+
+/**
  * Smooth scrolling on the document itself.
  *
  * Two earlier cuts got this wrong in the same way. The first moved a fixed
@@ -35,6 +52,8 @@ export function useSmoothScroll() {
       wheelMultiplier: 0.9,
     });
 
+    engine = lenis;
+
     lenis.on("scroll", ({ scroll, limit: max }: { scroll: number; limit: number }) => {
       scrolled.value = scroll;
       limit.value = Math.max(1, max);
@@ -55,6 +74,13 @@ export function useSmoothScroll() {
     // where Lenis never advances and every scroll assertion reads zero.
     if (import.meta.env.DEV) {
       (window as unknown as Record<string, unknown>).__lenis = lenis;
+      // And a re-measure after every hot update. A section that changes height
+      // under a hot swap leaves every trigger below it measured against the
+      // old document, and a scrubbed section then plays at the wrong offset —
+      // which looks exactly like an effect having been removed.
+      import.meta.hot?.on("vite:afterUpdate", () => {
+        requestAnimationFrame(() => ScrollTrigger.refresh(true));
+      });
     }
 
     window.addEventListener("resize", onResize);
@@ -92,6 +118,7 @@ export function useSmoothScroll() {
     window.removeEventListener("resize", onResize);
     ScrollTrigger.getAll().forEach((t) => t.kill());
     lenis?.destroy();
+    if (engine === lenis) engine = null;
   });
 
   return { progress, scrolled, limit, mount, scrollTo, lock, unlock, toTop };

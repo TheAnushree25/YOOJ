@@ -55,6 +55,20 @@ export const fragment = /* glsl */ `
   uniform float uRotation;
   /** A standing bias on where the light sits, per page. */
   uniform vec2  uOffset;
+  /** The four poses the light visits, in uv, and the seconds one leg takes. */
+  uniform vec2  uPoses[4];
+  uniform float uCadence;
+
+  // Constant indices only: a fragment shader is not guaranteed dynamic
+  // indexing of a uniform array, so the pose is selected rather than looked up.
+  vec2 poseAt(float n) {
+    n = mod(n, 4.0);
+    vec2 p = uPoses[0];
+    p = mix(p, uPoses[1], step(0.5, n));
+    p = mix(p, uPoses[2], step(1.5, n));
+    p = mix(p, uPoses[3], step(2.5, n));
+    return p;
+  }
 
   void main() {
     vec2 uv = vUv;
@@ -64,18 +78,18 @@ export const fragment = /* glsl */ `
     /**
      * Where the light is.
      *
-     * The four stills put it upper right, right, lower right and low centre.
-     * Two slow sines at unrelated rates carry it round a loop that passes
-     * through all four and never repeats exactly — slower than anything on the
-     * page, so nothing appears to move because of it; the frame is simply
-     * different whenever the reader comes back to it. The pointer nudges it a
-     * little, so the ground answers the hand without turning into a torch.
+     * The artwork was supplied as four stills with the light in four places,
+     * and the light goes to each in turn: three seconds from one pose to the
+     * next, eased at both ends so it settles for a moment and moves on. It
+     * used to wander between them on a walk too slow to see happening; this
+     * is seen to happen, and a cycle of four reads as one room lit four ways
+     * rather than as a spotlight being swung. The pointer nudges it a little,
+     * so the ground answers the hand without turning into a torch.
      */
     float era = uTime * uSpeed * 0.11;
-    vec2 light = vec2(
-      0.22 + sin(era) * 0.16 + cos(era * 0.63 + 1.2) * 0.07,
-      0.08 + cos(era * 0.81) * 0.17 + sin(era * 0.47 + 2.1) * 0.06
-    );
+    float leg = uTime / max(uCadence, 0.1);
+    vec2 pose = mix(poseAt(floor(leg)), poseAt(floor(leg) + 1.0), smoothstep(0.0, 1.0, fract(leg)));
+    vec2 light = vec2((pose.x - 0.5) * aspect, pose.y - 0.5);
     light += (uPointer - 0.5) * 0.12;
     light += uOffset * 0.1;
 

@@ -3,8 +3,7 @@ import {
   Points, Scene, ShaderMaterial, WebGLRenderer,
 } from "three";
 import {
-  fieldFragment, fieldVertex, markFragment, markVertex,
-  strandFragment, strandVertex,
+  cometFragment, cometVertex, fieldFragment, fieldVertex, markFragment, markVertex,
 } from "./shaders/quantum.glsl";
 
 /**
@@ -27,17 +26,14 @@ export interface QuantumOptions {
   src: string;
   /** Dots laid along the outline, per copy. */
   traced?: number;
-  /** Loose motes filling the corridor. */
+  /** Stars filling the corridor. */
   motes?: number;
+  /** Shooting stars, each in flight for half of its own cycle. */
+  comets?: number;
   /** How many copies of the mark are in the corridor at once. */
   shells?: number;
   ink?: string;
   accent?: string;
-  pale?: string;
-  warm?: string;
-  dark?: string;
-  /** The lit floor the low discs borrow their colour from. */
-  glow?: string;
 }
 
 /** How deep the corridor is, in world units. Everything wraps inside it. */
@@ -57,10 +53,10 @@ export class QuantumScene {
 
   private field: ShaderMaterial;
   private mark: ShaderMaterial;
+  private comet: ShaderMaterial;
   private dust: Points | null = null;
   private glyph: Points | null = null;
-  private strands: Points | null = null;
-  private canopy: ShaderMaterial;
+  private trails: Points | null = null;
 
   private progress = 0;
   private shown = 0;
@@ -73,10 +69,7 @@ export class QuantumScene {
   constructor(canvas: HTMLCanvasElement, options: QuantumOptions) {
     this.canvas = canvas;
     this.options = options;
-    const {
-      ink = "#FFF5F6", accent = "#FEB3B8",
-      pale = "#D8E4F2", warm = "#C9BC9E", dark = "#3C010E", glow = "#FED9DC",
-    } = options;
+    const { ink = "#FFF5F6", accent = "#FEB3B8" } = options;
 
     this.renderer = new WebGLRenderer({ canvas, antialias: true, alpha: true });
     this.renderer.setClearAlpha(0);
@@ -95,20 +88,35 @@ export class QuantumScene {
       transparent: true,
       depthTest: false,
       depthWrite: false,
-      // Normal blending, deliberately. These are matte discs that occlude one
-      // another; added together they stop being particles and become fog.
+      // Normal blending, deliberately. Stars occlude one another; added
+      // together they stop being stars and become fog.
       uniforms: {
         ...corridor(),
-        // Pixels at the focal plane. A speck is a pixel or two there and the
-        // rare near disc swells to forty on its way past the lens.
-        uSize: { value: 3.2 },
-        uPale: { value: new Color(pale) },
-        uWarm: { value: new Color(warm) },
-        uDark: { value: new Color(dark) },
-        uGlow: { value: new Color(glow) },
+        // A multiplier on the sizes the shader quotes in pixels at the focal
+        // plane. One is the drawing as designed.
+        uSize: { value: 1.0 },
+        uInk: { value: new Color(ink) },
+        uTint: { value: new Color(accent) },
         uBurst: { value: 1 },
         uFlow: { value: 0 },
-        uStreak: { value: 0 },
+      },
+    });
+
+    this.comet = new ShaderMaterial({
+      vertexShader: cometVertex,
+      fragmentShader: cometFragment,
+      transparent: true,
+      depthTest: false,
+      depthWrite: false,
+      // Light, so where a head passes over a star the two add.
+      blending: AdditiveBlending,
+      uniforms: {
+        uTime: { value: 0 },
+        uPixel: { value: 1 },
+        uFocus: { value: FOCUS },
+        uAspect: { value: 1 },
+        // Pixels, for the head bead; the tail thins from there.
+        uBead: { value: 1.0 },
       },
     });
 
@@ -134,29 +142,9 @@ export class QuantumScene {
       },
     });
 
-    this.canopy = new ShaderMaterial({
-      vertexShader: strandVertex,
-      fragmentShader: strandFragment,
-      transparent: true,
-      depthTest: false,
-      depthWrite: false,
-      // Light on a ground that is going white, so it adds rather than covers.
-      blending: AdditiveBlending,
-      uniforms: {
-        uTime: { value: 0 },
-        uDrop: { value: 0 },
-        uPixel: { value: 1 },
-        uFocus: { value: FOCUS },
-        // Pixels at the focal plane. A bead is a small bright dot with a halo
-        // around it, so it needs real size — at two pixels the whole canopy
-        // renders correctly and cannot be seen.
-        uBead: { value: 9.0 },
-        uInk: { value: new Color("#EAF8FF") },
-      },
-    });
 
-    this.sowStrands();
     this.sowField();
+    this.sowComets();
     void this.sowMark();
     this.resize();
   }
@@ -199,39 +187,37 @@ export class QuantumScene {
     this.scene.add(this.dust);
   }
 
+
   /**
-   * The canopy: strands of beads hung from above the frame.
+   * The comets: a dozen chains of beads.
    *
-   * Every bead carries only which strand it is on and how far along — the curve
-   * itself is closed form in the shader, so nothing is integrated and the whole
-   * fall scrubs backwards as readily as forwards. A simulation would not.
+   * A bead carries which comet it belongs to and how far back along it, and
+   * nothing else — the path is closed-form in the shader, so nothing here is
+   * integrated and there is nothing to reset when the reader scrubs.
    */
-  private sowStrands(count = 36, beads = 120) {
-    const strand = new Float32Array(count * beads);
+  private sowComets(count = this.options.comets ?? 12, beads = 36) {
+    const trail = new Float32Array(count * beads);
     const along = new Float32Array(count * beads);
-    const seed = new Float32Array(count * beads);
     const position = new Float32Array(count * beads * 3);
 
-    for (let sIdx = 0; sIdx < count; sIdx++) {
+    for (let c = 0; c < count; c++) {
       for (let b = 0; b < beads; b++) {
-        const i = sIdx * beads + b;
-        strand[i] = sIdx / count;
-        // Squared, so beads bunch near the crown and string out toward the tip.
-        along[i] = Math.pow(b / (beads - 1), 0.82);
-        seed[i] = Math.random();
+        const i = c * beads + b;
+        trail[i] = (c + 0.5) / count;
+        along[i] = b / (beads - 1);
       }
     }
 
     const geometry = new BufferGeometry();
     geometry.setAttribute("position", new BufferAttribute(position, 3));
-    geometry.setAttribute("aStrand", new BufferAttribute(strand, 1));
+    geometry.setAttribute("aTrail", new BufferAttribute(trail, 1));
     geometry.setAttribute("aAlong", new BufferAttribute(along, 1));
-    geometry.setAttribute("aSeed", new BufferAttribute(seed, 1));
 
-    this.strands = new Points(geometry, this.canopy);
-    // Nothing to cull against: the shader parks unpaid beads off screen.
-    this.strands.frustumCulled = false;
-    this.scene.add(this.strands);
+    this.trails = new Points(geometry, this.comet);
+    // Nothing to cull against: the positions are all zero and the shader
+    // places every bead itself.
+    this.trails.frustumCulled = false;
+    this.scene.add(this.trails);
   }
 
   /* ------------------------------------------------------------- the mark */
@@ -271,13 +257,18 @@ export class QuantumScene {
     /**
      * How much of the frame one copy fills where it is meant to be read.
      *
-     * Well under the frame's own height on purpose. At the focal distance the
-     * reader has to be able to see the whole mark at once — that is the moment
-     * the shape is legible, and every other moment in the section is a pass
-     * through a copy too close to read. Sized to fill the frame, there is no
-     * such moment and the corridor is just handsome pipework.
+     * Wider than the frame's own height, and deliberately.
+     *
+     * An earlier cut sized it well under the frame so the whole mark was
+     * legible in one look at the focal distance. That reads as a diagram of a
+     * logo rather than as a room built out of one, and — more to the point —
+     * it left the statement set over the contour instead of inside it. At this
+     * size the shape carries past the top and bottom edges and its middle is
+     * genuinely open, which is where the type goes. Legibility is not lost
+     * with it: the reader still meets the whole mark, on the copy furthest
+     * down the corridor, before flying into the near one.
      */
-    const FRAME = 8.6;
+    const FRAME = 10.6;
 
     // Sampled in viewbox units first, then centred on what was actually drawn.
     const raw: { x: number; y: number; arc: number; accent: boolean }[] = [];
@@ -387,9 +378,10 @@ export class QuantumScene {
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
 
-    for (const material of [this.field, this.mark, this.canopy]) {
+    for (const material of [this.field, this.mark, this.comet]) {
       material.uniforms.uPixel.value = ratio;
     }
+    this.comet.uniforms.uAspect.value = w / h;
   };
 
   start() {
@@ -464,22 +456,12 @@ export class QuantumScene {
      * clock alone, the field freezes the moment they stop to read one of six
      * statements — and they are meant to stop at all six, for a while each.
      */
-    this.field.uniforms.uFlow.value = t * 0.85;
+    this.field.uniforms.uFlow.value = t * 0.12;
     this.mark.uniforms.uGather.value = this.gather;
     this.field.uniforms.uBurst.value = this.burst;
 
-    /**
-     * The field draws out into falling light for the last stretch.
-     *
-     * It is the same particles the whole way — the discs stretch rather than
-     * being replaced — so the change of character happens to the field the
-     * reader has been watching instead of arriving as a new one.
-     */
-    this.field.uniforms.uStreak.value = ease((p - 0.74) / 0.14);
+    this.comet.uniforms.uTime.value = t;
 
-    // The canopy comes down to meet the light coming up.
-    this.canopy.uniforms.uTime.value = t;
-    this.canopy.uniforms.uDrop.value = ease((p - 0.895) / 0.1);
 
     this.renderer.render(this.scene, this.camera);
   };
@@ -488,10 +470,10 @@ export class QuantumScene {
     this.stop();
     this.dust?.geometry.dispose();
     this.glyph?.geometry.dispose();
-    this.strands?.geometry.dispose();
+    this.trails?.geometry.dispose();
     this.field.dispose();
     this.mark.dispose();
-    this.canopy.dispose();
+    this.comet.dispose();
     this.renderer.dispose();
   }
 }

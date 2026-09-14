@@ -2,6 +2,7 @@
 import { onBeforeUnmount, onMounted, ref } from "vue";
 import { prefersReduced, scrubThrough } from "../../../composables/useMotion";
 import { scramble } from "../../../composables/useScramble";
+import { pageScrollTo } from "../../../composables/useSmoothScroll";
 
 /**
  * The Aleph page opens.
@@ -81,6 +82,31 @@ const card = (i: number) => {
   };
 };
 
+/* --------------------------------------------------------------- the arrow */
+
+/**
+ * The deck can be driven as well as read.
+ *
+ * The questions are scrubbed off the page's own travel, so the arrow does not
+ * set an index — it moves the reader to the scroll position where the next
+ * card is the one being read. Anything else would put the deck and the
+ * scrollbar into two different states, and the next wheel click would snap
+ * back to whichever the trigger believed.
+ *
+ * Landing at 0.8 of a slice rather than at its start: `lit()` finishes running
+ * the leading edge along the line at 0.72, so the question arrives fully lit
+ * instead of mid-wipe.
+ */
+const atLast = () => active() >= questions.length - 1;
+
+const advance = () => {
+  if (!root.value || atLast()) return;
+  const span = root.value.offsetHeight - window.innerHeight;
+  if (span <= 0) return;
+  const target = TITLE_END + (active() + 1 + 0.8) * SLICE;
+  pageScrollTo(root.value.offsetTop + target * span, 1.25);
+};
+
 /* -------------------------------------------------------------- the decode */
 
 const statementEl = ref<HTMLElement | null>(null);
@@ -151,6 +177,26 @@ onBeforeUnmount(() => {
           </p>
         </article>
       </div>
+
+      <!-- The arrow. Tracks the right edge of the card being read, and goes
+           quiet on the last one rather than disappearing — a control that
+           vanishes reads as a bug. -->
+      <button
+        class="ah__next"
+        type="button"
+        :disabled="atLast()"
+        :aria-label="atLast() ? 'Last question' : 'Next question'"
+        data-cursor="scale"
+        :style="{ opacity: beat(TITLE_END * 0.72, TITLE_END + 0.05) * (atLast() ? 0.28 : 1) }"
+        @click="advance"
+      >
+        <svg class="ah__arc" viewBox="0 0 56 56" aria-hidden="true">
+          <circle cx="28" cy="28" r="27" :style="{ strokeDashoffset: (1 - through()) * 169.65 }" />
+        </svg>
+        <svg class="ah__glyph" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M4 12 H19 M13 6 L19 12 L13 18" />
+        </svg>
+      </button>
 
       <p class="ah__count">{{ active() + 1 }} / {{ questions.length }}</p>
     </div>
@@ -270,6 +316,74 @@ onBeforeUnmount(() => {
   > span { transition: opacity 0.45s var(--e-out-quart); }
 }
 
+// Anchored off the card's own geometry — the same 14% inset and the same
+// measure — so it stays beside the capsule at every width instead of at a
+// spot that only happens to look right at 1440.
+.ah__next {
+  position: absolute;
+  top: 50%;
+  left: calc(14% + min(31.5rem, 86%) + clamp(1.5rem, 4vw, 3.5rem));
+  transform: translateY(-50%);
+  z-index: 4;
+  display: grid;
+  place-items: center;
+  width: 3.4rem;
+  height: 3.4rem;
+  border: 1px solid rgb(60 1 14 / 0.22);
+  border-radius: 50%;
+  background: rgb(255 255 255 / 0.22);
+  backdrop-filter: blur(6px);
+  transition:
+    opacity 0.85s var(--e-out-quart),
+    border-color 0.45s var(--e-out-quart),
+    background-color 0.45s var(--e-out-quart),
+    transform 0.45s var(--e-out-expo);
+
+  .ah__glyph {
+    width: 1.15rem;
+    overflow: visible;
+
+    path {
+      fill: none;
+      stroke: var(--ga-ink);
+      stroke-width: 1.4;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      vector-effect: non-scaling-stroke;
+    }
+  }
+
+  // The reference's ring: the arc round the button is the read of the
+  // current question, drawn clockwise from the top as the eye moves along the
+  // line, and full when the line is.
+  .ah__arc {
+    position: absolute;
+    inset: -1px;
+    width: calc(100% + 2px);
+    height: calc(100% + 2px);
+    transform: rotate(-90deg);
+    overflow: visible;
+    pointer-events: none;
+
+    circle {
+      fill: none;
+      stroke: var(--ga-dot);
+      stroke-width: 1.5;
+      stroke-linecap: round;
+      stroke-dasharray: 169.65;
+      transition: stroke-dashoffset 0.2s linear;
+    }
+  }
+
+  &:not(:disabled):hover {
+    border-color: var(--ga-dot);
+    background: rgb(255 255 255 / 0.4);
+    transform: translateY(-50%) translateX(3px);
+  }
+
+  &:disabled { cursor: default; }
+}
+
 .ah__count {
   position: absolute;
   left: 50%;
@@ -293,6 +407,17 @@ onBeforeUnmount(() => {
   }
 
   .ah__deck { height: min(52vh, 24rem); }
+
+  // No room beside the card at this width, so the arrow drops under it and
+  // sits on the centre line with the counter.
+  .ah__next {
+    top: auto;
+    bottom: -1rem;
+    left: 50%;
+    transform: translateX(-50%);
+
+    &:not(:disabled):hover { transform: translateX(-50%) translateY(-3px); }
+  }
 }
 
 // Without motion the page is one settled frame: the statement, and the first
@@ -312,5 +437,6 @@ onBeforeUnmount(() => {
   .ah__card:not(.is-live) { display: none; }
   .ah__card.is-live { position: relative; top: auto; transform: none !important; opacity: 1 !important; }
   .ah__q > span { opacity: 1 !important; }
+  .ah__next { display: none; }
 }
 </style>
