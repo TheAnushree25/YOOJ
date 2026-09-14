@@ -1,8 +1,16 @@
 <script setup lang="ts">
 import { onMounted, ref } from "vue";
 import { SEED_FIELD, SEED_INK, SEED_RINGS } from "../../lib/seed";
+import { preloadSound, startAmbient } from "../../lib/sound";
 
 const emit = defineEmits<{ enter: [] }>();
+
+/**
+ * Something the page behind the gate needs before it can be shown — on the
+ * front page, the hero's subject, decoded. The gate does not open until it
+ * has settled, within a ceiling.
+ */
+const props = defineProps<{ waitFor?: Promise<unknown> | null }>();
 
 const ready = ref(false);
 const leaving = ref(false);
@@ -15,6 +23,10 @@ const pct = ref(0);
 // The counter is eased toward the truth so it never stalls on a long asset.
 onMounted(async () => {
   let target = 0;
+
+  // The bed is fetched and decoded now, so the press below has nothing to
+  // wait for. See lib/sound.
+  preloadSound();
 
   // The rings fan out on their own clock, starting the moment the gate exists.
   // It is a loading screen: the figure has to be doing something before the
@@ -45,17 +57,35 @@ onMounted(async () => {
   try { await document.fonts.ready; } catch { /* fonts are a nicety, not a gate */ }
   bump(64);
 
+  /**
+   * Whatever the page behind the gate has said it needs. A gate that opened
+   * before the hero's subject had arrived put the reader on a hero with a
+   * hole in it for a second, which is the one thing a loading screen exists
+   * to prevent. Ceilinged, so a stalled fetch cannot trap anyone.
+   */
+  if (props.waitFor) {
+    await Promise.race([
+      props.waitFor.catch(() => {}),
+      new Promise((resolve) => setTimeout(resolve, 6000)),
+    ]);
+  }
+  bump(84);
+
   if (document.readyState === "complete") bump(100);
   else window.addEventListener("load", () => bump(100), { once: true });
 
   // A hard ceiling so a stalled third-party request can never trap the reader
-  // behind the gate. `setTimeout` keeps running where rAF does not.
+  // behind the gate. `setTimeout` keeps running where rAF does not. Counted
+  // from here — after the page's own wait — not from mount.
   setTimeout(() => bump(100), 500);
 });
 
 const enter = () => {
   if (!ready.value || leaving.value) return;
   leaving.value = true;
+  // Inside the press, which is what lets the sound start at all. The bed
+  // rises over the same seconds the gate takes to leave.
+  void startAmbient();
   setTimeout(() => emit("enter"), 900);
 };
 </script>

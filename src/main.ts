@@ -1,7 +1,7 @@
 import { createApp } from "vue";
 import gsap from "gsap";
 import App from "./App.vue";
-import { router } from "./router";
+import { router, warmSecondPage } from "./router";
 import { vReveal } from "./composables/useReveal";
 
 import "@fontsource-variable/inter";
@@ -22,6 +22,10 @@ if ("scrollRestoration" in history) history.scrollRestoration = "manual";
 window.scrollTo(0, 0);
 
 createApp(App).use(router).directive("reveal", vReveal).mount("#app");
+
+// The page the reader has not asked for yet, fetched while they read the one
+// they did. See warmSecondPage.
+warmSecondPage();
 
 // Dev-only handle on the animation clock. Headless checks and the preview pane
 // run with requestAnimationFrame throttled, where every tween sits at frame

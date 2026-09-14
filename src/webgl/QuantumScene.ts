@@ -5,6 +5,7 @@ import {
 import {
   cometFragment, cometVertex, fieldFragment, fieldVertex, markFragment, markVertex,
 } from "./shaders/quantum.glsl";
+import { measureElement, measurePath } from "../lib/path-sample";
 
 /**
  * The mark, in depth.
@@ -72,6 +73,12 @@ export class QuantumScene {
     const { ink = "#FFF5F6", accent = "#FEB3B8" } = options;
 
     this.renderer = new WebGLRenderer({ canvas, antialias: true, alpha: true });
+    // The per-program error checks three.js runs on first use are each a
+    // synchronous round trip to the GPU process, and there are four per program
+    // — measurable on every scene's first frame. They exist to surface a broken
+    // shader while one is being written, which is a development concern; a
+    // shipped page has nothing to learn from them and pays for them anyway.
+    this.renderer.debug.checkShaderErrors = import.meta.env.DEV;
     this.renderer.setClearAlpha(0);
 
     const corridor = () => ({
@@ -273,17 +280,28 @@ export class QuantumScene {
     // Sampled in viewbox units first, then centred on what was actually drawn.
     const raw: { x: number; y: number; arc: number; accent: boolean }[] = [];
 
+    /**
+     * Measured here rather than by the DOM.
+     *
+     * `getPointAtLength` re-walks the whole path on every call, and this mark
+     * is one run of 133 segments — three thousand dots off it cost 4.9 seconds
+     * of blocked main thread, which was the entire pause between asking for
+     * this page and getting it. measurePath flattens once and samples from a
+     * table; it returns null for any path it cannot be certain about, and
+     * those still go to the DOM.
+     */
     const paths = Array.from(stage.querySelectorAll("path"));
-    const lengths = paths.map((p) => p.getTotalLength());
+    const samplers = paths.map((path) => measurePath(path.getAttribute("d")) ?? measureElement(path));
+    const lengths = samplers.map((s) => s.length);
     const total = lengths.reduce((a, b) => a + b, 0) || 1;
     let walked = 0;
 
-    paths.forEach((path, i) => {
+    samplers.forEach((sampler, i) => {
       // Dots in proportion to each run's length, so the measure stays constant
       // across the whole drawing rather than per path.
       const count = Math.max(2, Math.round((lengths[i] / total) * want));
       for (let n = 0; n < count; n++) {
-        const at = path.getPointAtLength((n / count) * lengths[i]);
+        const at = sampler.at((n / count) * lengths[i]);
         raw.push({
           x: at.x, y: at.y, accent: false,
           arc: (walked + (n / count) * lengths[i]) / total,
@@ -293,25 +311,25 @@ export class QuantumScene {
     });
 
     /**
-     * Filled shapes are sampled across their area, and densely.
+     * The artwork's two filled discs are measured, and not drawn.
      *
-     * A disc thinly sampled is not a dot, it is a spray — and against an
-     * outline it reads as debris rather than as part of the drawing. These are
-     * two solid marks in the artwork, so they have to arrive as two solid
-     * marks: enough points to close the surface, each one smaller than an
-     * outline dot rather than larger.
+     * They used to be sampled densely across their area and struck in the
+     * accent pink with a heartbeat on them. Four shells deep that put half a
+     * dozen blinking pink blobs across the top of every frame — stacked, so
+     * the brightest thing in the corridor was also the only thing in it that
+     * flashed, and the eye went there instead of to the statement. The outline
+     * carries the mark without them.
+     *
+     * Their extent still counts toward the bounds below. Dropping them from
+     * the measurement as well would re-centre and re-scale everything that is
+     * left, which is a different change from the one being made here.
      */
+    const extent: { x: number; y: number }[] = [];
     for (const circle of Array.from(stage.querySelectorAll("circle"))) {
       const cx = Number(circle.getAttribute("cx") ?? 0);
       const cy = Number(circle.getAttribute("cy") ?? 0);
       const r = Number(circle.getAttribute("r") ?? 0);
-      const n = Math.round(want * 0.17);
-      for (let k = 0; k < n; k++) {
-        // Square-rooted radius, or every point crowds the centre.
-        const a = Math.random() * Math.PI * 2;
-        const d = Math.sqrt(Math.random()) * r;
-        raw.push({ x: cx + Math.cos(a) * d, y: cy + Math.sin(a) * d, arc: 0, accent: true });
-      }
+      extent.push({ x: cx - r, y: cy - r }, { x: cx + r, y: cy + r });
     }
 
     stage.remove();
@@ -319,12 +337,14 @@ export class QuantumScene {
     // What was actually drawn, which is what gets centred and scaled.
     let minX = Infinity; let maxX = -Infinity;
     let minY = Infinity; let maxY = -Infinity;
-    for (const r of raw) {
-      if (r.x < minX) minX = r.x;
-      if (r.x > maxX) maxX = r.x;
-      if (r.y < minY) minY = r.y;
-      if (r.y > maxY) maxY = r.y;
-    }
+    const stretch = (x: number, y: number) => {
+      if (x < minX) minX = x;
+      if (x > maxX) maxX = x;
+      if (y < minY) minY = y;
+      if (y > maxY) maxY = y;
+    };
+    for (const r of raw) stretch(r.x, r.y);
+    for (const e of extent) stretch(e.x, e.y);
     const span = Math.max(maxX - minX, maxY - minY) || vw;
     const unit = FRAME / span;
     const midX = (minX + maxX) / 2;
@@ -387,8 +407,24 @@ export class QuantumScene {
   start() {
     if (this.running) return;
     this.running = true;
-    this.clock.start();
-    this.tick();
+    /**
+     * Shaders first, and off the main thread.
+     *
+     * The first render compiles every program on the scene, and each status
+     * query three.js makes afterwards blocks until the driver has finished —
+     * several hundred milliseconds of the page not answering, measured.
+     * compileAsync links them under KHR_parallel_shader_compile and resolves
+     * once they are ready, so the first frame is only a frame. Without the
+     * extension it compiles in place, which is no worse than before; and if
+     * the scene is stopped before it resolves, nothing starts.
+     */
+    this.renderer.compileAsync(this.scene, this.camera)
+      .catch(() => {})
+      .then(() => {
+        if (!this.running) return;
+        this.clock.start();
+        this.tick();
+      });
   }
 
   stop() {

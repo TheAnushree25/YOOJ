@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref } from "vue";
 import { prefersReduced, scrubThrough } from "../../../composables/useMotion";
+import { afterPaint } from "../../../lib/schedule";
 import { CardScene } from "../../../webgl/CardScene";
 import { onDark } from "../../../lib/session";
 import StepRing from "../../ui/StepRing.vue";
@@ -23,6 +24,9 @@ const canvas = ref<HTMLCanvasElement | null>(null);
 const p = ref(0);
 
 let trigger: ReturnType<typeof scrubThrough> = null;
+// Cleared on unmount, so a scene scheduled for after the paint is not built
+// into a section that has already gone.
+let alive = true;
 let scene: CardScene | null = null;
 
 const clamp01 = (v: number) => Math.min(1, Math.max(0, v));
@@ -44,12 +48,12 @@ const beats = [
   },
   {
     lead: "Existing",
-    trail: "care",
+    trail: "",
     copy: "Local doctors\nLocal pharmacies\nExisting clinics\nExisting diagnostic demand\nExisting patient relationships",
   },
   {
-    lead: "YOOJ adds",
-    trail: "care",
+    lead: "Care",
+    trail: "",
     copy: "Standard\nSupply chain\nInfrastructure\nPatient identity\nNetwork",
   },
 ] as const;
@@ -84,23 +88,31 @@ const night = () => beat(0.74, 0.88);
 onMounted(() => {
   if (!root.value || !canvas.value) return;
 
-  scene = new CardScene(canvas.value, {
-    front: "/aleph/card-front.jpg",
-    back: "/aleph/card-back.jpg",
-    // One field, doing both jobs: the burst and the drift that follows it.
-    motes: 17000,
-    // The inks the burst settles into, which are the ones the corridor below
-    // is lit in — the pieces have to arrive there already matching.
-    pale: "#D8E4F2",
-    warm: "#C9BC9E",
-    dark: "#3C010E",
-  });
-  scene.start();
-  window.addEventListener("resize", scene.resize);
+  const plate = canvas.value;
+
+  // Built once the page has painted, not inside the route change's own
+  // task, and told where the reader has got to by then. See lib/schedule.
+  afterPaint(() => {
+    if (!alive) return;
+    const built = new CardScene(plate, {
+      front: "/aleph/card-front.jpg",
+      back: "/aleph/card-back.jpg",
+      // One field, doing both jobs: the burst and the drift that follows it.
+      motes: 17000,
+      // The inks the burst settles into, which are the ones the corridor below
+      // is lit in — the pieces have to arrive there already matching.
+      pale: "#D8E4F2",
+      warm: "#C9BC9E",
+      dark: "#3C010E",
+    });
+    scene = built;
+    built.start();
+    window.addEventListener("resize", built.resize);
+    built.setProgress(p.value);
+  }, 1);
 
   if (prefersReduced()) {
     p.value = 0.34;
-    scene.setProgress(0.34);
     return;
   }
 
@@ -116,8 +128,9 @@ onMounted(() => {
 });
 
 onBeforeUnmount(() => {
+  alive = false;
   trigger?.kill();
-  if (scene) window.removeEventListener("resize", scene.resize);
+  if (scene) window.removeEventListener("resize", scene?.resize);
   scene?.dispose();
 });
 </script>
@@ -132,27 +145,25 @@ onBeforeUnmount(() => {
 
       <!-- Gone before the card fills the frame, not after. -->
       <div class="am__say" :style="{ opacity: beat(0.03, 0.1) - beat(0.58, 0.68) }">
-        <h2 class="am__h">
-          <span
-            v-for="(b, i) in beats"
-            :key="i"
-            class="am__pair"
-            :style="{ opacity: i === said() ? 1 : 0, transform: `translate3d(0, ${(i - said()) * 1.1}rem, 0)` }"
-            :aria-hidden="i !== said()"
-          >
+        <!-- Each statement is one block — its heading with its own copy under
+             it — and the three share one cell. The heading and the copy used
+             to be two separate stacks, which meant the copy had to clear the
+             tallest heading of the three; a one-line heading then sat a whole
+             empty line above its list. Kept together, every list is the same
+             distance below its own heading. -->
+        <div
+          v-for="(b, i) in beats"
+          :key="i"
+          class="am__beat"
+          :style="{ opacity: i === said() ? 1 : 0, transform: `translate3d(0, ${(i - said()) * 1.1}rem, 0)` }"
+          :aria-hidden="i !== said()"
+        >
+          <h2 class="am__h">
             <span class="is-lead">{{ b.lead }}</span>
-            <span class="is-trail">{{ b.trail }}</span>
-          </span>
-        </h2>
-
-        <p class="am__copy">
-          <span
-            v-for="(b, i) in beats"
-            :key="i"
-            :style="{ opacity: i === said() ? 1 : 0 }"
-            :aria-hidden="i !== said()"
-          >{{ b.copy }}</span>
-        </p>
+            <span v-if="b.trail" class="is-trail">{{ b.trail }}</span>
+          </h2>
+          <p class="am__copy">{{ b.copy }}</p>
+        </div>
       </div>
 
       <p class="am__label" :style="{ opacity: 1 - night() * 0.45 }">From fragmented to connected</p>
@@ -229,24 +240,24 @@ onBeforeUnmount(() => {
   @media (max-width: 60rem) { width: min(30rem, 86vw); }
 }
 
-// The statements occupy one box and cross over inside it, so nothing in the
-// column moves when the section turns.
+// The statements occupy one cell and cross over inside it, so nothing in the
+// column moves when the section turns. The cell is as tall as the tallest of
+// them; the shorter ones simply sit at its top.
+.am__say { display: grid; }
+
+.am__beat {
+  grid-area: 1 / 1;
+  transition:
+    opacity 0.75s var(--e-out-quart),
+    transform 0.9s var(--e-out-expo);
+}
+
 .am__h {
-  position: relative;
   display: grid;
-  min-height: 8.5rem;
   font-size: var(--ta-payoff);
   line-height: var(--la-display);
   letter-spacing: var(--ls-display);
   font-weight: 200;
-}
-
-.am__pair {
-  grid-area: 1 / 1;
-  display: grid;
-  transition:
-    opacity 0.75s var(--e-out-quart),
-    transform 0.9s var(--e-out-expo);
 
   // Both halves in the same ink and the same weight. The trail used to sit in
   // a tint, and on this ground a tinted "with you" read as a word half
@@ -255,21 +266,13 @@ onBeforeUnmount(() => {
 }
 
 .am__copy {
-  position: relative;
-  display: grid;
-  margin-top: clamp(1.1rem, 3.2vh, 1.9rem);
-  min-height: 6.5rem;
+  margin-top: clamp(0.8rem, 2.2vh, 1.3rem);
   font-size: var(--ta-body);
   line-height: var(--la-body);
   font-weight: 300;
   color: var(--ga-ink);
-
-  > span {
-    grid-area: 1 / 1;
-    // Two of the three statements are lists, authored with line breaks.
-    white-space: pre-line;
-    transition: opacity 0.65s var(--e-out-quart);
-  }
+  // Two of the three statements are lists, authored with line breaks.
+  white-space: pre-line;
 }
 
 .am__label {

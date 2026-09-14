@@ -40,6 +40,11 @@ a { color: inherit; text-decoration: none; }
 button {
   font: inherit;
   color: inherit;
+  // Not covered by `font`: the browser's own button style resets both, so a
+  // control set inside a spaced, uppercased label came out lower-case and
+  // tight against everything beside it.
+  text-transform: inherit;
+  letter-spacing: inherit;
   background: none;
   border: 0;
   padding: 0;

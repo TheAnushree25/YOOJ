@@ -227,6 +227,13 @@ onBeforeUnmount(() => trigger?.kill());
 .pv__mask {
   display: block;
   overflow: hidden;
+  // The heading is set at a line-height of 1.04, which puts the bottom of the
+  // line box above the bottom of a descender — and the mask clips to the box.
+  // "living the gap" lost the tails of both its g's. The clip is extended
+  // below the line and the space given straight back, so the layout is
+  // untouched and the letters are whole.
+  padding-bottom: 0.16em;
+  margin-bottom: -0.16em;
 
   > span { display: block; }
 }

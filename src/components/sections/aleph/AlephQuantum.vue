@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { prefersReduced, scrubThrough } from "../../../composables/useMotion";
+import { afterPaint } from "../../../lib/schedule";
 import { QuantumScene } from "../../../webgl/QuantumScene";
 import { onDark } from "../../../lib/session";
 import StepRing from "../../ui/StepRing.vue";
@@ -25,6 +26,9 @@ const canvas = ref<HTMLCanvasElement | null>(null);
 const p = ref(0);
 
 let trigger: ReturnType<typeof scrubThrough> = null;
+// Cleared on unmount, so a scene scheduled for after the paint is not built
+// into a section that has already gone.
+let alive = true;
 let scene: QuantumScene | null = null;
 
 const clamp01 = (v: number) => Math.min(1, Math.max(0, v));
@@ -265,36 +269,44 @@ const sky = () => beat(0.3, 0.86);
 onMounted(() => {
   if (!root.value || !canvas.value) return;
 
-  scene = new QuantumScene(canvas.value, {
-    // The mark itself, read off the artwork. Swapping the file swaps what the
-    // reader flies through; nothing in the scene knows what shape it is.
-    src: "/aleph/mark.svg",
-    /**
-     * Four copies, not six.
-     *
-     * Six put four contours across the middle of the frame at once and the
-     * mark stopped reading as a mark — it became a maze of pipes with text
-     * over it. Fewer copies at wider spacing is the whole difference between
-     * a corridor and a tangle: there is still always one at the focal
-     * distance and one passing, which is all the depth the effect needed.
-     */
-    shells: 4,
-    traced: 3000,
-    motes: 3200,
-    ink: "#FFF5F6",
-    accent: "#FEB3B8",
-    /**
-     * The sky. A dozen comets, each in flight for half its own cycle, so
-     * three or four are usually crossing and the rest are resting.
-     */
-    comets: 14,
-  });
-  scene.start();
-  window.addEventListener("resize", scene.resize);
+  const plate = canvas.value;
+
+  // Built once the page has painted, not inside the route change's own
+  // task, and told where the reader has got to by then. See lib/schedule.
+  afterPaint(() => {
+    if (!alive) return;
+    const built = new QuantumScene(plate, {
+      // The mark itself, read off the artwork. Swapping the file swaps what the
+      // reader flies through; nothing in the scene knows what shape it is.
+      src: "/aleph/mark.svg",
+      /**
+       * Four copies, not six.
+       *
+       * Six put four contours across the middle of the frame at once and the
+       * mark stopped reading as a mark — it became a maze of pipes with text
+       * over it. Fewer copies at wider spacing is the whole difference between
+       * a corridor and a tangle: there is still always one at the focal
+       * distance and one passing, which is all the depth the effect needed.
+       */
+      shells: 4,
+      traced: 3000,
+      motes: 3200,
+      ink: "#FFF5F6",
+      accent: "#FEB3B8",
+      /**
+       * The sky. A dozen comets, each in flight for half its own cycle, so
+       * three or four are usually crossing and the rest are resting.
+       */
+      comets: 14,
+    });
+    scene = built;
+    built.start();
+    window.addEventListener("resize", built.resize);
+    built.setProgress(p.value);
+  }, 2);
 
   if (prefersReduced()) {
     p.value = 0.2;
-    scene.setProgress(0.2);
     onDark.value = true;
     return;
   }
@@ -309,8 +321,9 @@ onMounted(() => {
 });
 
 onBeforeUnmount(() => {
+  alive = false;
   trigger?.kill();
-  if (scene) window.removeEventListener("resize", scene.resize);
+  if (scene) window.removeEventListener("resize", scene?.resize);
   scene?.dispose();
 });
 </script>

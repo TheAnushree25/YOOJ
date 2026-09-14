@@ -8,11 +8,20 @@ import HomeView from "./pages/HomeView.vue";
  * the front page needs — splitting it out keeps the first paint carrying only
  * what the first page actually shows.
  */
+/**
+ * The second page, as one loader rather than two.
+ *
+ * Named here so the route and the warm-up below are literally the same import
+ * — two separate `import()` expressions for the same file are two entries in
+ * the bundler's graph, and warming one would leave the other cold.
+ */
+const AlephView = () => import("./pages/AlephView.vue");
+
 export const router = createRouter({
   history: createWebHistory(),
   routes: [
     { path: "/", name: "home", component: HomeView },
-    { path: "/solutions", name: "solutions", component: () => import("./pages/AlephView.vue") },
+    { path: "/solutions", name: "solutions", component: AlephView },
     // The page answered to /aleph until now, so that address keeps working
     // rather than falling through to the catch-all and landing on the front
     // page with no explanation.
@@ -24,3 +33,32 @@ export const router = createRouter({
   // router restore a position as well fights it.
   scrollBehavior: () => ({ top: 0 }),
 });
+
+/**
+ * Fetch the second page while the first one is being read.
+ *
+ * Measured at about 1.6s between pressing the link and the page appearing:
+ * until the click, none of that route's module graph — a WebGL scene and the
+ * geometry that feeds it among it — had begun downloading, so the site simply
+ * did nothing for a second and a half. Warmed ahead of time the click is a
+ * swap rather than a fetch.
+ *
+ * On idle, and not before the first page has finished loading, so this can
+ * never compete with the paint the reader is actually waiting for. The result
+ * is deliberately dropped: a failed warm-up is not an error, it just means the
+ * click pays what it used to.
+ */
+export const warmSecondPage = () => {
+  const go = () => { void AlephView().catch(() => {}); };
+
+  const whenIdle = (run: () => void) => {
+    const w = window as Window & {
+      requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number;
+    };
+    if (w.requestIdleCallback) w.requestIdleCallback(run, { timeout: 3000 });
+    else setTimeout(run, 1200);
+  };
+
+  if (document.readyState === "complete") whenIdle(go);
+  else window.addEventListener("load", () => whenIdle(go), { once: true });
+};

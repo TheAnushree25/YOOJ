@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { computed } from "vue";
+import BrandMark from "../ui/BrandMark.vue";
 
 const props = defineProps<{ progress: number; chapter: string; index: number; total: number }>();
-const emit = defineEmits<{ jump: [id: string] }>();
+const emit = defineEmits<{ jump: [id: string]; menu: [] }>();
 
 const pad = (n: number) => String(n).padStart(2, "0");
 const readout = computed(() => `${pad(props.index + 1)} / ${pad(props.total)}`);
@@ -16,7 +17,7 @@ const filled = computed(() => Math.max(0.008, Math.min(1, props.progress)));
 <template>
   <header class="head">
     <a class="head__mark" href="#top" data-cursor="Top" @click.prevent="emit('jump', 'top')">
-      <span class="head__glyph" aria-hidden="true" />
+      <BrandMark class="head__glyph" />
       <span class="head__name">YOOJ</span>
     </a>
 
@@ -27,7 +28,25 @@ const filled = computed(() => Math.max(0.008, Math.min(1, props.progress)));
         <i :style="{ transform: `scaleX(${filled})` }" />
       </div>
       <div class="head__readout">
-        <span class="head__chapter">{{ chapter }}</span>
+        <!-- Where the reader is, and the way out of it. The word that names
+             the chapter is also the control that opens the menu: pointed at,
+             it says so. Two words in a one-line window, the stack sliding by
+             its own height — nothing cross-fades, so there is never a frame
+             with both words half-struck. -->
+        <button
+          class="head__trigger"
+          type="button"
+          data-cursor="scale"
+          aria-label="Open menu"
+          @click="emit('menu')"
+        >
+          <span class="head__swap" aria-hidden="true">
+            <span class="head__stack">
+              <span class="head__word head__word--here">{{ chapter }}</span>
+              <span class="head__word head__word--menu">Menu</span>
+            </span>
+          </span>
+        </button>
         <span class="head__count">{{ readout }}</span>
       </div>
     </div>
@@ -51,6 +70,13 @@ const filled = computed(() => Math.max(0.008, Math.min(1, props.progress)));
   gap: 1rem;
   padding: clamp(1.1rem, 2.4vw, 1.9rem) var(--gutter);
   mix-blend-mode: difference;
+  // The band is a full-width fixed bar at the top of every section, and almost
+  // all of it is paint. Left clickable it silently swallowed whatever sat
+  // under its box — the frontier panel's close control was unreachable on any
+  // short window, because this bar's height follows the viewport's *width*
+  // while that control's offset follows its *height*, so the two crossed. The
+  // things in here that are actually controls take their events back.
+  pointer-events: none;
 }
 
 .head__mark {
@@ -59,21 +85,15 @@ const filled = computed(() => Math.max(0.008, Math.min(1, props.progress)));
   align-items: center;
   gap: 0.6rem;
   justify-self: center;
+  pointer-events: auto;
 }
 
+// The mark itself, at a size that still reads as a drawing rather than a dot.
+// It takes the wordmark's ink and goes through the same difference blend, so
+// the two are always the same colour on any ground.
 .head__glyph {
-  width: 0.62rem;
-  height: 0.62rem;
-  border-radius: 50%;
-  border: 1px solid var(--c-accent);
-  // A slow pulse, tied to nothing — it is the one piece of motion that keeps
-  // going while the page is still, so the site never looks frozen.
-  animation: mark-pulse 4.6s var(--e-in-out-cubic) infinite;
-}
-
-@keyframes mark-pulse {
-  0%, 100% { transform: scale(1); opacity: 1; }
-  50%      { transform: scale(0.6); opacity: 0.55; }
+  font-size: 1.05rem;
+  color: var(--c-bone);
 }
 
 .head__name {
@@ -104,14 +124,55 @@ const filled = computed(() => Math.max(0.008, Math.min(1, props.progress)));
   gap: clamp(0.7rem, 1.6vw, 1.4rem);
 }
 
-.head__chapter {
+.head__trigger {
+  pointer-events: auto;
   color: var(--c-bone);
-  @media (max-width: 40rem) { display: none; }
+  // The letter-spacing puts a trailing gap after the last character; without
+  // this the word sits visibly left of where the old label did.
+  text-indent: 0.02em;
+}
+
+// One line tall, and it clips. The height is set in `em` so it tracks the
+// label's own size rather than a number that has to be kept in step with it.
+.head__swap {
+  display: block;
+  overflow: hidden;
+  height: 1em;
+}
+
+.head__stack {
+  display: block;
+  transition: transform var(--t-hover) var(--e-out-quart);
+}
+
+.head__word {
+  display: block;
+  height: 1em;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.head__word--menu { color: var(--c-accent); }
+
+.head__trigger:hover .head__stack,
+.head__trigger:focus-visible .head__stack {
+  transform: translateY(-1em);
 }
 
 .head__count {
   color: var(--c-bone-dim);
   font-variant-numeric: tabular-nums;
+}
+
+// Narrow frames never had room for the chapter name. The control stays —
+// it is the only way into the menu — and simply reads "Menu" throughout.
+@media (max-width: 40rem) {
+  .head__word--here { display: none; }
+
+  .head__trigger:hover .head__stack,
+  .head__trigger:focus-visible .head__stack {
+    transform: none;
+  }
 }
 
 .head__bar {

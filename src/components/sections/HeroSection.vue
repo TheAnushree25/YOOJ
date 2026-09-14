@@ -5,6 +5,7 @@ import ActionButton from "../ui/ActionButton.vue";
 import SplitHeading from "../ui/SplitHeading.vue";
 import { MOTION, prefersReduced, scrubThrough } from "../../composables/useMotion";
 import { usePointer } from "../../composables/usePointer";
+import { HERO_CUTOUT, heroImageReady } from "../../lib/hero-image";
 
 
 const props = defineProps<{ progress: number }>();
@@ -24,9 +25,15 @@ const root = ref<HTMLElement | null>(null);
  * real alpha channel is both sharper and cheaper, and it is the only one of the
  * three that can genuinely cross in front of a word.
  */
-const CUTOUT = "/hero/subject-front.png";
-
 const hasCutout = ref(true);
+/**
+ * Her source, decided by lib/hero-image: the WebP where it decodes, the PNG
+ * where it does not. Either way the bytes are already in memory by the time
+ * this renders — the fetch started with the document, the decode with the
+ * app's first module, and the gate does not lift until it has finished.
+ */
+const cutout = ref(HERO_CUTOUT);
+heroImageReady.then((url) => { cutout.value = url; });
 const subject = ref<HTMLElement | null>(null);
 const { x, y } = usePointer();
 
@@ -41,7 +48,7 @@ const { x, y } = usePointer();
 const hp = ref(0);
 let stageTrigger: ReturnType<typeof scrubThrough> = null;
 
-const titleLines = ["Empower", "your mental", "health journey"];
+const titleLines = ["Healthcare", "closer to you"];
 
 // The hero is on screen when the gate opens, so it is told when to play
 // rather than watching for itself.
@@ -191,7 +198,7 @@ onBeforeUnmount(() => {
     <div v-if="hasCutout" ref="plate" class="hero__front">
       <img
         ref="subject"
-        :src="CUTOUT"
+        :src="cutout"
         alt=""
         aria-hidden="true"
         decoding="async"

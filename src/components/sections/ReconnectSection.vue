@@ -82,29 +82,6 @@ const passages = [
   },
 ] as const;
 
-/**
- * Three arcs, not a lattice.
- *
- * Five circles at mixed radii crossed each other into a web the eye kept
- * trying to solve. Three very large ones, struck from beyond the frame so only
- * one arc of each crosses it, read as a horizon and a moon — something seen
- * rather than something drawn. Each carries a small drift so the geometry
- * breathes with the scroll instead of sitting printed on the ground.
- */
-const rings = [
-  { x: -120, y: 1040, r: 760, dx: 40, dy: -34, weight: 0.24 },
-  { x: 1720, y: 620,  r: 640, dx: -54, dy: -18, weight: 0.24 },
-  { x: 1000, y: 170,  r: 130, dx: -22, dy: 12,  weight: 0.36 },
-];
-
-/**
- * The contours: rings struck from one centre, like something dropped into
- * still water and seen from above. They open slowly as the reader travels —
- * the outer ones a beat behind the inner — so the cluster breathes rather
- * than sits printed on the ground. Radii in the drawing's own units.
- */
-const ripples = [120, 290, 480, 700];
-
 /** Which passage the ring counts, and how far through it the reader is. */
 const step = () => {
   const i = passages.findIndex((x) => p.value >= x.at && p.value < x.to);
@@ -116,6 +93,40 @@ const step = () => {
 /** A line's arrival, 0 to 1: it rises through its mask and clears from blur. */
 const lineIn = (pass: { at: number }, i: number) =>
   beat(pass.at + 0.01 + i * 0.008, pass.at + 0.06 + i * 0.008);
+
+/**
+ * The rings: contours first, the flower last.
+ *
+ * Through the three passages the eight outer rings hang close around the
+ * centre and drift with the reader's travel — spreading a little, turning a
+ * little, each at a slightly different rate so the cluster never moves as one
+ * piece. It reads as contour lines shifting under the words, not as a drawing
+ * waiting to finish. The hub is not there yet.
+ *
+ * At the turn they glide out to their places, the arrangement squares up, and
+ * the hub comes in at full weight: the figure from the gate, completed, and
+ * only here. With `resolve` at 1 every term below collapses to the ring's own
+ * offset, so the finished figure is the gate's to the unit.
+ */
+const ring = (i: number) => {
+  const o = SEED_RINGS[i] ?? [0, 0];
+  const drift = beat(0.30, 0.87);
+  const resolve = beat(0.87, 0.95);
+  if (i === 0) return { opacity: resolve, transform: "translate(0px, 0px)" };
+
+  const own = 0.8 + 0.4 * ((i * 0.618) % 1);
+  const reach = (0.22 + drift * 0.38) * own;
+  const turn = (1 - resolve) * (0.85 - drift * 0.55) * (0.7 + 0.6 * ((i * 0.382) % 1));
+  const r = reach + (1 - reach) * resolve;
+  const c = Math.cos(turn);
+  const sn = Math.sin(turn);
+  const x = (o[0] * c - o[1] * sn) * r;
+  const y = (o[0] * sn + o[1] * c) * r;
+  return {
+    opacity: beat(0.30 + i * 0.012, 0.44 + i * 0.012) * SEED_INK,
+    transform: `translate(${x.toFixed(2)}px, ${y.toFixed(2)}px)`,
+  };
+};
 
 /**
  * The crown's vertical radius, in percent of the dome's height.
@@ -221,47 +232,6 @@ onBeforeUnmount(() => trigger?.kill());
             '--dome-veil': domeVeil(),
           }"
         >
-          <!-- The light: a soft shaft passing through the contours, carried
-               across the frame by the reader's travel and swaying on its own
-               clock in between, so it is never still. In the tree before the
-               rings, so they are drawn over it. -->
-          <div
-            class="rc__beamWrap"
-            :style="{ transform: `translate3d(${beat(0.28, 0.96) * 95}vw, 0, 0)` }"
-            aria-hidden="true"
-          >
-            <div class="rc__beam" />
-          </div>
-
-          <!-- Beat three: geometry, struck from off-frame so only arcs cross it. -->
-          <svg class="rc__rings" viewBox="0 0 1600 900" aria-hidden="true" preserveAspectRatio="xMidYMid slice">
-            <circle
-              v-for="(c, i) in rings"
-              :key="i"
-              :cx="c.x" :cy="c.y" :r="c.r"
-              :style="{
-                opacity: beat(0.24 + i * 0.04, 0.42 + i * 0.04) * c.weight,
-                transform: `translate(${c.dx * beat(0.24, 0.92)}px, ${c.dy * beat(0.24, 0.92)}px) scale(${0.96 + beat(0.24 + i * 0.04, 0.92) * 0.04})`,
-                transformOrigin: `${c.x}px ${c.y}px`,
-              }"
-            />
-
-            <!-- The contours, at the right of the frame where the copy is not. -->
-            <g :style="{ opacity: beat(0.30, 0.44) * (1 - beat(0.80, 0.86)) }">
-              <circle
-                v-for="(r, i) in ripples"
-                :key="`c${i}`"
-                cx="1180"
-                cy="470"
-                :r="r"
-                :style="{
-                  opacity: 0.3 - i * 0.05,
-                  transform: `translate(${-40 * beat(0.3, 0.95)}px, ${-24 * beat(0.3, 0.95)}px) scale(${0.9 + beat(0.3 + i * 0.03, 0.95) * 0.14})`,
-                  transformOrigin: '1180px 470px',
-                }"
-              />
-            </g>
-          </svg>
         </div>
       </div>
 
@@ -303,25 +273,28 @@ onBeforeUnmount(() => trigger?.kill());
         </p>
       </div>
 
-      <!-- Beat five: the turn. The figure the site opened with, drawn on
-           again, with one line pulled through it as the reader reads. -->
-      <div class="rc__turn" :style="{ opacity: beat(0.87, 0.91) }">
+      <!-- The gate's nine rings, at the gate's size and ink. Through the
+           passages they are contours — close, faint, drifting with the
+           scroll, no hub. At the turn they resolve into the figure the site
+           opened with, and the copy arrives beside it. See ring(). -->
+      <div class="rc__turn" :style="{ opacity: beat(0.30, 0.38) }">
         <svg class="rc__seed" :viewBox="`0 0 ${SEED_FIELD.w} ${SEED_FIELD.h}`" aria-hidden="true">
           <!-- Struck from the centre and carried out to their places, exactly
                as the gate opens. Same figure, same gesture, second time. -->
           <circle
-            v-for="(o, i) in SEED_RINGS"
+            v-for="(_, i) in SEED_RINGS"
             :key="i"
             :cx="SEED_FIELD.cx" :cy="SEED_FIELD.cy" :r="SEED_FIELD.r"
             :class="{ 'rc__hub': i === 0 }"
-            :style="{
-              opacity: beat(0.87 + i * 0.009, 0.95 + i * 0.009) * (i === 0 ? 1 : SEED_INK),
-              transform: `translate(${o[0] * beat(0.87 + i * 0.009, 0.99 + i * 0.009)}px, ${o[1] * beat(0.87 + i * 0.009, 0.99 + i * 0.009)}px)`,
-            }"
+            :style="ring(i)"
           />
         </svg>
 
-        <p class="rc__turn-copy">
+        <!-- Gated on the turn. The container is up from the dome beat now,
+             for the rings; the words belong to the turn, and before it they
+             must not show — they sit at a dim base until they are read, and
+             dim is not invisible. -->
+        <p class="rc__turn-copy" :style="{ opacity: beat(0.87, 0.91) }" :aria-hidden="p < 0.87">
           <span v-for="(w, i) in turn" :key="i" :style="{ opacity: told(i) }">{{ `${w} ` }}</span>
         </p>
       </div>
@@ -437,22 +410,6 @@ onBeforeUnmount(() => trigger?.kill());
   }
 }
 
-.rc__rings {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-
-  circle {
-    fill: none;
-    stroke: var(--c-bone);
-    // Hairline. At the size these are drawn, a heavier stroke reads as a
-    // diagram; this reads as light catching an edge.
-    stroke-width: 0.85;
-    will-change: opacity, transform;
-  }
-}
-
 .rc__argument {
   position: absolute;
   left: var(--gutter);
@@ -470,37 +427,6 @@ onBeforeUnmount(() => trigger?.kill());
   line-height: 1.45;
   font-weight: 250;
   color: var(--c-bone);
-}
-
-/* ---------------------------------------------------------------- the light */
-
-// The shaft. Sized against the dome it lives in — 210vw by 190vh — so the
-// percentages here are of that, not of the frame. The softness is in the
-// gradient stops, not a filter: a blur on a layer this size is re-rasterised
-// every frame its child moves, and this one's child never stops moving.
-.rc__beamWrap {
-  position: absolute;
-  left: 14%;
-  top: -20%;
-  width: 20%;
-  height: 140%;
-  pointer-events: none;
-  will-change: transform;
-}
-
-.rc__beam {
-  position: absolute;
-  inset: 0;
-  background:
-    linear-gradient(90deg, transparent 0%, rgb(243 167 174 / 0.14) 32%, rgb(243 167 174 / 0.14) 68%, transparent 100%),
-    linear-gradient(90deg, transparent 30%, rgb(254 220 222 / 0.34) 50%, transparent 70%);
-  mix-blend-mode: screen;
-  animation: rc-beam 9s var(--e-in-out-quad) infinite alternate;
-}
-
-@keyframes rc-beam {
-  from { transform: rotate(-30deg) translate3d(-8%, 0, 0); opacity: 0.85; }
-  to   { transform: rotate(-30deg) translate3d(8%, 0, 0);  opacity: 1; }
 }
 
 // The closing bloom, frame-relative and over the dome, under the words.
@@ -540,7 +466,6 @@ onBeforeUnmount(() => trigger?.kill());
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .rc__beam { animation: none; }
 }
 
 /* ------------------------------------------------------- the closing turn */
@@ -561,13 +486,18 @@ onBeforeUnmount(() => trigger?.kill());
   }
 }
 
-// Right half, and taller than the column so only the middle of the figure
-// crosses the frame — the same crop the gate uses on arrival.
+// Sized by the gate's own rule — off the height as much as the width, so on
+// a wide screen the figure is the same figure the reader met on arrival, at
+// the same size, and not a wider crop of it.
 .rc__seed {
   grid-row: 1;
   grid-column: 1;
   justify-self: center;
-  width: min(92vw, 50rem);
+  width: min(58vw, 99vh, 58rem);
+  // The reset caps every svg at its container, and this one's container is a
+  // grid column half the frame wide. Without this the figure came out at
+  // three-quarters of the gate's size on a laptop screen.
+  max-width: none;
   overflow: visible;
 
   circle {
@@ -582,9 +512,13 @@ onBeforeUnmount(() => trigger?.kill());
     transform-origin: center;
   }
 
+  // Against the right edge rather than centred in the column: at the gate's
+  // size the figure is wider than the column, and centred there its far ring
+  // ran off the frame while its near one reached across into the copy. Ended,
+  // it is whole, and clear of the passage at the foot of the frame.
   @media (min-width: 60rem) {
     grid-column: 2;
-    width: min(52vw, 58rem);
+    justify-self: end;
   }
 }
 

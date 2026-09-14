@@ -5,9 +5,11 @@ import { usePointer } from "../composables/usePointer";
 import { useSmoothScroll } from "../composables/useSmoothScroll";
 import { ScrollTrigger } from "../composables/useMotion";
 import { entered, onPale, pulseCorner } from "../lib/session";
+import { heroImageReady } from "../lib/hero-image";
 
 import ScrollHint from "../components/chrome/ScrollHint.vue";
 import SiteHeader from "../components/chrome/SiteHeader.vue";
+import SiteMenu from "../components/chrome/SiteMenu.vue";
 import SplashGate from "../components/chrome/SplashGate.vue";
 
 import CloseSection from "../components/sections/CloseSection.vue";
@@ -27,7 +29,7 @@ const { x, y } = usePointer();
 let backdrop: Backdrop | null = null;
 
 const chapters = [
-  { id: "top", label: "Index" },
+  { id: "top", label: "Vision" },
   { id: "reconnect", label: "Reconnecting healthcare" },
   { id: "frontier", label: "Beyond fragmented care" },
   { id: "tenets", label: "The 4 R’s" },
@@ -88,7 +90,7 @@ const updateChapter = () => {
   // detached node answers `getBoundingClientRect` with zeros — so after any
   // swap of a section (a hot reload during development is the common one)
   // every measurement came back zero, nothing ever beat the initial best of
-  // index 0, and the header read "Index" for the whole page.
+  // index 0, and the header read the first chapter for the whole page.
   if (chapterEls.length !== chapters.length || chapterEls.some((el) => el && !el.isConnected)) {
     findChapters();
   }
@@ -115,7 +117,18 @@ const updateChapter = () => {
   onPale.value = id === "reconnect" ? paleInReconnect(px, corner) : PALE.has(id ?? "");
 };
 
-const chapter = computed(() => chapters[chapterIndex.value]?.label ?? "Index");
+const chapter = computed(() => chapters[chapterIndex.value]?.label ?? "Vision");
+
+/**
+ * The menu, and the page held still behind it.
+ *
+ * Lenis keeps gliding through a wheel gesture after the wheel stops, so a
+ * menu opened mid-scroll would otherwise have the whole page still moving
+ * under it. Stopping the engine is the same mechanism the gate uses.
+ */
+const menuOpen = ref(false);
+const openMenu = () => { menuOpen.value = true; lock(); };
+const closeMenu = () => { menuOpen.value = false; unlock(); };
 
 const jump = (id: string) => {
   const el = document.getElementById(id);
@@ -182,8 +195,8 @@ onMounted(() => {
     else window.addEventListener("load", settle, { once: true });
   }
   // Read once before any scroll arrives. A reload lands at the browser's
-  // restored position, and until the first scroll event the header still said
-  // "Index" from the middle of the second section.
+  // restored position, and until the first scroll event the header still read
+  // the first chapter from the middle of the second section.
   updateChapter();
 });
 
@@ -200,7 +213,9 @@ onBeforeUnmount(() => {
        over it. That separation keeps the shader off the scroll's critical path. -->
   <div class="backdrop"><canvas ref="canvas" /></div>
 
-  <SplashGate v-if="!entered" @enter="onEnter" />
+  <!-- Held until the hero's subject has decoded, so the page behind the
+       gate is whole when it lifts. -->
+  <SplashGate v-if="!entered" :wait-for="heroImageReady" @enter="onEnter" />
 
 
   <SiteHeader
@@ -209,7 +224,10 @@ onBeforeUnmount(() => {
     :index="chapterIndex"
     :total="chapters.length"
     @jump="jump"
+    @menu="openMenu"
   />
+
+  <SiteMenu :open="menuOpen" contact-href="#contact" @close="closeMenu" />
 
   <main class="content">
     <HeroSection ref="hero" :progress="progress" />

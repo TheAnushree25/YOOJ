@@ -67,6 +67,12 @@ export class CardScene {
     const { pale = "#D8E4F2", warm = "#C9BC9E", dark = "#3C010E" } = options;
 
     this.renderer = new WebGLRenderer({ canvas, antialias: true, alpha: true });
+    // The per-program error checks three.js runs on first use are each a
+    // synchronous round trip to the GPU process, and there are four per program
+    // — measurable on every scene's first frame. They exist to surface a broken
+    // shader while one is being written, which is a development concern; a
+    // shipped page has nothing to learn from them and pays for them anyway.
+    this.renderer.debug.checkShaderErrors = import.meta.env.DEV;
     this.renderer.setClearAlpha(0);
     this.camera.position.z = CAM_Z;
 
@@ -395,8 +401,24 @@ export class CardScene {
   start() {
     if (this.running) return;
     this.running = true;
-    this.clock.start();
-    this.tick();
+    /**
+     * Shaders first, and off the main thread.
+     *
+     * The first render compiles every program on the scene, and each status
+     * query three.js makes afterwards blocks until the driver has finished —
+     * several hundred milliseconds of the page not answering, measured.
+     * compileAsync links them under KHR_parallel_shader_compile and resolves
+     * once they are ready, so the first frame is only a frame. Without the
+     * extension it compiles in place, which is no worse than before; and if
+     * the scene is stopped before it resolves, nothing starts.
+     */
+    this.renderer.compileAsync(this.scene, this.camera)
+      .catch(() => {})
+      .then(() => {
+        if (!this.running) return;
+        this.clock.start();
+        this.tick();
+      });
   }
 
   stop() {

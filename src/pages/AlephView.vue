@@ -12,7 +12,10 @@ import AlephFound from "../components/sections/aleph/AlephFound.vue";
 import AlephAccess from "../components/sections/aleph/AlephAccess.vue";
 import { entered, onDark } from "../lib/session";
 import { ScrollTrigger } from "../composables/useMotion";
+import { afterPaint } from "../lib/schedule";
 import SplashGate from "../components/chrome/SplashGate.vue";
+import SiteMenu from "../components/chrome/SiteMenu.vue";
+import BrandMark from "../components/ui/BrandMark.vue";
 
 /**
  * Aleph: the pale page.
@@ -30,33 +33,45 @@ const { progress, mount, lock, unlock, toTop } = useSmoothScroll();
 const { x, y } = usePointer();
 
 let backdrop: Backdrop | null = null;
+// Cleared on unmount, so a field scheduled for after the paint is not built
+// into a page that has already gone.
+let alive = true;
 
 onMounted(() => {
   document.documentElement.style.setProperty("--vh", `${window.innerHeight * 0.01}px`);
 
   if (canvas.value) {
-    backdrop = new Backdrop(canvas.value, {
-      prefix: "--ga",
-      fallback: ["#FEB3B8", "#FED2D5", "#FFF5F6", "#FEB3B8"],
-      // Softer and slower than the front page's: a pale field has nowhere to
-      // hide contrast, so the same strength that reads as folded silk in wine
-      // reads as bruising here.
-      amplitude: 1.9,
-      density: 0.62,
-      frequency: 2.4,
-      speed: 0.26,
-      strength: 1.7,
-      brightness: 1.04,
-      reflection: 0.03,
-      shade: 0.93,
-      rotation: 28,
-      offset: [-0.8, 0.2],
-      // The light stills: upper centre-left, left, and back.
-      poses: [[0.42, 0.77], [0.28, 0.5], [0.42, 0.7], [0.58, 0.55]],
-      cadence: 3,
-    });
-    backdrop.start();
-    window.addEventListener("resize", backdrop.resize);
+    const plate = canvas.value;
+    // Built once the page has painted, not inside the route change's own
+    // task. See lib/schedule.
+    afterPaint(() => {
+      if (!alive) return;
+      const field = new Backdrop(plate, {
+        prefix: "--ga",
+        fallback: ["#FEB3B8", "#FED2D5", "#FFF5F6", "#FEB3B8"],
+        // Softer and slower than the front page's: a pale field has nowhere to
+        // hide contrast, so the same strength that reads as folded silk in wine
+        // reads as bruising here.
+        amplitude: 1.9,
+        density: 0.62,
+        frequency: 2.4,
+        speed: 0.26,
+        strength: 1.7,
+        brightness: 1.04,
+        reflection: 0.03,
+        shade: 0.93,
+        rotation: 28,
+        offset: [-0.8, 0.2],
+        // The light stills: upper centre-left, left, and back.
+        poses: [[0.42, 0.77], [0.28, 0.5], [0.42, 0.7], [0.58, 0.55]],
+        cadence: 3,
+      });
+      backdrop = field;
+      field.start();
+      window.addEventListener("resize", field.resize);
+      field.setPointer(x.value, y.value);
+      field.setProgress(progress.value);
+    }, 0);
   }
 
   mount();
@@ -89,7 +104,15 @@ const onEnter = () => {
   }, 0);
 };
 
+// The menu, and the page held still behind it — the same engine stop the
+// gate uses, so a menu opened mid-glide does not have the page still moving
+// under it.
+const menuOpen = ref(false);
+const openMenu = () => { menuOpen.value = true; lock(); };
+const closeMenu = () => { menuOpen.value = false; unlock(); };
+
 onBeforeUnmount(() => {
+  alive = false;
   if (backdrop) window.removeEventListener("resize", backdrop.resize);
   backdrop?.dispose();
 });
@@ -106,17 +129,38 @@ const advance = () => backdrop?.setProgress(progress.value);
     <SplashGate v-if="!entered" @enter="onEnter" />
 
     <header class="al__head">
-      <RouterLink class="al__mark" to="/" data-cursor="scale">YOOJ</RouterLink>
+      <RouterLink class="al__mark" to="/" data-cursor="scale">
+        <BrandMark class="al__glyph" />
+        <span>YOOJ</span>
+      </RouterLink>
+
       <div class="al__meta">
         <!-- The rule is the page's own progress: it fills left to right and is
              full at the foot of the document, as the front page's is. -->
         <span class="al__rule" aria-hidden="true">
           <i :style="{ transform: `scaleX(${Math.max(0.008, Math.min(1, progress))})` }" />
         </span>
-        <span class="al__here">Solutions</span>
-        <span class="al__dots" aria-hidden="true">
-          <i v-for="n in 9" :key="n" />
-        </span>
+        <!-- The page's name is the way into the menu, as the chapter name is
+             on the front page: pointed at, it says "Menu". The nine dots are
+             the reference's own affordance for the same thing and stay beside
+             it, now with something behind them. -->
+        <button
+          class="al__trigger"
+          type="button"
+          aria-label="Open menu"
+          data-cursor="scale"
+          @click="openMenu"
+        >
+          <span class="al__swap" aria-hidden="true">
+            <span class="al__stack">
+              <span class="al__word al__word--here">Solutions</span>
+              <span class="al__word al__word--menu">Menu</span>
+            </span>
+          </span>
+          <span class="al__dots" aria-hidden="true">
+            <i v-for="n in 9" :key="n" />
+          </span>
+        </button>
       </div>
     </header>
 
@@ -130,6 +174,8 @@ const advance = () => backdrop?.setProgress(progress.value);
     </main>
 
     <p class="al__hint" :class="{ 'is-gone': progress > 0.02 || !entered }">Scroll to explore</p>
+
+    <SiteMenu :open="menuOpen" contact-href="#aleph-access" @close="closeMenu" />
   </div>
 </template>
 
@@ -148,6 +194,9 @@ const advance = () => backdrop?.setProgress(progress.value);
   position: fixed;
   inset: 0;
   z-index: 0;
+  // The field's own colour, painted under the canvas: the shader arrives a
+  // frame or two after the page now, and this is what shows until it does.
+  background: var(--ga-bg);
 
   canvas { width: 100%; height: 100%; }
 }
@@ -178,10 +227,14 @@ const advance = () => backdrop?.setProgress(progress.value);
   > * { pointer-events: auto; }
 }
 
-// 14px at 4.3px tracking, centred — the reference's own logo spec.
+// 14px at 4.3px tracking, centred — the reference's own logo spec, with the
+// mark itself beside the word.
 .al__mark {
   grid-column: 2;
   justify-self: center;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
   font-family: "Space Grotesk", ui-monospace, monospace;
   font-size: 0.875rem;
   letter-spacing: 0.307em;
@@ -215,7 +268,14 @@ const advance = () => backdrop?.setProgress(progress.value);
   }
 }
 
-.al__here {
+.al__glyph { font-size: 1.05rem; }
+
+.al__trigger {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: clamp(2rem, 5vw, 4.5rem);
   font-family: "Space Grotesk", ui-monospace, monospace;
   font-size: var(--ta-label);
   line-height: var(--la-label);
@@ -224,12 +284,36 @@ const advance = () => backdrop?.setProgress(progress.value);
   color: var(--ga-ink);
 }
 
+// One line tall, and it clips; the two words slide through it by their own
+// height, exactly as the front page's readout does.
+.al__swap {
+  display: block;
+  overflow: hidden;
+  height: 1em;
+}
+
+.al__stack {
+  display: block;
+  transition: transform var(--t-hover) var(--e-out-quart);
+}
+
+.al__word {
+  display: block;
+  height: 1em;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.al__trigger:hover .al__stack,
+.al__trigger:focus-visible .al__stack {
+  transform: translateY(-1em);
+}
+
 // Three by three, the reference's menu affordance.
 .al__dots {
   display: grid;
   grid-template-columns: repeat(3, 3px);
   gap: 4px;
-  justify-self: end;
 
   i {
     width: 3px;
@@ -265,7 +349,7 @@ const advance = () => backdrop?.setProgress(progress.value);
 // every scroll position on both grounds.
 .al.is-night {
   .al__mark,
-  .al__here { color: #FFFFFF; }
+  .al__trigger { color: #FFFFFF; }
 
   .al__rule { background: rgb(255 255 255 / 0.28); }
   .al__rule i { background: #FFFFFF; }
@@ -278,7 +362,7 @@ const advance = () => backdrop?.setProgress(progress.value);
 // Slow enough not to flicker on a scrub that crosses the threshold, fast
 // enough that the header is never caught half-legible.
 .al__mark,
-.al__here,
+.al__trigger,
 .al__rule,
 .al__dots i {
   transition: color 0.45s var(--e-out-quart), background-color 0.45s var(--e-out-quart);
