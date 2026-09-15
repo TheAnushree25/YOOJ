@@ -1,11 +1,21 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref } from "vue";
 import gsap from "gsap";
+import { RouterLink } from "vue-router";
 import { splitText } from "../../composables/useSplitText";
 
 const props = withDefaults(defineProps<{
   label: string;
   href?: string;
+  /**
+   * A route, when the control leads to another page.
+   *
+   * Given this, the control renders as a RouterLink rather than a bare
+   * anchor: the page swaps instead of reloading - which on this site means
+   * the gate does not run a second time - and the link still behaves like a
+   * link, so middle-click and open-in-new-tab keep working.
+   */
+  to?: string;
   variant?: "line" | "solid";
 }>(), { href: "#", variant: "line" });
 
@@ -59,11 +69,12 @@ onBeforeUnmount(() => revert?.());
 </script>
 
 <template>
-  <a
+  <component
+    :is="to ? RouterLink : 'a'"
     ref="root"
     class="act"
     :class="`act--${variant}`"
-    :href="href"
+    v-bind="to ? { to } : { href }"
     data-cursor="scale"
     @pointerenter="enter"
     @pointerleave="leave"
@@ -71,7 +82,7 @@ onBeforeUnmount(() => revert?.());
   >
     <span ref="dot" class="act__dot" aria-hidden="true" />
     <span ref="labelEl" class="act__label">{{ label }}</span>
-  </a>
+  </component>
 </template>
 
 <style scoped lang="scss">

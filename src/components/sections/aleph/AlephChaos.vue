@@ -140,7 +140,7 @@ onBeforeUnmount(() => {
 .ac {
   position: relative;
   height: 500vh;
-  height: calc(var(--vh, 1vh) * 500);
+  height: calc(var(--sv) * 500);
 }
 
 .ac__stage {

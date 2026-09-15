@@ -41,8 +41,43 @@ export interface QuantumOptions {
 const TUNNEL = 27;
 /** Where the mark is meant to be read. Sized so one copy fills the frame here. */
 const FOCUS = 9;
+
+/**
+ * How wide the mark is built, in world units, across its longer axis.
+ *
+ * Module scope because the resize has to fit it: the geometry is baked once
+ * with this span, and the frame it has to sit in changes with the viewport.
+ */
+const MARK_SPAN = 10.6;
 /** How far the reader travels over the section. About three copies' worth. */
 const REACH = 13.5;
+
+/**
+ * How many device pixels the field is actually drawn at.
+ *
+ * A phone reports a ratio of 3, so an uncapped canvas draws nine times the
+ * pixels of its CSS box - and the Aleph page runs three of them at once. The
+ * old cap of 2 still means four times, which a laptop absorbs and a handset
+ * pays for in heat and battery within a minute. A particle field has no hard
+ * edges to soften, so the difference between 1.6 and 2 is invisible here in a
+ * way it would not be on type or a hairline.
+ */
+const drawRatio = () => {
+  const dpr = window.devicePixelRatio || 1;
+  if (!window.matchMedia("(pointer: coarse)").matches) return Math.min(dpr, 2);
+
+  /**
+   * A ratio cap on its own is the wrong instrument here. A tablet reports the
+   * same ratio as a phone over three times the area, so capping both at 1.6
+   * left the tablet drawing 2 megapixels per canvas - six across the Aleph
+   * page's three - and it was the only device that missed frame after frame.
+   * What costs is pixels, so pixels are what is budgeted; the ratio falls out
+   * of the frame's own size. A phone is well under the budget and keeps its
+   * full 1.6.
+   */
+  const area = Math.max(1, window.innerWidth * window.innerHeight);
+  return Math.max(1, Math.min(dpr, 1.6, Math.sqrt(1_200_000 / area)));
+};
 
 export class QuantumScene {
   private renderer: WebGLRenderer;
@@ -275,7 +310,7 @@ export class QuantumScene {
      * with it: the reader still meets the whole mark, on the copy furthest
      * down the corridor, before flying into the near one.
      */
-    const FRAME = 10.6;
+    const FRAME = MARK_SPAN;
 
     // Sampled in viewbox units first, then centred on what was actually drawn.
     const raw: { x: number; y: number; arc: number; accent: boolean }[] = [];
@@ -384,6 +419,8 @@ export class QuantumScene {
 
     this.glyph = new Points(geometry, this.mark);
     this.scene.add(this.glyph);
+    // The frame was measured before this existed; fit it now.
+    this.fitMark();
   }
 
   /* -------------------------------------------------------------- running */
@@ -391,18 +428,50 @@ export class QuantumScene {
   resize = () => {
     const { clientWidth: w, clientHeight: h } = this.canvas;
     if (!w || !h) return;
-    const ratio = Math.min(window.devicePixelRatio, 2);
+    const ratio = drawRatio();
     this.renderer.setPixelRatio(ratio);
     this.renderer.setSize(w, h, false);
 
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
 
+    this.fitMark();
+
     for (const material of [this.field, this.mark, this.comet]) {
       material.uniforms.uPixel.value = ratio;
     }
     this.comet.uniforms.uAspect.value = w / h;
   };
+
+  /**
+   * Fit the mark to the frame it is standing in.
+   *
+   * The corridor is built at a fixed world span, which is a landscape
+   * measurement: at 50 degrees and nine units back, a 16:10 frame is 13.4
+   * units wide and the 10.6-unit mark sits inside it with its top and bottom
+   * carrying past the edges - which is the composition, and where the type
+   * goes.
+   *
+   * A portrait frame is 4.9 units wide. The same mark is then more than twice
+   * the width of the screen, so the reader met two fragments of dotted line
+   * in opposite corners and nothing in between - a room with no walls in
+   * view. Scaled to the width instead, the whole shape is on screen and still
+   * overflows it slightly, which is what keeps it reading as somewhere you
+   * are inside of.
+   *
+   * Only ever scaled *down*: on a wide frame this is 1 and the composition is
+   * exactly as it was drawn. x and y only - z is the corridor's own axis, and
+   * scaling it would break the wrap the tunnel depends on.
+   *
+   * Called from the resize *and* from the moment the mark is built: the SVG
+   * is fetched, so the first resize runs long before there is a glyph to fit.
+   */
+  private fitMark() {
+    if (!this.glyph) return;
+    const visibleW = 2 * Math.tan((this.camera.fov * Math.PI) / 360) * FOCUS * this.camera.aspect;
+    const k = Math.min(1, (visibleW * 1.15) / MARK_SPAN);
+    this.glyph.scale.set(k, k, 1);
+  }
 
   start() {
     if (this.running) return;

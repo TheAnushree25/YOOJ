@@ -5,6 +5,8 @@ import { router, warmSecondPage } from "./router";
 import { vReveal } from "./composables/useReveal";
 
 import "@fontsource-variable/inter";
+import "@fontsource/montserrat/300.css";
+import "@fontsource/montserrat/400.css";
 import "@fontsource/space-grotesk/400.css";
 import "@fontsource/space-grotesk/500.css";
 import "./styles/main.scss";

@@ -184,7 +184,7 @@ onBeforeUnmount(() => trigger?.kill());
 .pv {
   position: relative;
   height: 420vh;
-  height: calc(var(--vh, 1vh) * 420);
+  height: calc(var(--sv) * 420);
 }
 
 .pv__stage {

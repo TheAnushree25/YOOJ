@@ -17,7 +17,7 @@ import ActionButton from "../ui/ActionButton.vue";
 
 const emit = defineEmits<{ jump: [id: string] }>();
 
-const title = ["Begin the", "work of a", "steadier mind"];
+const title = ["Healthcare", "closer", "to you"];
 
 const nav = [
   { id: "reconnect", label: "Reconnecting healthcare" },
@@ -53,7 +53,7 @@ const year = new Date().getFullYear();
 
         <div v-reveal="300" class="cl__acts">
           <ActionButton label="Partner with us" href="mailto:hello@yooj.example" variant="solid" />
-          <ActionButton label="Start your journey" href="#top" @activate="emit('jump', 'top')" />
+          <ActionButton label="Start your journey" to="/solutions" />
         </div>
       </div>
 
@@ -77,13 +77,15 @@ const year = new Date().getFullYear();
     </div>
 
     <div class="cl__base">
-      <p>&copy; {{ year }} YOOJ Labs — a design and engineering demonstration, not a medical device.</p>
+      <p>{{ year }} YOOJ &mdash; At heart of you</p>
       <p class="cl__credit">Built in the open</p>
     </div>
   </footer>
 </template>
 
 <style scoped lang="scss">
+
+
 .cl {
   position: relative;
   isolation: isolate;
@@ -228,5 +230,23 @@ const year = new Date().getFullYear();
   font-size: var(--t-label);
   letter-spacing: var(--ls-label);
   text-transform: uppercase;
+}
+/**
+ * The contact links are 14px of text. On a pointer device that is a generous
+ * target; on a thumb it is a miss waiting to happen. The row keeps its drawn
+ * position - the padding is taken back out as negative margin - so this
+ * changes the hit area and not the composition.
+ */
+@media (pointer: coarse) {
+  // The section jumps sit straight inside their nav rather than in a list,
+  // so they need naming separately from the contact row below them.
+  .cl__nav a,
+  li > a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    padding-block: 0.9rem;
+    margin-block: -0.9rem;
+  }
 }
 </style>

@@ -150,15 +150,37 @@ const SPAN = STEP * 0.97;
  * feels rather than fights. Focus and opacity move together and spend most of
  * the pass at rest.
  */
+/**
+ * How far a piece travels toward the reader, by frame width.
+ *
+ * The piece is a fixed fraction of the viewport, so its box scales past the
+ * frame edge whenever the scale does. On a wide screen the whole arc stays
+ * inside; on a phone the same arc carried the text 24px past the edge *while
+ * it was still sharp and fully opaque* — so the reader was being shown a
+ * sentence with its ends cut off, which is the one thing this beat cannot
+ * afford. A shorter throw keeps the arc inside the frame, and because it also
+ * starts nearer its full size, the column is wider when it is being read, not
+ * narrower.
+ */
+const narrow = ref(false);
+const narrowQuery =
+  typeof window !== "undefined" ? window.matchMedia("(max-width: 48rem)") : null;
+const readNarrow = () => { narrow.value = !!narrowQuery?.matches; };
+readNarrow();
+narrowQuery?.addEventListener("change", readNarrow);
+onBeforeUnmount(() => narrowQuery?.removeEventListener("change", readNarrow));
+
 const fly = (i: number) => {
   const t = clamp01((p.value - (LEAD + i * STEP)) / SPAN);
   const arrive = ease(clamp01(t / 0.26));
   const leave = ease(clamp01((t - 0.72) / 0.28));
   const sharp = arrive * (1 - leave);
+  const from = narrow.value ? 0.7 : 0.56;
+  const throw_ = narrow.value ? 0.66 : 1.0;
   return {
     t,
     sharp,
-    scale: 0.56 + t * 1.0,
+    scale: from + t * throw_,
     blur: (1 - sharp) * (1 - sharp) * 14,
   };
 };
@@ -452,10 +474,25 @@ onBeforeUnmount(() => {
   // Above the section it is taking the frame from, so the release is hidden
   // rather than merely coincident with it.
   z-index: 1;
+  /**
+   * The join, measured in stages - never in travel.
+   *
+   * This overlap exists so this section's stage pins *before* the one above
+   * it lets go: a sticky stage releases 100vh before its section ends, so
+   * anything less than one whole viewport of overlap leaves a band where
+   * neither stage is held and the reader scrolls past bare ground. That band
+   * is what reads as the page changing screens mid-section.
+   *
+   * It is therefore `--vh`, not `--sv`. The scroll-length scale shortens
+   * travel on a phone, and briefly took this with it - 120 became 66, which
+   * is less than the one stage the release costs, and opened a 34vh hole
+   * between the burst and the corridor on exactly the frames the scale
+   * applies to. The stage panes are unscaled for the same reason.
+   */
   margin-top: -120vh;
   margin-top: calc(var(--vh, 1vh) * -120);
   height: 2300vh;
-  height: calc(var(--vh, 1vh) * 2300);
+  height: calc(var(--sv) * 2300);
 }
 
 .aq__stage {
@@ -533,6 +570,12 @@ onBeforeUnmount(() => {
   will-change: transform, opacity, filter;
 
   @media (max-width: 60rem) { width: 82vw; }
+  // Paired with the shortened throw above: 78 x 1.24 is a hair under the
+  // frame, so the sharp phase is never clipped.
+  @media (max-width: 48rem) {
+    width: 78vw;
+    &.is-payoff { width: 78vw; }
+  }
 }
 
 // 10 / 15 at 1.6px tracking, which is the page's own label step.

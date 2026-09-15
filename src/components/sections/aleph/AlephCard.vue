@@ -187,7 +187,7 @@ onBeforeUnmount(() => {
 .am {
   position: relative;
   height: 600vh;
-  height: calc(var(--vh, 1vh) * 600);
+  height: calc(var(--sv) * 600);
 }
 
 .am__stage {
@@ -237,7 +237,24 @@ onBeforeUnmount(() => {
   z-index: 3;
   width: min(22rem, 26vw);
 
-  @media (max-width: 60rem) { width: min(30rem, 86vw); }
+  /**
+   * Handheld: over the card's head, not across its middle.
+   *
+   * On a wide frame the copy stands in the left third and the card turns in
+   * the space beside it. A phone has no space beside it - the card fills the
+   * frame - so the copy was being read *through* the card, with the list
+   * disappearing behind it word by word as it turned. Lifted to the top of
+   * the frame it has the light ground to itself, and the card turns beneath
+   * it, which is the arrangement the reference uses too.
+   */
+  @media (max-width: 60rem) {
+    left: var(--gutter);
+    right: var(--gutter);
+    width: auto;
+    top: clamp(5rem, 13.5vh, 7rem);
+    transform: none;
+    z-index: 4;
+  }
 }
 
 // The statements occupy one cell and cross over inside it, so nothing in the

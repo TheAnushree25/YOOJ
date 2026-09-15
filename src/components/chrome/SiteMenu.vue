@@ -171,6 +171,8 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
 </template>
 
 <style scoped lang="scss">
+
+
 .mn {
   position: fixed;
   inset: 0;
@@ -308,5 +310,37 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
 @media (prefers-reduced-motion: reduce) {
   .mn__panel,
   .mn__scrim { transition-duration: 0.01ms; }
+}
+/**
+ * A finger's worth of control.
+ *
+ * The close measured 59 x 15 - the size of the word inside it. Padding brings
+ * it to 44px and the matching negative margin puts the word back exactly
+ * where it was, so this changes what can be hit and nothing that can be seen.
+ */
+@media (pointer: coarse) {
+  .mn__close {
+    min-height: 44px;
+    min-width: 44px;
+    padding: 0.85rem 0.7rem;
+    margin: -0.85rem -0.7rem;
+    display: inline-flex;
+    align-items: center;
+  }
+
+  .mn__link {
+    min-height: 48px;
+    display: flex;
+    align-items: center;
+  }
+
+  // The contact row at the foot of the panel: 14px of text, same treatment.
+  li > a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    padding-block: 0.9rem;
+    margin-block: -0.9rem;
+  }
 }
 </style>

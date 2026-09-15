@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed } from "vue";
 import { useRoute } from "vue-router";
 import { onDark, onPale } from "../../lib/session";
+import { soundOn, toggleSound } from "../../lib/sound";
 
 /**
  * The pulse. One circle, bottom right, on every page and every section.
@@ -20,8 +21,9 @@ import { onDark, onPale } from "../../lib/session";
  *
  * It also carries the ambience, because the reference puts exactly one control
  * in this corner and two stacked circles is one more than the composition has
- * room for. The pulse runs whether the sound is on or not; switching it on
- * only brightens what is already moving.
+ * room for. The beat *is* the sound's state: moving means the bed is playing,
+ * resting means it is muted, so the corner can be read at a glance and the
+ * press has a visible result as well as an audible one.
  */
 
 const route = useRoute();
@@ -33,53 +35,23 @@ const paleGround = computed(() => (route.name === "solutions" ? !onDark.value : 
 
 /* ------------------------------------------------------------- the ambience */
 
-// Synthesised rather than streamed: two detuned oscillators through a slow
-// filter sweep. No audio file to ship, nothing to license, and it starts
-// silent because a page that makes noise unasked is a page people close.
-const on = ref(false);
-let ctx: AudioContext | null = null;
-let master: GainNode | null = null;
+/**
+ * This is the control for the site's bed - not for a sound of its own.
+ *
+ * It used to build a private AudioContext here and toggle three oscillators
+ * through it, which made the corner a second, quieter instrument standing
+ * beside the real one. The bed itself - the looped file in lib/sound, started
+ * inside the press that lifts the gate - answered only to the M key. So the
+ * reader arrived to sound already playing while this badge read "off", and
+ * pressing it added a pad rather than stopping what they could hear.
+ *
+ * One source of truth now: the shared `soundOn`, which is also what is
+ * remembered between visits. The beat below is bound to it, so the corner
+ * always reports the thing the reader can actually hear.
+ */
+const on = soundOn;
 
-const build = () => {
-  ctx = new AudioContext();
-  master = ctx.createGain();
-  master.gain.value = 0;
-  master.connect(ctx.destination);
-
-  const filter = ctx.createBiquadFilter();
-  filter.type = "lowpass";
-  filter.frequency.value = 420;
-  filter.Q.value = 0.7;
-  filter.connect(master);
-
-  for (const [freq, detune] of [[110, -6], [110, 7], [164.81, 3]] as const) {
-    const osc = ctx.createOscillator();
-    osc.type = "sine";
-    osc.frequency.value = freq;
-    osc.detune.value = detune;
-    const g = ctx.createGain();
-    g.gain.value = 0.22;
-    osc.connect(g).connect(filter);
-    osc.start();
-  }
-
-  // A slow LFO on the cutoff so the pad drifts instead of droning.
-  const lfo = ctx.createOscillator();
-  lfo.frequency.value = 0.045;
-  const lfoGain = ctx.createGain();
-  lfoGain.gain.value = 180;
-  lfo.connect(lfoGain).connect(filter.frequency);
-  lfo.start();
-};
-
-const toggle = async () => {
-  if (!ctx) build();
-  if (ctx!.state === "suspended") await ctx!.resume();
-  on.value = !on.value;
-  const now = ctx!.currentTime;
-  master!.gain.cancelScheduledValues(now);
-  master!.gain.setTargetAtTime(on.value ? 0.06 : 0, now, 0.8);
-};
+const toggle = () => toggleSound();
 
 const title = computed(() => (on.value ? "Mute ambience" : "Play ambience"));
 
@@ -236,6 +208,37 @@ $beat: 2.4s;
   .pulse__base { opacity: 0.55; }
   .pulse__lit { stroke-width: 2.2; }
   .pulse__bloom { opacity: 0.32; }
+}
+
+/**
+ * Silent, and still.
+ *
+ * The beat used to run whether the sound was on or not, which made the
+ * control a decoration that also happened to toggle audio - pressing it
+ * changed the volume and nothing else, so there was no way to tell from the
+ * corner of your eye whether it was on. Tied together, the badge reads at a
+ * glance: moving means playing, resting means muted, and the press is a
+ * switch with a visible result.
+ *
+ * The thump is paused rather than removed, so the ring holds the size it had
+ * instead of snapping. The rings that fly off are cancelled outright - a
+ * paused wave would leave a stray circle frozen mid-flight around a control
+ * that is supposed to be at rest. The sweep along the trace stops with them,
+ * and the trace is left lit end to end: a monitor that is on but quiet, not a
+ * flatline.
+ */
+.pulse:not(.is-on) {
+  animation-play-state: paused;
+
+  .pulse__wave { animation: none; opacity: 0; }
+  .pulse__bloom { animation: none; opacity: 0.1; }
+  .pulse__sweep,
+  .pulse__lit {
+    animation: none;
+    stroke-dasharray: none;
+    stroke-dashoffset: 0;
+    opacity: 0.5;
+  }
 }
 
 // Two beats and a wait. The second is smaller, as it is.

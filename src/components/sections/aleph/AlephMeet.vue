@@ -103,7 +103,7 @@ onBeforeUnmount(() => trigger?.kill());
 .me {
   position: relative;
   height: 220vh;
-  height: calc(var(--vh, 1vh) * 220);
+  height: calc(var(--sv) * 220);
 }
 
 .me__stage {

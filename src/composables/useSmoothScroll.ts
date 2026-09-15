@@ -83,7 +83,18 @@ export function useSmoothScroll() {
       });
     }
 
+    lastWidth = window.innerWidth;
+    writeViewport();
     window.addEventListener("resize", onResize);
+    // Rotation reports the new width a frame late on some devices, so the
+    // orientation signal is taken on its own rather than trusted to `resize`.
+    window.addEventListener("orientationchange", () => {
+      requestAnimationFrame(() => {
+        lastWidth = window.innerWidth;
+        writeViewport();
+        ScrollTrigger.refresh(true);
+      });
+    });
 
     // Web fonts change every line height on the page, which moves every start
     // and end a trigger was measured against. Re-measure once they land.
@@ -91,8 +102,31 @@ export function useSmoothScroll() {
     ScrollTrigger.refresh();
   };
 
-  const onResize = () => {
+  /**
+   * The viewport unit, and when it is allowed to change.
+   *
+   * Every long stage is a multiple of `--vh`, so rewriting it re-lays out the
+   * whole document. On a phone that is a trap: the browser fires `resize`
+   * every time its own address bar slides away, which happens *while you are
+   * scrolling*. The old handler took that as a new viewport, changed the
+   * height of a 2300vh section mid-gesture, and re-measured every trigger
+   * under it - so the page lurched and the animations snapped, at the exact
+   * moment the reader was looking at them.
+   *
+   * Width is the honest signal. A rotation or a resized window changes it; the
+   * address bar never does. So the unit is written once and then only when the
+   * width actually moves, and height-only events are ignored entirely.
+   */
+  let lastWidth = 0;
+
+  const writeViewport = () => {
     document.documentElement.style.setProperty("--vh", `${window.innerHeight * 0.01}px`);
+  };
+
+  const onResize = () => {
+    if (window.innerWidth === lastWidth) return;
+    lastWidth = window.innerWidth;
+    writeViewport();
     ScrollTrigger.refresh();
   };
 

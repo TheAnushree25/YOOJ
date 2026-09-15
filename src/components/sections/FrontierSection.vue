@@ -108,17 +108,29 @@ interface Key {
  * so the tile is upright at rest and the transform at the end of the section is
  * the identity. That is what lets the traveller simply *be* the top tile of the
  * figure rather than hand over to a copy of itself at the last moment.
+ *
+ * The whole flight is flown in the first four-fifths of the section, and the
+ * last pose is then repeated at the end. Landing *at* 1.00 meant the tile was
+ * still turning as the section handed over - the figure took its place and the
+ * page moved on in the same moment, so the reader never saw it complete. The
+ * repeated pose is a hold: identical values either side of it interpolate to
+ * no movement at all, so the figure simply stands there while the rest of the
+ * section's travel is spent.
  */
+const LAND = 0.8;
+
 const FLIGHT: Key[] = [
-  { at: 0.00, x:   1, y: -10, r:  180, s: 0.30, b: 17, o: 1 },
-  { at: 0.07, x:   1, y:  -8, r:  214, s: 0.35, b: 4,  o: 1 },
-  { at: 0.16, x:  -6, y:  -9, r:  288, s: 0.41, b: 0,  o: 1 },
-  { at: 0.30, x: -23, y:  -5, r:  428, s: 0.47, b: 0,  o: 1 },
-  { at: 0.44, x: -34, y:   4, r:  578, s: 0.55, b: 0,  o: 1 },
-  { at: 0.58, x: -31, y:  11, r:  728, s: 0.66, b: 0,  o: 1 },
-  { at: 0.72, x: -21, y:   8, r:  868, s: 0.84, b: 0,  o: 1 },
-  { at: 0.86, x:  -7, y:   3, r:  992, s: 0.97, b: 0,  o: 1 },
-  { at: 1.00, x:   0, y:   0, r: 1080, s: 1.00, b: 0,  o: 1 },
+  { at: 0.00 * LAND, x:   1, y: -10, r:  180, s: 0.30, b: 17, o: 1 },
+  { at: 0.07 * LAND, x:   1, y:  -8, r:  214, s: 0.35, b: 4,  o: 1 },
+  { at: 0.16 * LAND, x:  -6, y:  -9, r:  288, s: 0.41, b: 0,  o: 1 },
+  { at: 0.30 * LAND, x: -23, y:  -5, r:  428, s: 0.47, b: 0,  o: 1 },
+  { at: 0.44 * LAND, x: -34, y:   4, r:  578, s: 0.55, b: 0,  o: 1 },
+  { at: 0.58 * LAND, x: -31, y:  11, r:  728, s: 0.66, b: 0,  o: 1 },
+  { at: 0.72 * LAND, x: -21, y:   8, r:  868, s: 0.84, b: 0,  o: 1 },
+  { at: 0.86 * LAND, x:  -7, y:   3, r:  992, s: 0.97, b: 0,  o: 1 },
+  { at: 1.00 * LAND, x:   0, y:   0, r: 1080, s: 1.00, b: 0,  o: 1 },
+  // The hold.
+  { at: 1.00,        x:   0, y:   0, r: 1080, s: 1.00, b: 0,  o: 1 },
 ];
 
 /** Catmull–Rom, so the path curves through the poses instead of kinking at them. */
@@ -295,10 +307,10 @@ onBeforeUnmount(() => { trigger?.kill(); arrival?.kill(); });
           :class="[`fr__tile--${tile.slot}`, { 'is-lead': i === 0 }]"
           :style="i === 0
             ? flight()
-            : { opacity: beat(0.86 + (i - 1) * 0.04, 0.99), transform: `translateY(${(1 - beat(0.86 + (i - 1) * 0.04, 0.99)) * 14}px)` }"
+            : { opacity: beat(0.56 + (i - 1) * 0.05, 0.74), transform: `translateY(${(1 - beat(0.56 + (i - 1) * 0.05, 0.74)) * 14}px)` }"
           :aria-expanded="open === i"
           role="button"
-          :tabindex="p > 0.92 ? 0 : -1"
+          :tabindex="p > 0.82 ? 0 : -1"
           @click="reveal(i)"
           @keydown.enter.prevent="reveal(i)"
           @keydown.space.prevent="reveal(i)"
@@ -308,7 +320,7 @@ onBeforeUnmount(() => { trigger?.kill(); arrival?.kill(); });
             <path class="fr__edge" :d="TRI_PATH" />
           </svg>
 
-          <div class="fr__plate" :style="i === 0 ? { opacity: beat(0.9, 1) } : undefined">
+          <div class="fr__plate" :style="i === 0 ? { opacity: beat(0.62, 0.76) } : undefined">
             <div class="fr__words">
               <p class="fr__label">
                 <span v-for="line in tile.label" :key="line">{{ line }}</span>
@@ -342,12 +354,14 @@ onBeforeUnmount(() => { trigger?.kill(); arrival?.kill(); });
 </template>
 
 <style scoped lang="scss">
+
+
 // Four and a half viewports of travel. The stage holds for all of it, so this
 // is a duration rather than a height.
 .fr {
   position: relative;
   height: 460vh;
-  height: calc(var(--vh, 1vh) * 460);
+  height: calc(var(--sv) * 460);
 }
 
 .fr__stage {
@@ -791,16 +805,37 @@ onBeforeUnmount(() => { trigger?.kill(); arrival?.kill(); });
 // labels sit inside a shape that narrows toward its point, so a tile below
 // roughly 200px cannot hold two words of tracked capitals at the height they
 // sit at. Stacked, each tile is as wide as the column and the problem is gone.
+/**
+ * Handheld: three tiles in a column, sized to the column's own height.
+ *
+ * At 74vw the stack came to about 780px - taller than the frame it is centred
+ * in, so the third tile ran under the standing marker at the foot and the two
+ * were read on top of one another. The tile is sized from what has to fit
+ * instead: three of them plus their gaps, inside the band left between the
+ * fixed bar and the marker.
+ */
 @media (max-width: 60rem) {
   .fr__trio {
-    --tri: min(74vw, 20rem);
+    --tri: min(48vw, 13rem);
+    --tri-step: calc(var(--tri-h) + 0.75rem);
     width: var(--tri);
-    height: calc(var(--tri-h) * 3 + 2rem);
+    height: calc(var(--tri-step) * 2 + var(--tri-h));
   }
 
   .fr__tile--apex { left: 0; margin-left: 0; }
-  .fr__tile--left { top: calc(var(--tri-h) + 1rem); }
-  .fr__tile--right { right: auto; left: 0; top: calc(var(--tri-h) * 2 + 2rem); }
+  .fr__tile--left { top: var(--tri-step); }
+  .fr__tile--right { right: auto; left: 0; top: calc(var(--tri-step) * 2); }
   .fr__note { margin-left: auto; }
+}
+// Closing the panel is the only way out of it, and it measured 67 x 18.
+@media (pointer: coarse) {
+  .fr__close {
+    min-height: 44px;
+    min-width: 44px;
+    padding: 0.8rem 0.7rem;
+    margin: -0.8rem -0.7rem;
+    display: inline-flex;
+    align-items: center;
+  }
 }
 </style>

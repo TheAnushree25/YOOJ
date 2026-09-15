@@ -46,6 +46,33 @@ export interface FieldOptions {
  * field is out of focus by design, and rendering it at 3x on a phone buys
  * nothing but heat.
  */
+/**
+ * How many device pixels the field is actually drawn at.
+ *
+ * A phone reports a ratio of 3, so an uncapped canvas draws nine times the
+ * pixels of its CSS box - and the Aleph page runs three of them at once. The
+ * old cap of 2 still means four times, which a laptop absorbs and a handset
+ * pays for in heat and battery within a minute. A particle field has no hard
+ * edges to soften, so the difference between 1.6 and 2 is invisible here in a
+ * way it would not be on type or a hairline.
+ */
+const drawRatio = () => {
+  const dpr = window.devicePixelRatio || 1;
+  if (!window.matchMedia("(pointer: coarse)").matches) return Math.min(dpr, 2);
+
+  /**
+   * A ratio cap on its own is the wrong instrument here. A tablet reports the
+   * same ratio as a phone over three times the area, so capping both at 1.6
+   * left the tablet drawing 2 megapixels per canvas - six across the Aleph
+   * page's three - and it was the only device that missed frame after frame.
+   * What costs is pixels, so pixels are what is budgeted; the ratio falls out
+   * of the frame's own size. A phone is well under the budget and keeps its
+   * full 1.6.
+   */
+  const area = Math.max(1, window.innerWidth * window.innerHeight);
+  return Math.max(1, Math.min(dpr, 1.6, Math.sqrt(1_200_000 / area)));
+};
+
 export class Backdrop {
   private renderer: WebGLRenderer;
   private scene = new Scene();
@@ -150,7 +177,7 @@ export class Backdrop {
   resize = () => {
     const { innerWidth: w, innerHeight: h } = window;
     // Two is already past the point where a blurred field shows any gain.
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    this.renderer.setPixelRatio(drawRatio());
     this.renderer.setSize(w, h, false);
     this.material.uniforms.uResolution.value.set(w * this.renderer.getPixelRatio(), h * this.renderer.getPixelRatio());
   };

@@ -38,7 +38,55 @@ const CARD_ASPECT = 0.53;
 const CARD_D = 0.055;
 /** Where the card sits, and the depth sizes are quoted at. */
 const REST_Z = 0;
+
+/**
+ * How far the card travels toward the reader, in world units.
+ *
+ * It was 2.5, which put the card 3.5 from a camera standing at 6 - a
+ * magnification of 1.71 on a subject already sized to fill 84% of the frame,
+ * so it finished at about 144% of it and the reader was looking at the middle
+ * of a card with no edges. This lands it at roughly 1.19x: filling the frame
+ * at the moment it goes, and still whole.
+ */
+const NEAR_TRAVEL = 1.0;
+
+/**
+ * The furthest the dispersal throws a piece, as a multiple of `uSpread`.
+ *
+ * The shader's own term is `0.04 + pow(r1, 0.62) * 1.3`, so the outermost
+ * piece lands at 1.34 spreads. Named here because the spread has to be
+ * divided by it for the burst to finish at the frame's edge rather than a
+ * third of the way past it.
+ */
+const FURTHEST = 1.34;
 const CAM_Z = 6;
+
+/**
+ * How many device pixels the field is actually drawn at.
+ *
+ * A phone reports a ratio of 3, so an uncapped canvas draws nine times the
+ * pixels of its CSS box - and the Aleph page runs three of them at once. The
+ * old cap of 2 still means four times, which a laptop absorbs and a handset
+ * pays for in heat and battery within a minute. A particle field has no hard
+ * edges to soften, so the difference between 1.6 and 2 is invisible here in a
+ * way it would not be on type or a hairline.
+ */
+const drawRatio = () => {
+  const dpr = window.devicePixelRatio || 1;
+  if (!window.matchMedia("(pointer: coarse)").matches) return Math.min(dpr, 2);
+
+  /**
+   * A ratio cap on its own is the wrong instrument here. A tablet reports the
+   * same ratio as a phone over three times the area, so capping both at 1.6
+   * left the tablet drawing 2 megapixels per canvas - six across the Aleph
+   * page's three - and it was the only device that missed frame after frame.
+   * What costs is pixels, so pixels are what is budgeted; the ratio falls out
+   * of the frame's own size. A phone is well under the budget and keeps its
+   * full 1.6.
+   */
+  const area = Math.max(1, window.innerWidth * window.innerHeight);
+  return Math.max(1, Math.min(dpr, 1.6, Math.sqrt(1_200_000 / area)));
+};
 
 export class CardScene {
   private renderer: WebGLRenderer;
@@ -57,6 +105,21 @@ export class CardScene {
 
   private progress = 0;
   private shown = 0;
+
+  /**
+   * Where the card sits while the copy is being read, and where it ends up.
+   *
+   * On a wide frame these are the same: the copy stands in the left third and
+   * the card turns beside it, both at full size, and there is nothing to get
+   * out of the way of. A phone has no third - the copy is a block across the
+   * top - so the card is tucked into the space left under it and grows back
+   * into the whole frame as it comes forward, by which time the copy has gone.
+   *
+   * `tuck` is the resting size and drop; `fit` is the size it arrives at.
+   */
+  private tuckScale = 1;
+  private tuckY = 0;
+  private fitScale = 1;
 
   private canvas: HTMLCanvasElement;
   private options: CardOptions;
@@ -355,7 +418,7 @@ export class CardScene {
   resize = () => {
     const { clientWidth: w, clientHeight: h } = this.canvas;
     if (!w || !h) return;
-    const ratio = Math.min(window.devicePixelRatio, 2);
+    const ratio = drawRatio();
     this.renderer.setPixelRatio(ratio);
     this.renderer.setSize(w, h, false);
 
@@ -377,26 +440,76 @@ export class CardScene {
      * corners the moment it is anything but square on.
      */
     const view = 2 * Math.tan((this.camera.fov * Math.PI) / 360) * (CAM_Z - REST_Z);
-    const scale = Math.min(
+    this.fitScale = Math.min(
       (view * 0.84) / CARD_H,
       (view * (w / h) * 0.86) / (CARD_H * CARD_ASPECT),
     );
-    this.card.scale.setScalar(scale);
 
-    // Half the frame, expressed in the card's own units — the burst is a child
-    // of the card and inherits its scale, so the target has to be divided back
-    // out or the throw grows every time the subject does.
-    (this.motes.uniforms.uSpread.value as Vector2).set(
-      (view * (w / h)) / 2 / scale,
-      view / 2 / scale,
-    );
+    /**
+     * Portrait: the copy takes the top of the frame, the card takes the rest.
+     *
+     * Reserving the top 40% leaves 60% for the card, and a card sized to fill
+     * that is centred in it - which is 20% of the frame below the middle. The
+     * two never meet, so the list is read on clear ground rather than through
+     * a turning slab.
+     */
+    const portrait = w / h < 1;
+    const COPY_BAND = 0.4;
+    if (portrait) {
+      const room = view * (1 - COPY_BAND);
+      // 0.78, not 0.86: the card tilts off-axis as it turns, so a card sized
+      // to exactly fill its band clips its own corner on the frame edge at
+      // the extremes of the revolution.
+      this.tuckScale = Math.min(
+        (room * 0.78) / CARD_H,
+        (view * (w / h) * 0.86) / (CARD_H * CARD_ASPECT),
+      );
+      this.tuckY = -view * (COPY_BAND / 2);
+    } else {
+      this.tuckScale = this.fitScale;
+      this.tuckY = 0;
+    }
+
+    // A size to draw with before the first tick sets the real one.
+    this.card.scale.setScalar(this.tuckScale);
+
+    // The throw is re-measured every frame against the depth the pieces have
+    // actually reached; see `aimBurst`. This is only the resting value, for
+    // the frames before the first tick.
+    this.aimBurst();
 
     // The pieces are the card's pieces, so they carry its size with them. Left
     // fixed, a bigger card would throw the same specks over a wider area and
-    // the burst would thin out as the subject grew.
-    this.motes.uniforms.uSize.value = 2.0 * scale;
+    // the burst would thin out as the subject grew. The card's size is now a
+    // live value, so the speck size is set each frame with it; this is the
+    // resting value for the frames before the first tick.
+    this.motes.uniforms.uSize.value = 2.0 * this.tuckScale;
     this.motes.uniforms.uPixel.value = ratio;
   };
+
+  /**
+   * Aim the dispersal at the edges of the frame the pieces are actually in.
+   *
+   * The burst is a child of the card, so it carries the card's scale and the
+   * card's depth. Both matter: the spread is quoted in the card's own units,
+   * so the scale has to be divided back out, and the frame is *narrower* the
+   * closer the pieces come to the camera, so a throw measured once at the
+   * resting plane overshoots by the whole of the approach.
+   *
+   * Measured against the shorter of the two axes so the burst reaches the top
+   * and bottom of a portrait screen as well as its sides - it should finish by
+   * covering the frame, not by covering a band across the middle of it.
+   */
+  private aimBurst() {
+    const z = this.cloud ? this.cloud.position.z : REST_Z;
+    const halfH = Math.tan((this.camera.fov * Math.PI) / 360) * Math.max(0.2, CAM_Z - z);
+    const halfW = halfH * this.camera.aspect;
+    const s = this.card.scale.x || 1;
+    (this.motes.uniforms.uSpread.value as Vector2).set(
+      halfW / FURTHEST / s,
+      halfH / FURTHEST / s,
+    );
+  }
 
   start() {
     if (this.running) return;
@@ -455,7 +568,21 @@ export class CardScene {
     // Shortened as the card grew. The approach is measured from a subject that
     // now nearly fills the frame at rest, so the old distance carried it well
     // past the point where any of it is still on screen.
-    this.card.position.z = REST_Z + this.near * 2.5;
+    this.card.position.z = REST_Z + this.near * NEAR_TRAVEL;
+
+    /**
+     * Out from under the copy as it comes forward.
+     *
+     * `near` is the approach, and the copy is already leaving by the time it
+     * starts - so the same term carries the card up from its tucked place and
+     * out to full size. It arrives filling the frame, which is what the burst
+     * needs, without ever having sat on the words.
+     */
+    const k = this.near;
+    const scale = this.tuckScale + (this.fitScale - this.tuckScale) * k;
+    this.card.scale.setScalar(scale);
+    this.card.position.y = this.tuckY * (1 - k);
+    this.motes.uniforms.uSize.value = 2.0 * scale;
 
     // And then it is gone, handed over to its own pieces.
     const solid = 1 - CardScene.ease((this.shown - 0.68) / 0.08);
@@ -469,7 +596,11 @@ export class CardScene {
       // The pieces start where the card had got to, so the burst comes off the
       // object rather than out of the middle of the frame.
       this.cloud.position.z = this.card.position.z;
+      this.cloud.position.y = this.card.position.y;
       this.cloud.scale.copy(this.card.scale);
+      // Re-aimed now that the pieces have moved: the frame they have to fill
+      // is the one at this depth.
+      this.aimBurst();
     }
 
     this.motes.uniforms.uTime.value = t;

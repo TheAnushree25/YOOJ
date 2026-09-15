@@ -66,8 +66,39 @@ const lit = (i: number, total: number) => {
 };
 
 /** Where a card sits: being read, waiting off to the right, or gone. */
+/**
+ * How far the deck is inset, by frame width.
+ *
+ * On a wide frame the card is 31.5rem inside a 78rem deck, so nudging it 14%
+ * of its own width to the right sets it against the deck's left third - the
+ * inset is the composition. On a phone the card *is* the deck: the same 14%
+ * is 14% of the full width, so the card was shoved off the right edge and the
+ * question read as if it had been cropped. At this width there is no third to
+ * set it against, so it sits where it belongs - in the middle.
+ */
+const narrow = ref(false);
+const narrowQuery =
+  typeof window !== "undefined" ? window.matchMedia("(max-width: 60rem)") : null;
+const readNarrow = () => { narrow.value = !!narrowQuery?.matches; };
+readNarrow();
+narrowQuery?.addEventListener("change", readNarrow);
+onBeforeUnmount(() => narrowQuery?.removeEventListener("change", readNarrow));
+
 const card = (i: number) => {
   const a = active();
+  if (narrow.value) {
+    // One column: the live card centred, the rest stacked out of frame above
+    // and below it rather than to the side.
+    if (i === a) return { opacity: 1, transform: "translate3d(0, -50%, 0)", zIndex: 3 };
+    if (i === a + 1) {
+      return { opacity: 0.22, transform: "translate3d(0, -128%, 0) scale(0.62)", zIndex: 2 };
+    }
+    return {
+      opacity: 0,
+      transform: `translate3d(0, ${i < a ? -20 : -150}%, 0) scale(${i < a ? 0.9 : 0.5})`,
+      zIndex: 1,
+    };
+  }
   // Every pose carries its own vertical centring: the card is anchored at the
   // deck's midline and pulled back by half its height, so a transform that
   // forgot the -50% would drop it half a card low.
@@ -208,7 +239,7 @@ onBeforeUnmount(() => {
 .ah {
   position: relative;
   height: 460vh;
-  height: calc(var(--vh, 1vh) * 460);
+  height: calc(var(--sv) * 460);
 }
 
 .ah__stage {
@@ -408,15 +439,23 @@ onBeforeUnmount(() => {
 
   .ah__deck { height: min(52vh, 24rem); }
 
-  // No room beside the card at this width, so the arrow drops under it and
-  // sits on the centre line with the counter.
+  /**
+   * No room beside the card at this width, so the arrow drops under it.
+   *
+   * Measured from the deck's midline rather than its foot: the card is
+   * centred on that line, so this is a fixed distance under the card whatever
+   * the deck's own height is. Pinned to the foot it sat 148px clear of the
+   * question it advances - far enough to read as unrelated to it, which for
+   * the one control on the beat is the whole problem.
+   */
   .ah__next {
-    top: auto;
-    bottom: -1rem;
+    top: 50%;
+    bottom: auto;
     left: 50%;
-    transform: translateX(-50%);
+    transform: translate(-50%, 0);
+    margin-top: clamp(4.4rem, 11.5vh, 5.6rem);
 
-    &:not(:disabled):hover { transform: translateX(-50%) translateY(-3px); }
+    &:not(:disabled):hover { transform: translate(-50%, -3px); }
   }
 }
 

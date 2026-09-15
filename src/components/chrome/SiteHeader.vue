@@ -175,6 +175,81 @@ const filled = computed(() => Math.max(0.008, Math.min(1, props.progress)));
   }
 }
 
+/**
+ * Handheld: two tracks, not three.
+ *
+ * The desktop bar centres the wordmark in the frame by giving it a track of
+ * its own between two equal ones. That needs the meta block to be narrower
+ * than the space beside it, and on a phone it is not — its own minimum is
+ * wider than the track left over, so the "centred" mark was pushed left until
+ * it sat underneath the chapter word. Optical centring is a wide-frame luxury;
+ * here the mark takes the left and the control takes the right, which is what
+ * a phone header is anyway.
+ *
+ * The progress rule leaves the meta block at the same time. Stretched to a
+ * few centimetres beside the menu word it read as an underline on the word;
+ * across the top of the screen it reads as what it is.
+ */
+@media (max-width: 48rem) {
+  .head {
+    grid-template-columns: auto 1fr;
+    align-items: center;
+    gap: 0.75rem;
+    padding-top: 0.9rem;
+    padding-bottom: 0.9rem;
+  }
+
+  .head__mark {
+    grid-column: 1;
+    justify-self: start;
+    gap: 0.5rem;
+  }
+
+  .head__meta {
+    grid-column: 2;
+    justify-self: end;
+    min-width: 0;
+    gap: 0;
+  }
+
+  .head__bar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    width: auto;
+  }
+
+  .head__readout {
+    gap: 0.75rem;
+  }
+}
+
+/**
+ * Touch targets.
+ *
+ * The menu control measured 38 x 10 — the size of its own text. Padding takes
+ * it to the 44px a finger needs, and the matching negative margin keeps the
+ * word where it was drawn, so nothing moves visually.
+ */
+@media (pointer: coarse) {
+  .head__trigger {
+    min-height: 44px;
+    min-width: 44px;
+    padding: 0.85rem 0.6rem;
+    margin: -0.85rem -0.6rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-end;
+  }
+
+  .head__mark {
+    min-height: 44px;
+    padding-block: 0.7rem;
+    margin-block: -0.7rem;
+  }
+}
+
 .head__bar {
   position: relative;
   width: 100%;

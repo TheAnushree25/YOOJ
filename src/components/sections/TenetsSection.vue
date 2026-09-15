@@ -244,33 +244,76 @@ onBeforeUnmount(() => trigger?.kill());
 // Below this the two columns stop being two columns: the numeral would have to
 // shrink past the point where it reads as the count, so it goes behind the
 // words as a watermark instead of beside them.
+/**
+ * Handheld: the count reads, rather than haunts.
+ *
+ * Behind the list at 13% opacity the numeral was a watermark - present, but
+ * doing nothing a background wash would not have done, and costing a whole
+ * screen of height to say it. Stacked instead: the figure at the head of the
+ * section at full weight, the title under it, then the four terms as a ruled
+ * list. One column, read top to bottom, which is the only shape a phone has.
+ */
 @media (max-width: 60rem) {
-  .tn__grid { grid-template-columns: minmax(0, 1fr); }
-
-  // Both in the one cell, so the count sits behind the words rather than above
-  // them, and stays sticky — parked at the section's top it was gone after the
-  // first screenful, which is the one thing the numeral must not do.
-  .tn__count,
-  .tn__body { grid-row: 1; grid-column: 1; }
-
-  .tn__count {
-    z-index: 0;
-    padding-left: 0;
-    opacity: 0.13;
+  .tn__grid {
+    grid-template-columns: minmax(0, 1fr);
+    row-gap: 0;
   }
 
-  .tn__body { position: relative; z-index: 1; }
+  .tn__count {
+    grid-row: 1;
+    grid-column: 1;
+    position: static;
+    height: auto;
+    place-items: start;
+    padding-left: 0;
+    padding-inline: var(--gutter);
+    // Clear of the fixed bar: the numeral starts at the top of the section,
+    // and the bar is over it.
+    padding-top: clamp(4.6rem, 13vh, 6.5rem);
+    opacity: 1;
+    z-index: 1;
+  }
+
+  .tn__body {
+    grid-row: 2;
+    grid-column: 1;
+    position: relative;
+    z-index: 1;
+    padding-inline: var(--gutter);
+    // The wide layout sets these to a sixth of the frame, which is right when
+    // the numeral is beside the words and far too much when it is above them.
+    // The foot mattered more than the head: it was leaving 306px of empty
+    // ground between the last term and the section below it.
+    padding-top: clamp(0.8rem, 2.5vh, 1.5rem);
+    padding-bottom: clamp(2.6rem, 8vh, 4.5rem);
+  }
 
   .tn__numeral {
-    font-size: min(92vw, 56vh);
-    // Held still here. The drift is a second rate against a list beside it;
-    // behind the list it just pulls the watermark off the top of the frame.
+    // Large enough to be the first thing read, short enough that the title
+    // below it is still on the same screen.
+    font-size: min(52vw, 30vh);
+    line-height: 0.82;
+    // The drift is a second rate against a list beside it; stacked above one
+    // it just lifts the figure off the top of the frame.
     transform: none !important;
   }
 
   .tn__thread { display: none; }
 
-  .tn__body { padding-inline: var(--gutter); }
-  .tn__list { padding-left: 0; }
+  .tn__intro { max-width: none; }
+
+  // Ruled rather than spaced: at this width the terms need a line between
+  // them to read as four things instead of one long column of prose.
+  .tn__list {
+    margin-top: clamp(2rem, 5.5vh, 3rem);
+    padding-left: 0;
+    gap: 0;
+  }
+
+  .tn__item {
+    max-width: none;
+    padding-block: clamp(1.3rem, 3.6vh, 1.9rem);
+    border-top: 1px solid var(--c-line);
+  }
 }
 </style>

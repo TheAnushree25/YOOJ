@@ -12,6 +12,17 @@ const emit = defineEmits<{ enter: [] }>();
  */
 const props = defineProps<{ waitFor?: Promise<unknown> | null }>();
 
+/**
+ * What the gate asks for.
+ *
+ * "Click to enter" on a phone names an action the device does not have. The
+ * question is whether a pointer can hover, not how wide the screen is - a
+ * touch laptop gets "Tap" too, which is the right answer for it.
+ */
+const coarse =
+  typeof window !== "undefined" && window.matchMedia("(hover: none)").matches;
+const enterWord = coarse ? "Tap to enter" : "Click to enter";
+
 const ready = ref(false);
 const leaving = ref(false);
 const opened = ref(false);
@@ -120,11 +131,11 @@ const enter = () => {
         data-cursor="scale"
         @click="enter"
       >
-        <span class="sg__label">{{ ready ? "Click to enter" : `${Math.round(pct)}` }}</span>
+        <span class="sg__label">{{ ready ? enterWord : `${Math.round(pct)}` }}</span>
       </button>
     </div>
 
-    <p class="sg__word">A cognitive wellbeing lab</p>
+    <p class="sg__word">Healthcare closer to you</p>
   </div>
 </template>
 
@@ -156,6 +167,27 @@ const enter = () => {
   place-items: center;
   width: min(58vw, 99vh, 58rem);
   aspect-ratio: 672 / 655; // SEED_FIELD.w / SEED_FIELD.h
+
+  /**
+   * On a phone, the whole screen.
+   *
+   * 58vw is a figure measured for a frame that is wider than it is tall. On a
+   * portrait screen the same rule drew a small badge adrift in a large empty
+   * field - the one screen on the site with nothing else on it, and the least
+   * was being made of it. Keyed to the long axis instead and allowed past the
+   * edges, the pattern becomes the screen, which is what a gate should be.
+   */
+  /**
+   * Handheld: as large as the frame will hold it, and no larger.
+   *
+   * At 116vw the figure was wider than the screen, and a grid item wider than
+   * its area is not centred - the engine clamps it to the start edge, so the
+   * pattern sat 31px right of centre with its left petals cut and clear ground
+   * on the right. Kept inside the frame it centres on its own.
+   */
+  @media (max-width: 60rem) {
+    width: min(96vw, 76vh);
+  }
 }
 
 .sg__seed {

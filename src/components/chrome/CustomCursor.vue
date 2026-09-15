@@ -17,7 +17,17 @@ let rx = 0, ry = 0;
 // `data-cursor` is the contract: a bare keyword changes the cursor's shape, and
 // anything else becomes a caption. Declared on the element so a section can
 // describe its own affordance without importing anything.
-const KEYWORDS = new Set(["scale", "drag", "view", "sound"]);
+/**
+ * Values that select a cursor treatment rather than a caption.
+ *
+ * Matched case-insensitively, which is the whole point: the pulse toggle
+ * reports "Sound" and "Mute" in sentence case, missed this set, and fell
+ * through to the caption branch - a 34px ring blown up to 2.4 with the word
+ * scaled up inside it, sitting over a control barely bigger than the ring
+ * itself. A toggle in the corner wants the quiet treatment; what it does is
+ * already on the button as its accessible name.
+ */
+const KEYWORDS = new Set(["scale", "drag", "view", "sound", "mute"]);
 
 // `next` is its own shape rather than a caption: the ring opens to a disc with
 // an arrow in it, which is what the reference puts over a carousel. A word
@@ -52,7 +62,7 @@ const onOver = (event: PointerEvent) => {
   if (SHAPES.has(value)) {
     mode.value = value as "next";
     label.value = "";
-  } else if (!value || KEYWORDS.has(value)) {
+  } else if (!value || KEYWORDS.has(value.toLowerCase())) {
     mode.value = "scale";
     label.value = "";
   } else {

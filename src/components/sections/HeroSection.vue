@@ -189,7 +189,7 @@ onBeforeUnmount(() => {
         immediate
       />
       <div ref="cta" class="hero__cta">
-        <ActionButton label="Start your YOOJ journey" href="#contact" variant="solid" />
+        <ActionButton label="Start your YOOJ journey" to="/solutions" variant="solid" />
       </div>
     </div>
 
@@ -224,7 +224,7 @@ onBeforeUnmount(() => {
 .hero {
   position: relative;
   height: 200vh;
-  height: calc(var(--vh, 1vh) * 200);
+  height: calc(var(--sv) * 200);
   padding: 0;
 }
 
@@ -293,18 +293,10 @@ onBeforeUnmount(() => {
 
 // Below this there is no room for a figure beside a full-width heading, so she
 // goes back to standing behind it.
-@media (max-width: 60rem) {
-  .hero__front {
-    top: auto;
-    right: 0;
-    left: 0;
-    bottom: 0;
-    width: auto;
-    margin-left: 0;
-    height: 68%;
-    opacity: 0.45;
-  }
-}
+
+
+
+
 
 .hero__title {
   // Size, weight and tracking come from the `.display` step in the shared
@@ -409,10 +401,93 @@ onBeforeUnmount(() => {
   text-align: left;
   will-change: transform, opacity;
 
-  @media (max-width: 48rem) {
-    position: static;
-    margin: clamp(1.6rem, 5vh, 2.6rem) var(--gutter) 0;
+}
+@media (max-width: 48rem) {
+  // Off the flow and back onto the picture: heading low-left, the call to
+  // action directly under it, both clear of the foot of the frame.
+  .hero__type {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: auto;
+    // Over her lower body, clear of the note standing under the picture.
+    bottom: 26%;
+    transform: none;
+    z-index: 6;
+    width: auto;
+    gap: clamp(1.15rem, 3.2vh, 1.9rem);
+  }
+
+  .hero__aside {
+    position: absolute;
+    left: 0;
+    right: 0;
+    // Directly under the foot of her box, so the sentence begins where the
+    // picture ends, and above the hint in the corner.
+    bottom: clamp(3.4rem, 8.5vh, 4.4rem);
+    z-index: 6;
+    margin: 0;
+    padding-inline: var(--gutter);
     max-width: none;
+    font-size: 0.8rem;
+    line-height: 1.5;
+    color: rgb(var(--rgb-bone) / 0.72);
   }
 }
+/**
+ * The handheld hero.
+ *
+ * On a wide frame she stands beside the heading and the two share the width.
+ * A phone has no width to share, so the composition changes rather than
+ * shrinks: she fills the frame and the heading sits on her.
+ *
+ * Her box is the frame, not a multiple of it. At 152vw she was rendered 587px
+ * wide inside a 390px screen - just under a hundred pixels cut off each side,
+ * and the side that mattered was the one with her face on it. `contain` keeps
+ * the whole cut-out, so the box only has to be narrow enough that nothing
+ * leaves it: the pointer grows her to 1.09 and the resting stretch takes
+ * 0.98 of that, so 92vw is the widest she can start and still be whole at the
+ * top of her breath.
+ *
+ * She is anchored to the foot of her box and the note sits directly beneath
+ * it, which is what puts the copy at the end of the picture rather than over
+ * it.
+ */
+@media (max-width: 60rem) {
+  .hero__front {
+    top: 0;
+    // The band the note stands in, under her - deep enough that the note
+    // clears the scroll hint standing in the corner below it.
+    bottom: clamp(7rem, 18vh, 8.6rem);
+    left: 50%;
+    right: auto;
+    width: 92vw;
+    margin-left: -46vw;
+    height: auto;
+    opacity: 1;
+  }
+
+  .hero__front img {
+    object-position: center bottom;
+  }
+
+  // Her ground is bright where the heading crosses it, so the type gets a
+  // little dark under it - weighted to the foot of the frame, nothing across
+  // her face.
+  .hero__stage::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 4;
+    pointer-events: none;
+    background: linear-gradient(
+      to top,
+      rgb(var(--rgb-void) / 0.66) 0%,
+      rgb(var(--rgb-void) / 0.38) 24%,
+      rgb(var(--rgb-void) / 0.10) 48%,
+      transparent 70%
+    );
+  }
+}
+
 </style>

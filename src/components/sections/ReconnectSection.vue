@@ -82,6 +82,68 @@ const passages = [
   },
 ] as const;
 
+/**
+ * The fragmented journey, as the third passage describes it.
+ *
+ * "Leaving patients to carry their history from doctor to pharmacy to
+ * diagnostics and back again" is the argument; this is that sentence drawn.
+ * It runs while the passage is being read and leaves with it, so the rail is
+ * the evidence for the words rather than decoration beside them.
+ */
+const journey = ["Doctor", "Prescription", "Pharmacy", "Diagnostics", "Next visit"] as const;
+
+/**
+ * The arc field.
+ *
+ * Five circles with radii far larger than the frame, centred mostly outside
+ * it, so what is drawn is never a circle - only the long shallow sweep of one
+ * passing through. That is the whole trick: a 62-unit radius in a 100-unit box
+ * reads as a line with a memory of a curve in it, where a ring reads as a
+ * ring. One of them is small and sits on the edge, which is what gives the
+ * eye the scale of the others.
+ *
+ * Held in view-box units and painted with a non-scaling stroke, so the weight
+ * of the line is the same hairline on a phone as on a desktop.
+ */
+const ARCS = [
+  { cx: 6,   cy: 41,  r: 63 },
+  { cx: 97,  cy: 72,  r: 55 },
+  { cx: 1,   cy: 63,  r: 9  },
+  { cx: 73,  cy: 4,   r: 41 },
+  { cx: 38,  cy: 121, r: 47 },
+] as const;
+
+/**
+ * Which way the field lies, by passage.
+ *
+ * The reader is told which passage they are in by a number in a ring; the
+ * field answers it by turning. Each passage gets its own bearing and the
+ * change is carried by a transition rather than by the scroll, so it arrives
+ * as a settling rather than as something dragged - the same gesture whichever
+ * direction the reader came from.
+ */
+const ARC_BEARING = [0, 41, 78, 78];
+
+const arcTurn = () => ARC_BEARING[Math.min(step().index, ARC_BEARING.length - 1)];
+
+/**
+ * The field is the passages' own ground, and it hands over to the rail.
+ *
+ * It stands through the first two passages, and is gone before the journey
+ * begins - one thing in the middle of the frame at a time.
+ */
+const arcsHold = () => beat(0.29, 0.35) - beat(0.585, 0.645);
+
+/**
+ * The order of the middle of the frame, start to finish:
+ *
+ *   arcs (passage one, then turned for passage two)
+ *   rail (passage three - the journey the passage describes)
+ *   figure (the turn - the gate's own pattern, completed)
+ *
+ * Never two of them at once.
+ */
+
 /** Which passage the ring counts, and how far through it the reader is. */
 const step = () => {
   const i = passages.findIndex((x) => p.value >= x.at && p.value < x.to);
@@ -254,6 +316,37 @@ onBeforeUnmount(() => trigger?.kill());
         :style="{ opacity: beat(0.30, 0.36) }"
       />
 
+      <!-- The field the passages are read against: long shallow sweeps, not
+           a figure. It turns between passages, which is the only thing on
+           screen that answers the number counting up in the ring. -->
+      <div class="rc__arcs" :style="{ opacity: arcsHold() }" aria-hidden="true">
+        <svg class="rc__arcs-svg" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid slice">
+          <g class="rc__arcs-turn" :style="{ transform: `rotate(${arcTurn()}deg)` }">
+            <circle v-for="(a, i) in ARCS" :key="i" :cx="a.cx" :cy="a.cy" :r="a.r" />
+          </g>
+        </svg>
+      </div>
+
+      <!-- The journey the third passage is about: a continuous rail of the
+           stops a patient carries their own history between. Two identical
+           runs of the list side by side, translated by exactly half the
+           track, so the seam never arrives. Hidden from the reader in the
+           accessibility tree - the sentence beneath already says it. -->
+      <div
+        class="rc__rail"
+        :style="{ opacity: beat(0.66, 0.72) - beat(0.78, 0.815) }"
+        aria-hidden="true"
+      >
+        <div class="rc__rail-track">
+          <template v-for="run in 2" :key="run">
+            <template v-for="(stop, i) in journey" :key="`${run}-${i}`">
+              <span class="rc__stop">{{ stop }}</span>
+              <span class="rc__arrow">&#8594;</span>
+            </template>
+          </template>
+        </div>
+      </div>
+
       <!-- Beats two to four: the three passages, low and left over the dome,
            each arriving a line at a time and gone before the next. They share
            one slot, so each lands where the last stood. -->
@@ -277,7 +370,7 @@ onBeforeUnmount(() => trigger?.kill());
            passages they are contours — close, faint, drifting with the
            scroll, no hub. At the turn they resolve into the figure the site
            opened with, and the copy arrives beside it. See ring(). -->
-      <div class="rc__turn" :style="{ opacity: beat(0.30, 0.38) }">
+      <div class="rc__turn" :style="{ opacity: beat(0.82, 0.875) }">
         <svg class="rc__seed" :viewBox="`0 0 ${SEED_FIELD.w} ${SEED_FIELD.h}`" aria-hidden="true">
           <!-- Struck from the centre and carried out to their places, exactly
                as the gate opens. Same figure, same gesture, second time. -->
@@ -288,6 +381,22 @@ onBeforeUnmount(() => trigger?.kill());
             :class="{ 'rc__hub': i === 0 }"
             :style="ring(i)"
           />
+
+          <!-- The name, in the middle, and only once the figure is whole.
+               Inside the view box rather than laid over it, so it tracks the
+               pattern exactly at any size and on either breakpoint - the
+               figure is sized differently on each, and a word positioned
+               against the container would drift off its centre. Struck after
+               the rings have arrived: the pattern resolves, and then it is
+               revealed to have been the mark all along. -->
+          <text
+            class="rc__hubword"
+            :x="SEED_FIELD.cx"
+            :y="SEED_FIELD.cy"
+            text-anchor="middle"
+            dominant-baseline="central"
+            :style="{ opacity: beat(0.93, 0.985) }"
+          >YOOJ</text>
         </svg>
 
         <!-- Gated on the turn. The container is up from the dome beat now,
@@ -317,7 +426,7 @@ onBeforeUnmount(() => trigger?.kill());
 .rc {
   position: relative;
   height: 1080vh;
-  height: calc(var(--vh, 1vh) * 1080);
+  height: calc(var(--sv) * 1080);
 }
 
 .rc__stage {
@@ -356,6 +465,7 @@ onBeforeUnmount(() => trigger?.kill());
 .rc__eyebrow { color: var(--c-indigo); }
 
 .rc__statement {
+  font-family: var(--font-say);
   max-width: 24ch;
   text-align: center;
   font-size: var(--t-h2);
@@ -423,6 +533,7 @@ onBeforeUnmount(() => trigger?.kill());
 }
 
 .rc__argument-copy {
+  font-family: var(--font-say);
   font-size: var(--t-lead);
   line-height: 1.45;
   font-weight: 250;
@@ -458,10 +569,12 @@ onBeforeUnmount(() => trigger?.kill());
   z-index: 4;
   transition: opacity 0.5s var(--e-out-quart);
 
+  // Top left on a phone, where the reference puts its chapter count: the
+  // right-hand corner is already carrying the menu and the readout.
   @media (max-width: 60rem) {
-    left: auto;
-    right: var(--gutter);
-    top: 16%;
+    left: var(--gutter);
+    right: auto;
+    top: clamp(4.6rem, 12vh, 6.5rem);
   }
 }
 
@@ -489,6 +602,24 @@ onBeforeUnmount(() => trigger?.kill());
 // Sized by the gate's own rule — off the height as much as the width, so on
 // a wide screen the figure is the same figure the reader met on arrival, at
 // the same size, and not a wider crop of it.
+/**
+ * The wordmark at the heart of the figure.
+ *
+ * Set in the site's monospace at the pattern's own scale, so it reads as part
+ * of the drawing rather than as a caption dropped on top of it.
+ */
+.rc__hubword {
+  fill: var(--c-bone);
+  font-family: "Space Grotesk", ui-monospace, monospace;
+  font-size: 44px;
+  letter-spacing: 0.22em;
+  // The tracking adds a trailing gap after the last letter, which pulls the
+  // word left of the centre it is anchored to. Half of it back.
+  transform: translateX(0.11em);
+  text-transform: uppercase;
+  transition: opacity 0.5s var(--e-out-quart);
+}
+
 .rc__seed {
   grid-row: 1;
   grid-column: 1;
@@ -519,6 +650,25 @@ onBeforeUnmount(() => trigger?.kill());
   @media (min-width: 60rem) {
     grid-column: 2;
     justify-self: end;
+  }
+
+  /**
+   * On a phone the figure was 58vw - a coaster in the middle of an empty
+   * frame. Keyed to the larger of the two axes here and allowed past both
+   * edges, it becomes the ground the passages are read against, which is
+   * what it is for.
+   */
+  /**
+   * Same story as the gate: at 148vw the figure overflowed its grid area and
+   * was clamped to the start edge, landing 114px right of centre. Inside the
+   * frame it centres itself, and at 96vw it is still five times the 58vw it
+   * started at.
+   */
+  @media (max-width: 60rem) {
+    // Against the column's own width, not the viewport's: the container keeps
+    // a gutter either side, so 96vw still overflowed the track it sits in and
+    // was clamped 14px off centre. `100%` is the track.
+    width: min(100%, 84vh);
   }
 }
 
@@ -560,6 +710,7 @@ onBeforeUnmount(() => trigger?.kill());
 }
 
 .rc__turn-copy {
+  font-family: var(--font-say);
   grid-row: 1;
   grid-column: 1;
   align-self: center;
@@ -578,6 +729,112 @@ onBeforeUnmount(() => trigger?.kill());
   }
 }
 
+
+/**
+ * The arc field.
+ *
+ * `slice` rather than `meet`: the box is square and the frame is not, so the
+ * view box is filled and the overflow cropped. That is what keeps the sweeps
+ * reading as lines passing through the frame rather than as a drawing sitting
+ * inside it.
+ */
+.rc__arcs {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.rc__arcs-svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.rc__arcs-turn {
+  transform-box: view-box;
+  transform-origin: center;
+  // The passage changes; the field settles into its new bearing. Long enough
+  // to be a movement rather than a cut, eased so it arrives rather than stops.
+  transition: transform 1.5s var(--e-out-expo);
+}
+
+.rc__arcs circle {
+  fill: none;
+  stroke: rgb(var(--rgb-bone) / 0.17);
+  stroke-width: 1;
+  // A hairline at every size, regardless of how far the view box is scaled.
+  vector-effect: non-scaling-stroke;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rc__arcs-turn { transition: none; }
+}
+
+/**
+ * The rail.
+ *
+ * Sized off the frame's *height* as much as its width, so the ring stays a
+ * ring rather than becoming a lozenge on a short window. Masked at both ends
+ * instead of being clipped: a hard edge announces a strip, a soft one reads
+ * as something passing through.
+ */
+.rc__rail {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 33%;
+  z-index: 3;
+  overflow: hidden;
+  pointer-events: none;
+  -webkit-mask-image: linear-gradient(to right, transparent 0, #000 14%, #000 86%, transparent 100%);
+  mask-image: linear-gradient(to right, transparent 0, #000 14%, #000 86%, transparent 100%);
+}
+
+.rc__rail-track {
+  display: flex;
+  align-items: center;
+  width: max-content;
+  gap: clamp(0.9rem, 2.4vw, 2rem);
+  // Half the track is one full run of the list, so a -50% translation lands
+  // the copy exactly where the original stood and the loop is seamless.
+  animation: rc-rail 38s linear infinite;
+  will-change: transform;
+}
+
+@keyframes rc-rail {
+  from { transform: translate3d(0, 0, 0); }
+  to   { transform: translate3d(-50%, 0, 0); }
+}
+
+.rc__stop {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: clamp(7.5rem, 17vw, 13rem);
+  aspect-ratio: 1;
+  padding: 0.9rem;
+  border: 1px solid rgb(var(--rgb-bone) / 0.3);
+  border-radius: 50%;
+  font-family: "Space Grotesk", monospace;
+  font-size: var(--t-label);
+  letter-spacing: var(--ls-label);
+  text-transform: uppercase;
+  text-align: center;
+  line-height: 1.35;
+  color: rgb(var(--rgb-bone) / 0.92);
+}
+
+.rc__arrow {
+  flex: none;
+  font-size: clamp(0.9rem, 1.4vw, 1.15rem);
+  color: rgb(var(--rgb-bone) / 0.45);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rc__rail-track { animation: none; }
+}
 
 .rc__marker {
   position: absolute;

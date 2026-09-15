@@ -180,6 +180,8 @@ const advance = () => backdrop?.setProgress(progress.value);
 </template>
 
 <style scoped lang="scss">
+
+
 .al {
   position: relative;
   min-height: 100vh;
@@ -368,4 +370,20 @@ const advance = () => backdrop?.setProgress(progress.value);
   transition: color 0.45s var(--e-out-quart), background-color 0.45s var(--e-out-quart);
 }
 
+// Same reasoning as the site header: the chapter control was 116 x 17.
+@media (pointer: coarse) {
+  .al__trigger {
+    min-height: 44px;
+    padding-block: 0.8rem;
+    margin-block: -0.8rem;
+    display: inline-flex;
+    align-items: center;
+  }
+
+  .al__mark {
+    min-height: 44px;
+    padding-block: 0.7rem;
+    margin-block: -0.7rem;
+  }
+}
 </style>

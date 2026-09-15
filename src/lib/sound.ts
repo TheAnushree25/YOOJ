@@ -41,6 +41,24 @@ let master: GainNode | null = null;
 const decoded = new Map<string, Promise<AudioBuffer>>();
 let ambient: { source: AudioBufferSourceNode; gain: GainNode } | null = null;
 
+/**
+ * Pending hand-off to silence.
+ *
+ * Off has to mean *off*: a stopped source inside a running context is silent
+ * in the graph but still holds the output device open, which on some hardware
+ * - bluetooth especially - is an audible hiss and on all of it is a radio left
+ * on. So the context is suspended once the bed has finished fading, and the
+ * timer is kept so that unmuting before it fires can cancel it rather than
+ * having the context suspended out from under a bed that is already rising.
+ */
+let hush: ReturnType<typeof setTimeout> | null = null;
+
+const cancelHush = () => {
+  if (hush === null) return;
+  clearTimeout(hush);
+  hush = null;
+};
+
 const context = (): AudioContext | null => {
   if (ctx) return ctx;
   const w = window as Window & { webkitAudioContext?: typeof AudioContext };
@@ -56,6 +74,10 @@ const context = (): AudioContext | null => {
   // comes back up when the reader does.
   document.addEventListener("visibilitychange", () => {
     if (!ctx || !master) return;
+    // Nothing to duck or restore while the reader has the sound off, and
+    // touching the gain here would resume a context that is deliberately
+    // suspended.
+    if (!soundOn.value) return;
     ramp(master.gain, document.hidden ? 0 : 1, 0.5);
   });
   return ctx;
@@ -96,8 +118,29 @@ export const startAmbient = async () => {
   if (!soundOn.value || ambient) return;
   const c = context();
   if (!c || !master) return;
-  // Inside the reader's press, which is what lets the clock run at all.
+  // Inside the reader's press, which is what lets the clock run at all - and
+  // what brings the context back if a previous mute suspended it.
+  cancelHush();
+
+  /**
+   * Resume into silence, never into whatever was left running.
+   *
+   * Suspending stops the clock, so anything the previous mute *scheduled* -
+   * the old source's stop, the tail of its fade - is frozen rather than
+   * finished. Resuming restarts that clock, and for the instant before the
+   * stale stop finally fires, the old bed is audible again: a blip on the
+   * press that turns the sound back on, which is the beep.
+   *
+   * Two guards. The master is pulled to zero *before* the clock restarts, so
+   * anything still in the graph resumes into a closed gate; and any stale
+   * source is torn down outright rather than waiting on its own schedule.
+   */
+  discardAmbient();
+  master.gain.cancelScheduledValues(0);
+  master.gain.value = 0;
   void c.resume().catch(() => {});
+  // And back up, once the graph is known to be clean.
+  ramp(master.gain, 1, 0.25);
   try {
     const buf = await buffer(AMBIENT);
     // The choice may have changed while the file decoded.
@@ -116,14 +159,66 @@ export const startAmbient = async () => {
   } catch { /* no bed; the page is still the page */ }
 };
 
-/** The bed, leaving. Faded out and only then stopped, so it never clicks. */
-export const stopAmbient = (seconds = 0.6) => {
-  if (!ambient || !ctx) return;
+/**
+ * Tear the bed out of the graph, now, without a fade.
+ *
+ * `stop()` alone leaves the nodes connected and their scheduled values in
+ * place; disconnecting is what guarantees the source cannot be heard again
+ * whatever the clock does afterwards. Safe to call when there is no bed.
+ */
+const discardAmbient = () => {
+  if (!ambient) return;
   const { source, gain } = ambient;
   ambient = null;
   ambientLive.value = false;
-  ramp(gain.gain, 0, seconds);
-  source.stop(ctx.currentTime + seconds + 0.05);
+  try { source.stop(); } catch { /* already stopped */ }
+  try { source.disconnect(); gain.disconnect(); } catch { /* already gone */ }
+};
+
+/** The bed, leaving. Faded out and only then stopped, so it never clicks. */
+export const stopAmbient = (seconds = 0.6) => {
+  cancelHush();
+  if (!ctx) return;
+
+  if (ambient) {
+    const { source, gain } = ambient;
+    const leaving = ambient;
+    ambient = null;
+    ambientLive.value = false;
+    ramp(gain.gain, 0, seconds);
+    source.stop(ctx.currentTime + seconds + 0.05);
+
+    /**
+     * And then torn down for certain.
+     *
+     * The scheduled stop above is the graceful one - it lands at the end of
+     * the fade and never clicks. But a scheduled stop only fires while the
+     * clock is running, and the clock is about to be suspended. This is the
+     * one that cannot be outrun: it disconnects the nodes on the wall clock,
+     * just before the suspend, so nothing is left in the graph to be heard
+     * when the context is resumed.
+     */
+    setTimeout(() => {
+      if (ambient === leaving) return;
+      try { source.stop(); } catch { /* already stopped */ }
+      try { source.disconnect(); gain.disconnect(); } catch { /* already gone */ }
+    }, seconds * 1000 + 120);
+  }
+
+  /**
+   * And then the device itself.
+   *
+   * Timed past the end of the fade, because suspending stops the clock: a
+   * context suspended mid-ramp keeps the gain it had, and the scheduled stop
+   * never arrives - so the bed would be waiting at half volume for whenever
+   * the reader turned the sound back on. `soundOn` is re-read at the last
+   * moment in case they changed their mind inside the fade.
+   */
+  hush = setTimeout(() => {
+    hush = null;
+    if (soundOn.value || !ctx) return;
+    void ctx.suspend().catch(() => {});
+  }, seconds * 1000 + 250);
 };
 
 /**
