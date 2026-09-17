@@ -3,10 +3,12 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { Backdrop } from "../webgl/Backdrop";
 import { usePointer } from "../composables/usePointer";
 import { useSmoothScroll } from "../composables/useSmoothScroll";
-import { ScrollTrigger } from "../composables/useMotion";
-import { entered, onPale, pulseCorner } from "../lib/session";
+import { ScrollTrigger, prefersReduced } from "../composables/useMotion";
+import { cinema, entered, onPale, pulseCorner } from "../lib/session";
 import { heroImageReady } from "../lib/hero-image";
+import { holdAmbient, startAmbient } from "../lib/sound";
 
+import OpeningFilm from "../components/chrome/OpeningFilm.vue";
 import ScrollHint from "../components/chrome/ScrollHint.vue";
 import SiteHeader from "../components/chrome/SiteHeader.vue";
 import SiteMenu from "../components/chrome/SiteMenu.vue";
@@ -22,6 +24,30 @@ import TenetsSection from "../components/sections/TenetsSection.vue";
 
 const canvas = ref<HTMLCanvasElement | null>(null);
 const hero = ref<InstanceType<typeof HeroSection> | null>(null);
+const film = ref<InstanceType<typeof OpeningFilm> | null>(null);
+
+/**
+ * Whether the opening film is due.
+ *
+ * Decided once, as the page is set up. The film plays exactly once, on the
+ * press that lifts the gate, and only for a reader who has not asked for less
+ * motion. A reader arriving from the second page has already answered the
+ * gate somewhere else and gets the hero straight away - as they did before
+ * there was a film.
+ */
+const filmDue = ref(!entered.value && !prefersReduced());
+
+/**
+ * The film's readiness, for the gate to wait on beside the hero's subject.
+ * Resolved by the film once it can play through - or has failed, which is
+ * also an answer - and ceilinged by the gate, like everything it waits for.
+ */
+let filmLoaded: () => void = () => {};
+const filmReady = filmDue.value
+  ? new Promise<void>((resolve) => { filmLoaded = resolve; })
+  : Promise.resolve();
+const onFilmReady = () => filmLoaded();
+const gateWait = Promise.all([heroImageReady, filmReady]);
 
 const { progress, scrolled, mount, scrollTo, lock, unlock, toTop } = useSmoothScroll();
 const { x, y } = usePointer();
@@ -135,31 +161,76 @@ const jump = (id: string) => {
   if (el) scrollTo(el);
 };
 
-// The gate hands off to the hero: the page is already laid out behind it, so
-// the entrance plays into a settled page rather than racing the first paint.
+// The gate hands off to the film, and the film to the hero.
+//
+// The page is already laid out behind the gate, so each entrance plays into a
+// settled page rather than racing the first paint. With no film due - a reader
+// who asked for less motion, or one whose browser would not play it - the gate
+// hands straight to the hero, as it always did.
 //
 // Deliberately not scheduled on requestAnimationFrame. rAF does not run in a
 // background tab, and the hero's parts start at opacity 0 — so a reader who
 // pressed Enter and switched away came back to a blank page that never
 // recovered. A timer still fires there, and the tween picks up on its own once
 // the tab is visible again.
+const onPress = () => {
+  // Inside the reader's press, which is what lets a film sound at all.
+  film.value?.prime();
+};
+
 const onEnter = () => {
   entered.value = true;
-  setTimeout(() => {
+  setTimeout(async () => {
     // Whatever the page did while it was covered, the reader arrives at the
     // hero. Immediate rather than eased: this is the first frame after the
     // gate lifts, and a long glide down from wherever the document happened to
     // be is the bug, not the fix.
     toTop();
-    unlock();
     // A hard refresh, and only now. Triggers created during mount measured a
     // page whose fonts had not loaded and whose sections had not reached their
     // real heights — the pinned section computed a start of zero and pinned
     // itself over the hero on arrival. Re-measuring once the page has settled
     // is what puts every start and end where the reader will actually meet it.
     ScrollTrigger.refresh(true);
+
+    if (filmDue.value && film.value) {
+      // The page stays held under the film, which says when it is over.
+      if (await film.value.start()) return;
+      // It could not be played. On with the page as if there were no film,
+      // bed and all.
+      filmDue.value = false;
+      holdAmbient(false);
+      void startAmbient();
+    }
+
+    unlock();
     hero.value?.play();
   }, 0);
+};
+
+/** The film has finished and the cue is on its way: the bed rises under it. */
+const onFilmOver = () => {
+  holdAmbient(false);
+  void startAmbient();
+};
+
+/** The curtain is lifting: the hero rises as it is uncovered. */
+const onFilmLeave = () => {
+  setTimeout(() => hero.value?.play(), 120);
+};
+
+/** The film stopped working partway. The page carries on as if there were none. */
+const onFilmSkip = () => {
+  holdAmbient(false);
+  void startAmbient();
+  unlock();
+  hero.value?.play();
+};
+
+/** The layer is gone; the page is the reader's. */
+const onFilmDone = () => {
+  filmDue.value = false;
+  unlock();
 };
 
 // After the render, not before it: the corner test reads inline styles the
@@ -179,6 +250,8 @@ onMounted(() => {
   }
   findChapters();
   mount();
+  // The bed waits for the film. Set before any key can ask for it.
+  if (filmDue.value) holdAmbient(true);
   // Held at the top until the gate is answered.
   //
   // Asserted twice. Setting `history.scrollRestoration` to manual does not
@@ -194,6 +267,10 @@ onMounted(() => {
     if (document.readyState === "complete") settle();
     else window.addEventListener("load", settle, { once: true });
   }
+  // Arrived from the second page, with the gate already answered: no gate
+  // and no film will call the entrance, and the hero's parts start at
+  // opacity 0. A timer rather than a frame, for the reason given above.
+  if (entered.value) setTimeout(() => hero.value?.play(), 0);
   // Read once before any scroll arrives. A reload lands at the browser's
   // restored position, and until the first scroll event the header still read
   // the first chapter from the middle of the second section.
@@ -205,6 +282,8 @@ onBeforeUnmount(() => {
   backdrop?.dispose();
   // The next page measures its own ground.
   onPale.value = false;
+  // And starts its own bed, if the film never got to release this one.
+  holdAmbient(false);
 });
 </script>
 
@@ -215,7 +294,28 @@ onBeforeUnmount(() => {
 
   <!-- Held until the hero's subject has decoded, so the page behind the
        gate is whole when it lifts. -->
-  <SplashGate v-if="!entered" :wait-for="heroImageReady" @enter="onEnter" />
+  <SplashGate
+    v-if="!entered"
+    :wait-for="gateWait"
+    :hold-sound="filmDue"
+    @press="onPress"
+    @enter="onEnter"
+  />
+
+  <!-- The opening: between the gate and the hero, once, with the page held
+       still beneath it. A fixed layer rather than a section, so the hero
+       stays laid out at the top of a document that has not moved. -->
+  <OpeningFilm
+    v-if="filmDue"
+    ref="film"
+    src="/intro/opening.mp4"
+    poster="/intro/opening.jpg"
+    @ready="onFilmReady"
+    @over="onFilmOver"
+    @leave="onFilmLeave"
+    @skip="onFilmSkip"
+    @done="onFilmDone"
+  />
 
 
   <SiteHeader
@@ -223,6 +323,7 @@ onBeforeUnmount(() => {
     :chapter="chapter"
     :index="chapterIndex"
     :total="chapters.length"
+    :hidden="cinema"
     @jump="jump"
     @menu="openMenu"
   />
@@ -240,7 +341,7 @@ onBeforeUnmount(() => {
 
   <CloseSection @jump="jump" />
 
-  <ScrollHint :hidden="progress > 0.02 || !entered" />
+  <ScrollHint :hidden="progress > 0.02 || !entered || filmDue" />
 </template>
 
 <style scoped lang="scss">

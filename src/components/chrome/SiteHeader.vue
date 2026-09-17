@@ -2,7 +2,14 @@
 import { computed } from "vue";
 import BrandMark from "../ui/BrandMark.vue";
 
-const props = defineProps<{ progress: number; chapter: string; index: number; total: number }>();
+const props = defineProps<{
+  progress: number;
+  chapter: string;
+  index: number;
+  total: number;
+  /** Stood down - for the opening film, which has the screen to itself. */
+  hidden?: boolean;
+}>();
 const emit = defineEmits<{ jump: [id: string]; menu: [] }>();
 
 const pad = (n: number) => String(n).padStart(2, "0");
@@ -15,7 +22,7 @@ const filled = computed(() => Math.max(0.008, Math.min(1, props.progress)));
 </script>
 
 <template>
-  <header class="head">
+  <header class="head" :class="{ 'is-hidden': hidden }">
     <a class="head__mark" href="#top" data-cursor="Top" @click.prevent="emit('jump', 'top')">
       <BrandMark class="head__glyph" />
       <span class="head__name">YOOJ</span>
@@ -77,6 +84,18 @@ const filled = computed(() => Math.max(0.008, Math.min(1, props.progress)));
   // while that control's offset follows its *height*, so the two crossed. The
   // things in here that are actually controls take their events back.
   pointer-events: none;
+  transition:
+    opacity 0.8s var(--e-out-quart),
+    transform 0.8s var(--e-out-quart),
+    visibility 0.8s;
+
+  // Off the screen while the film has it. Visibility goes with the opacity
+  // so the controls inside cannot be pressed, or tabbed to, while unseen.
+  &.is-hidden {
+    opacity: 0;
+    transform: translateY(-0.6rem);
+    visibility: hidden;
+  }
 }
 
 .head__mark {

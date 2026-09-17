@@ -186,7 +186,7 @@ onBeforeUnmount(() => {
         mode="lines"
         :lines="titleLines"
         :delay="0.2"
-        immediate
+        manual
       />
       <div ref="cta" class="hero__cta">
         <ActionButton label="Start your YOOJ journey" to="/solutions" variant="solid" />

@@ -1,16 +1,24 @@
 <script setup lang="ts">
 import { onMounted, ref } from "vue";
 import { SEED_FIELD, SEED_INK, SEED_RINGS } from "../../lib/seed";
-import { preloadSound, startAmbient } from "../../lib/sound";
+import { preloadSound, primeSound, startAmbient } from "../../lib/sound";
 
-const emit = defineEmits<{ enter: [] }>();
+const emit = defineEmits<{ press: []; enter: [] }>();
 
 /**
  * Something the page behind the gate needs before it can be shown — on the
  * front page, the hero's subject, decoded. The gate does not open until it
  * has settled, within a ceiling.
  */
-const props = defineProps<{ waitFor?: Promise<unknown> | null }>();
+const props = defineProps<{
+  waitFor?: Promise<unknown> | null;
+  /**
+   * Keep the bed back. The press still wakes the sound device - that has to
+   * happen inside a gesture - but the page starts the bed itself, later, when
+   * whatever it plays first has finished. The front page's film.
+   */
+  holdSound?: boolean;
+}>();
 
 /**
  * What the gate asks for.
@@ -94,9 +102,15 @@ onMounted(async () => {
 const enter = () => {
   if (!ready.value || leaving.value) return;
   leaving.value = true;
+  // Announced at once, still inside the gesture: anything else that has to
+  // begin in a press - the film, which a browser will only sound if the
+  // reader started it - begins here.
+  emit("press");
   // Inside the press, which is what lets the sound start at all. The bed
-  // rises over the same seconds the gate takes to leave.
-  void startAmbient();
+  // rises over the same seconds the gate takes to leave - unless the page has
+  // asked for it held, in which case only the device is woken here.
+  if (props.holdSound) primeSound();
+  else void startAmbient();
   setTimeout(() => emit("enter"), 900);
 };
 </script>

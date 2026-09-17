@@ -12,11 +12,21 @@ const props = withDefaults(defineProps<{
   stagger?: number;
   rise?: number;
   immediate?: boolean;
+  /**
+   * Prepared, and then held until `play()` is called.
+   *
+   * `immediate` plays at mount, which is right for a heading already on
+   * screen. The hero's is not: it waits under the opening film, and a heading
+   * that rose behind the film would be standing still by the time the film
+   * lifted off it. Held, it rises when it is uncovered.
+   */
+  manual?: boolean;
 }>(), {
   as: "h2",
   mode: "lines",
   delay: 0,
   immediate: false,
+  manual: false,
 });
 
 const root = ref<HTMLElement | null>(null);
@@ -39,7 +49,7 @@ onMounted(async () => {
       delay: props.delay + i * (props.stagger ?? MOTION.handoff),
       stagger: props.mode === "lines" ? 0 : (props.stagger ?? MOTION.stagger),
       rise: props.rise,
-      scrub: !props.immediate,
+      scrub: !props.immediate && !props.manual,
     });
     plays.push(handle.play);
     if (handle.revert) reverts.push(handle.revert);

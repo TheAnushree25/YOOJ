@@ -35,3 +35,13 @@ export const onPale = ref(false);
 
 /** Where the pulse sits, in viewport pixels: the point the ground is tested at. */
 export const pulseCorner = () => ({ x: window.innerWidth - 74, y: window.innerHeight - 60 });
+
+/**
+ * Whether the opening film has the screen.
+ *
+ * The one stretch of the visit with nothing to read and nothing to press: the
+ * header, the pulse and the scroll hint all stand down for it. They are three
+ * components in three places with no other way to hear that a fourth has
+ * taken the screen, so the film says so here and each of them reads it.
+ */
+export const cinema = ref(false);

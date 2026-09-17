@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { useRoute } from "vue-router";
-import { onDark, onPale } from "../../lib/session";
+import { cinema, onDark, onPale } from "../../lib/session";
 import { soundOn, toggleSound } from "../../lib/sound";
 
 /**
@@ -61,7 +61,7 @@ const TRACE = "M1 12 H13 L15.5 12 L18 3 L21.5 21 L24.5 8.5 L26.5 12 H33 L35 9 L3
 <template>
   <button
     class="pulse"
-    :class="{ 'is-on': on, 'is-pale': paleGround }"
+    :class="{ 'is-on': on, 'is-pale': paleGround, 'is-hidden': cinema }"
     :aria-label="title"
     :data-cursor="on ? 'Mute' : 'Sound'"
     @click="toggle"
@@ -111,8 +111,17 @@ $beat: 2.4s;
   color: var(--ink);
   isolation: isolate;
   animation: pulse-thump $beat var(--e-out-quart) infinite;
+  transition: opacity 0.8s var(--e-out-quart), visibility 0.8s;
 
   > * { grid-area: 1 / 1; }
+
+  // Stood down for the opening film, which carries its own sound and has the
+  // screen to itself. A resting beat beside a film that is sounding would
+  // report the wrong thing.
+  &.is-hidden {
+    opacity: 0;
+    visibility: hidden;
+  }
 }
 
 // On the pale ground the ink is the page's wine and the light is the deeper

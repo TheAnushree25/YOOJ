@@ -113,9 +113,40 @@ export const preloadSound = () => {
   buffer(AMBIENT).catch(() => {});
 };
 
+/**
+ * Whether the bed is being held back.
+ *
+ * The opening film carries its own sound, and the bed does not rise under it.
+ * Held, `startAmbient` starts nothing - it only wakes the device, in case the
+ * call came from a press - and the page lets go when the film is over and
+ * starts the bed itself. See HomeView.
+ */
+let held = false;
+export const holdAmbient = (hold: boolean) => { held = hold; };
+
+/**
+ * Wake the device inside the press, so a bed started later can sound.
+ *
+ * A browser only runs an AudioContext that was resumed inside a gesture. When
+ * the bed is to start after the film - eight seconds after the last press,
+ * from a media event - the clock has to have been started here, where the
+ * gesture is; the bed then only connects a source to a context that is
+ * already running. Nothing is heard: no source is made.
+ */
+export const primeSound = () => {
+  if (!soundOn.value) return;
+  const c = context();
+  if (!c) return;
+  cancelHush();
+  void c.resume().catch(() => {});
+};
+
 /** The bed, rising over two and a half seconds. */
 export const startAmbient = async () => {
   if (!soundOn.value || ambient) return;
+  // Not yet: the film has the room. The press still wakes the device, so the
+  // bed can start later from an event that is not one.
+  if (held) { primeSound(); return; }
   const c = context();
   if (!c || !master) return;
   // Inside the reader's press, which is what lets the clock run at all - and

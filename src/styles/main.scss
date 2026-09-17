@@ -198,3 +198,14 @@
   .ground-drift,
   .ground-drift--slow { animation: none; }
 }
+
+/**
+ * The document, held for the opening film.
+ *
+ * The scroll engine stops the wheel and the touch, but the keyboard and the
+ * scrollbar are the browser's own, and a page walked down behind the film
+ * would arrive at the hero somewhere else. Hidden rather than clipped: clip
+ * throws the scroll position away as well, and the script scroll that puts
+ * the page at the top has to keep working underneath.
+ */
+html.is-cinema { overflow: hidden; }
