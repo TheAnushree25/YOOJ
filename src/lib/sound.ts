@@ -114,24 +114,30 @@ export const preloadSound = () => {
 };
 
 /**
- * Whether the bed is being held back.
+ * Whether the bed is stepping aside.
  *
- * The opening film carries its own sound, and the bed does not rise under it.
- * Held, `startAmbient` starts nothing - it only wakes the device, in case the
- * call came from a press - and the page lets go when the film is over and
- * starts the bed itself. See HomeView.
+ * The clinic film on the front page carries its own sound, and the bed does
+ * not play over it: it falls away while the film runs and comes back up once
+ * the film is over. Ducked rather than stopped, so it returns to the same
+ * place in its loop rather than starting over, and remembered here so a bed
+ * that starts while the film is running - the reader unmuting mid-film -
+ * starts silent too.
  */
-let held = false;
-export const holdAmbient = (hold: boolean) => { held = hold; };
+let ducked = false;
+export const duckAmbient = (duck: boolean) => {
+  ducked = duck;
+  if (!ctx || !ambient) return;
+  ramp(ambient.gain.gain, duck ? 0 : AMBIENT_LEVEL, duck ? 0.6 : 2.5);
+};
 
 /**
  * Wake the device inside the press, so a bed started later can sound.
  *
  * A browser only runs an AudioContext that was resumed inside a gesture. When
- * the bed is to start after the film - eight seconds after the last press,
- * from a media event - the clock has to have been started here, where the
- * gesture is; the bed then only connects a source to a context that is
- * already running. Nothing is heard: no source is made.
+ * the bed is to start later, from something that is not a gesture, the clock
+ * has to have been started here, where the gesture is; the bed then only
+ * connects a source to a context that is already running. Nothing is heard:
+ * no source is made.
  */
 export const primeSound = () => {
   if (!soundOn.value) return;
@@ -144,9 +150,6 @@ export const primeSound = () => {
 /** The bed, rising over two and a half seconds. */
 export const startAmbient = async () => {
   if (!soundOn.value || ambient) return;
-  // Not yet: the film has the room. The press still wakes the device, so the
-  // bed can start later from an event that is not one.
-  if (held) { primeSound(); return; }
   const c = context();
   if (!c || !master) return;
   // Inside the reader's press, which is what lets the clock run at all - and
@@ -186,7 +189,8 @@ export const startAmbient = async () => {
     source.start();
     ambient = { source, gain };
     ambientLive.value = true;
-    ramp(gain.gain, AMBIENT_LEVEL, 2.5);
+    // Silent under the film: it comes up when the film lets go of the room.
+    if (!ducked) ramp(gain.gain, AMBIENT_LEVEL, 2.5);
   } catch { /* no bed; the page is still the page */ }
 };
 

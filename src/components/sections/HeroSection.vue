@@ -1,493 +1,469 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref, watch } from "vue";
-import gsap from "gsap";
+import { onBeforeUnmount, onMounted, ref } from "vue";
 import ActionButton from "../ui/ActionButton.vue";
-import SplitHeading from "../ui/SplitHeading.vue";
-import { MOTION, prefersReduced, scrubThrough } from "../../composables/useMotion";
-import { usePointer } from "../../composables/usePointer";
-import { HERO_CUTOUT, heroImageReady } from "../../lib/hero-image";
-
-
-const props = defineProps<{ progress: number }>();
-
-const heading = ref<InstanceType<typeof SplitHeading> | null>(null);
-const aside = ref<HTMLElement | null>(null);
-const cta = ref<HTMLElement | null>(null);
-const plate = ref<HTMLElement | null>(null);
-const root = ref<HTMLElement | null>(null);
+import { ScrollTrigger, prefersReduced } from "../../composables/useMotion";
+import { FrameSequence } from "../../lib/frame-sequence";
+import { HANDS_COUNT, handsFrame, heroImageReady } from "../../lib/hero-image";
 
 /**
- * One subject, cut out, standing in front of the type.
+ * The first screen: the promise, and two hands that close on it as the reader
+ * moves.
  *
- * An earlier cut stacked three of her: a flat plate, a WebGL relief and this.
- * Two of those were the same photograph at lower fidelity, and the canvas edge
- * showed as a seam across the frame. A single full-resolution cut-out with a
- * real alpha channel is both sharper and cheaper, and it is the only one of the
- * three that can genuinely cross in front of a word.
- */
-const hasCutout = ref(true);
-/**
- * Her source, decided by lib/hero-image: the WebP where it decodes, the PNG
- * where it does not. Either way the bytes are already in memory by the time
- * this renders — the fetch started with the document, the decode with the
- * app's first module, and the gate does not lift until it has finished.
- */
-const cutout = ref(HERO_CUTOUT);
-heroImageReady.then((url) => { cutout.value = url; });
-const subject = ref<HTMLElement | null>(null);
-const { x, y } = usePointer();
-
-/**
- * Her own travel, measured against the hero.
+ * The words are built to the design, in the design's own pixels (`--u`). The
+ * hands are a film: at rest they are reaching for each other, and the scroll
+ * plays them together - fingers meeting, one hand closing over the other,
+ * held - so the first thing the reader does on the page is what the page is
+ * about. The film runs the full width of the screen at its own proportions,
+ * starting where the design puts the drawing and carrying on past the fold,
+ * and it is multiplied onto the ground, so its paper is the page.
  *
- * `progress` is the whole document's, and the hero is a small fraction of it —
- * across the two viewports she is on screen for, it advances about a tenth,
- * which is no movement at all. A local scrub gives the stage a full 0 to 1 to
- * work with, so the push-in is actually a push-in.
+ * Not held in place. Like the reference it scrolls up as it plays, and the
+ * clasp completes as the hands reach the upper part of the screen - the
+ * reader watches it happen rather than waiting for it.
  */
-const hp = ref(0);
-let stageTrigger: ReturnType<typeof scrubThrough> = null;
 
-const titleLines = ["Healthcare", "closer to you"];
+const film = ref<HTMLElement | null>(null);
+const canvas = ref<HTMLCanvasElement | null>(null);
 
-// The hero is on screen when the gate opens, so it is told when to play
-// rather than watching for itself.
-defineExpose({
-  play: () => {
-    heading.value?.play();
-    if (prefersReduced()) {
-      gsap.set([aside.value, cta.value], { opacity: 1, y: 0 });
-      gsap.set(plate.value, { scale: 1, opacity: 1 });
-      return;
-    }
-    // The plate settles out of a slow push-in while the type rises over it.
-    gsap.to(plate.value, { scale: 1, opacity: 1, duration: 2.4, ease: "expo.out" });
-    gsap.to([aside.value, cta.value], {
-      opacity: 1,
-      y: 0,
-      duration: MOTION.duration,
-      ease: MOTION.ease,
-      stagger: 0.1,
-      delay: 0.55,
-    });
-  },
-});
+let sequence: FrameSequence | null = null;
+let trigger: ScrollTrigger | null = null;
 
 /**
- * Depth from two rates, not from geometry.
- *
- * The subject answers the pointer a little and the scroll a little more, and
- * the type behind her does neither — so the gap between them reads as space.
- * Written straight to the transform rather than through a tween: this follows
- * a continuous input, and a tween chasing it only adds latency.
+ * Whether the entrance has played. The page says when - the moment the gate
+ * has lifted - and a reader who asked for less motion simply arrives on the
+ * finished frame.
  */
-/**
- * Very nearly the photograph's own proportions.
- *
- * The previous plate was a wide frame with the subject small inside it, and
- * taking a tenth of its width back was what made her read as standing rather
- * than as lying across the picture. This one is cropped to her alpha, so she
- * already fills the height — squeezing it now would only narrow a face that is
- * turned almost side-on, where the distortion shows immediately.
- *
- * `object-fit: contain` has already fitted her to the frame and the origin is
- * the bottom edge, so every percent of vertical scale pushes the crown of her
- * head out of the top of the viewport. It stays at one.
- */
-const STRETCH = { x: 0.98, y: 1 };
+const reduced = prefersReduced();
+const shown = ref(reduced);
 
-let bob = 0;
-let breath = 0;
+defineExpose({ play: () => { shown.value = true; } });
 
-const place = () => {
-  if (!subject.value || prefersReduced()) return;
-  const dx = (x.value - 0.5) * 22;
-  const dy = (0.5 - y.value) * 14;
-  // A push-in and nothing else. She used to lift as well, and lifting a
-  // subject who stands on the bottom edge of the frame uncovers the ground
-  // under her feet — which is how a band of pale appeared beneath her on the
-  // second screen. The scale is about her feet, so she grows upward.
-  const grow = 1 + hp.value * 0.09;
-  // The proportion lives here rather than in the stylesheet. This handler
-  // writes the element's inline transform every frame, so a `scale()` declared
-  // in CSS is overwritten before it is ever seen — the subject stayed exactly
-  // as wide as the photograph no matter what the rule said.
-  subject.value.style.transform =
-    `translate3d(${dx}px, ${dy + bob}px, 0) rotate(${breath}deg) `
-    + `scale(${grow * STRETCH.x}, ${grow * STRETCH.y})`;
-};
-
-/**
- * She is never quite still.
- *
- * Two slow sines at different periods, one vertical and one a fraction of a
- * degree of roll. A single sine reads as a bouncing sprite; two that never
- * come back into phase read as a person breathing. It runs on its own clock
- * rather than on the scroll, because a subject that only moves when the reader
- * moves is a photograph, and the point is that she is alive.
- */
-let frame = 0;
-const drift = (t: number) => {
-  bob = Math.sin(t / 2400) * 9 + Math.sin(t / 1450) * 3.5;
-  breath = Math.sin(t / 3100) * 0.32;
-  place();
-  frame = requestAnimationFrame(drift);
-};
-
-watch([x, y, hp, () => props.progress], place);
+/** Broken where the design breaks it. On a phone the lines run together. */
+const aside = [
+  "Good healthcare shouldn’t depend on",
+  "where you live. YOOJ is building a",
+  "connected primary-care network for the",
+  "people who keep India moving.",
+];
 
 onMounted(() => {
-  if (prefersReduced()) return;
-  gsap.set(plate.value, { scale: 1.08, opacity: 0 });
-  gsap.set([aside.value, cta.value], { opacity: 0, y: MOTION.rise });
-  frame = requestAnimationFrame(drift);
-
-  if (root.value) {
-    stageTrigger = scrubThrough(root.value, (v) => (hp.value = v), {
-      start: "top top",
-      end: "bottom bottom",
+  if (!canvas.value || !film.value) return;
+  try {
+    sequence = new FrameSequence(canvas.value, {
+      url: (i) => handsFrame(i),
+      count: HANDS_COUNT,
+      // The clasp sits a little right of centre in the film; a phone, which
+      // sees only a slice of the width, is given that slice.
+      focusX: 0.52,
+      focusY: 0.5,
     });
+  } catch {
+    return;
   }
+
+  const seq = sequence;
+  window.addEventListener("resize", seq.resize);
+  // Dev-only handle, for headless checks of which frame is on the canvas.
+  if (import.meta.env.DEV) (window as unknown as Record<string, unknown>).__hands = seq;
+
+  if (reduced) {
+    // The finished clasp, and nothing to scrub.
+    void seq.prime(HANDS_COUNT - 1);
+    return;
+  }
+
+  // The opening frame first - the gate has already waited for it, so it is in
+  // the cache - and the rest of the film behind it, coarse to fine.
+  void heroImageReady.then(() => seq.prime(0)).then(() => seq.loadAll());
+
+  trigger = ScrollTrigger.create({
+    trigger: film.value,
+    // From the page's first pixel of travel: the hands begin to move the
+    // moment the reader does.
+    start: 0,
+    // Complete as the film's centre reaches the upper third of the screen.
+    end: "center 30%",
+    onUpdate: (self) => seq.setProgress(self.progress),
+    // Re-measured with everything else on a refresh; the film's height is a
+    // share of the width, so a resize moves where the clasp completes.
+    invalidateOnRefresh: true,
+  });
 });
 
 onBeforeUnmount(() => {
-  cancelAnimationFrame(frame);
-  stageTrigger?.kill();
+  trigger?.kill();
+  if (sequence) window.removeEventListener("resize", sequence.resize);
+  sequence?.dispose();
 });
 </script>
 
 <template>
-  <section id="top" ref="root" class="section hero">
-    <!-- Held for two viewports. She is the first thing on the page and the
-         thing it is about; one screen was not long enough to look at her
-         before the page moved on. -->
-    <div class="hero__stage">
+  <section id="top" class="hero" :class="{ 'is-shown': shown }">
+    <!-- The film: full width, at its own shape, from where the design puts the
+         drawing down past the fold. Under the words and the thread. -->
+    <div ref="film" class="hero__film" aria-hidden="true">
+      <canvas ref="canvas" class="hero__canvas" />
+    </div>
 
-    <!-- A single hair-thin line falling through the frame and across her.
-         It is the only straight thing in the picture, which is what makes the
-         rest of it read as photographed rather than composed. -->
-    <!-- The reference's own line, to its own geometry: a vertical that steps
-         sideways exactly once and then carries on. It is not a curve wandering
-         through the picture and it is not a bare rule — the single jog is what
-         reads as deliberate. -->
-    <svg class="hero__thread" viewBox="0 0 96 808" preserveAspectRatio="none" aria-hidden="true">
-      <path
-        d="M 1 808 L 1 495.469 C 1 460.615 18.826 428.182 48.25 409.5
-           C 77.674 390.818 95.5 358.385 95.5 323.531 V 0"
-      />
-    </svg>
-
-    <!-- Layer 3: the type. -->
-    <div class="hero__type">
-      <SplitHeading
-        ref="heading"
-        as="h1"
-        class="display hero__title"
-        mode="lines"
-        :lines="titleLines"
-        :delay="0.2"
-        manual
-      />
-      <div ref="cta" class="hero__cta">
-        <ActionButton label="Start your YOOJ journey" to="/solutions" variant="solid" />
+    <div class="hero__frame">
+      <!-- The page's thread: down from the wordmark and one step sideways.
+           The straight run below the step is its own line, so it can reach
+           the foot of the section however tall the film makes it. -->
+      <div class="hero__thread" aria-hidden="true">
+        <svg viewBox="0 0 41 200" preserveAspectRatio="none" focusable="false">
+          <path d="M 40 0 V 170 C 40 188 1 182 1 200" />
+        </svg>
       </div>
+
+      <!-- The header's own mark stands down while this one is on screen;
+           see SiteHeader's `markHidden`. -->
+      <p class="hero__brand" aria-hidden="true">YOOJ</p>
+
+      <h1 class="hero__title">
+        <span class="hero__line"><span>Better health for more lives</span></span>
+        <span class="hero__line hero__line--strong"><span>everyday.</span></span>
+      </h1>
+
+      <div class="hero__cta">
+        <ActionButton label="Start your YOOJ journey" to="/solutions" variant="pill" />
+      </div>
+
+      <p class="hero__aside">
+        <span v-for="line in aside" :key="line">{{ `${line} ` }}</span>
+      </p>
     </div>
 
-    <!-- The subject, in front of the type. Her alpha is what lets the longest
-         line pass behind her shoulder while her face stays clear of it. -->
-    <div v-if="hasCutout" ref="plate" class="hero__front">
-      <img
-        ref="subject"
-        :src="cutout"
-        alt=""
-        aria-hidden="true"
-        decoding="async"
-        fetchpriority="high"
-        @error="hasCutout = false"
-      >
-    </div>
-
-    <!-- Corner furniture, above everything. -->
-    <aside ref="aside" class="hero__aside">
-      Good healthcare shouldn't depend on where you live. YOOJ is building a
-      connected primary-care network for the people who keep India moving.
-    </aside>
-    </div>
+    <span class="hero__run" aria-hidden="true" />
   </section>
 </template>
 
 <style scoped lang="scss">
-// Two viewports of travel, one viewport of frame. The stage is sticky rather
-// than pinned, for the reason recorded across the rest of the site: a pinned
-// element becomes `fixed`, reports an offset of zero, and re-measures its start
-// as the top of the document on any refresh landing while the pin is applied.
+/**
+ * The design's frame is 917 x 730. `--u` is one of its pixels at the largest
+ * scale that fits all of it on the first screen: on a laptop that is set by
+ * the height, so the composition keeps its vertical rhythm and gains room at
+ * the sides.
+ *
+ * The section is the first screen plus the film's run below it: the film
+ * starts where the design puts the drawing (278 of 730) and is as tall as the
+ * screen's width makes it.
+ */
 .hero {
+  --u: min(calc(100vw / 917), calc(var(--vh, 1vh) * 100 / 730));
+  /// The first screen, and where the design's frame begins inside it.
+  --screen: calc(var(--vh, 1vh) * 100);
+  --top: calc(var(--screen) - 730 * var(--u));
+  /// The film: its own proportions (1280 x 696), the full width.
+  --film-top: calc(var(--top) + 278 * var(--u));
+  --film-h: calc(100vw * 696 / 1280);
+
   position: relative;
-  height: 200vh;
-  height: calc(var(--sv) * 200);
-  padding: 0;
-}
-
-.hero__stage {
-  // Where the subject stands. The heading and the corner note are both placed
-  // against these rather than against their own guesses, so moving her moves
-  // the composition instead of breaking it.
-  --subject-w: min(60%, 48rem);
-  // Her centre line: the middle of the frame. She faces right, so her eyes
-  // land a little past the centre, which is where the heading is measured to
-  // finish.
-  --subject-x: 50%;
-
-  position: sticky;
-  top: 0;
-  height: 100vh;
-  height: calc(var(--vh, 1vh) * 100);
-  display: grid;
-  place-items: center;
+  height: calc(var(--film-top) + var(--film-h));
+  min-height: var(--screen);
   overflow: hidden;
   isolation: isolate;
+  // Blush at the head of the frame, clearing to white just above the hands,
+  // and white all the way down past them. The stops are the design's.
+  background: linear-gradient(
+    to bottom,
+    #FEB4B8 var(--top),
+    #FDC2C6 calc(var(--top) + 80 * var(--u)),
+    #FDD6DA calc(var(--top) + 200 * var(--u)),
+    #FCE8EB calc(var(--top) + 260 * var(--u)),
+    #FDF3F4 calc(var(--top) + 300 * var(--u)),
+    #FFFFFF calc(var(--top) + 350 * var(--u))
+  );
 }
 
-// No ground of its own. The hero stands on the page's field, which is the
-// dark one — a second gradient here was the one place the site had two colours
-// in one frame.
+/* --------------------------------------------------------------- the film */
 
-// Set against the left of the frame and ragged left, so every line finishes on
-// one edge a little past the middle — which lands on her eyes and leaves the
-// rest of her face clear. Centred, the block crossed her from cheek to cheek
-// and the photograph stopped being a photograph of anyone.
-.hero__type {
+.hero__film {
   position: absolute;
   left: 0;
-  top: 50%;
-  transform: translateY(-50%);
-  z-index: 4;
-  display: grid;
-  justify-items: end;
-  gap: clamp(1.6rem, 4vh, 2.6rem);
-  text-align: right;
-  padding-left: var(--gutter);
-  /**
-   * The right edge of the block, set deliberately inside her.
-   *
-   * The lines are meant to cross her head — that overlap is the composition,
-   * not a collision, and pulling the measure back until every line finished in
-   * clear air produced a tidy layout of two separate things sitting next to
-   * each other. The heading is white and she is lit dark under it, so the
-   * crossing stays legible on its own; what is not survivable is a line ending
-   * a few pixels inside her, which reads as clipping rather than as layering.
-   * Far enough in to be unmistakably deliberate.
-   */
-  width: min(57%, 62rem);
-
-  @media (max-width: 60rem) {
-    position: relative;
-    top: auto;
-    transform: none;
-    width: auto;
-    justify-items: start;
-    text-align: left;
-    padding-inline: var(--gutter);
-  }
+  right: 0;
+  top: var(--film-top);
+  height: var(--film-h);
+  z-index: 1;
+  pointer-events: none;
+  // The frames are drawn on white paper; multiplied, the paper is the page.
+  mix-blend-mode: multiply;
+  opacity: 0;
+  transform: translate3d(0, 2.5%, 0);
+  transition:
+    opacity 1.4s var(--e-out-quart) 0.1s,
+    transform 1.8s var(--e-out-expo) 0.1s;
 }
 
-// Below this there is no room for a figure beside a full-width heading, so she
-// goes back to standing behind it.
+.is-shown .hero__film { opacity: 1; transform: none; }
 
-
-
-
-
-.hero__title {
-  // Size, weight and tracking come from the `.display` step in the shared
-  // ladder. Restating them here is what let the hero drift a full step larger
-  // than every other heading on the page.
-  max-width: 13ch;
-
-  // The lines cross her on purpose, and the place they cross is the rim light
-  // down the edge of her face — the one part of the picture as bright as the
-  // type is. Wide and weak: on the dark left of the frame it is not visible at
-  // all, and where a letter meets the highlight it is the difference between
-  // reading "journey" and reading "journe".
-  text-shadow: 0 1px 26px rgb(20 3 9 / 0.42);
+.hero__canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
 }
 
-// Falls the height of the frame, just off the centre line, and is drawn over
-// her rather than behind: the crossing is the point.
-// Its lower run sits on the type block's own right edge, so the line reads as
-// the margin the heading is set against rather than as a mark laid over her.
-// Fixed width, stretched height: the jog keeps its shape at any viewport, and
-// only the straight runs lengthen.
+/* ------------------------------------------------------------ the words */
+
+// The first screen's composition, standing on the foot of the first screen.
+.hero__frame {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: var(--top);
+  z-index: 2;
+  height: calc(730 * var(--u));
+  pointer-events: none;
+}
+
+// Drawn over the hands and under the words is not what the design does: it
+// crosses the button as a dark hairline on the wine, so it is over everything.
 .hero__thread {
   position: absolute;
-  left: calc(52% - 1px);
-  top: 0;
-  z-index: 4;
-  width: 96px;
-  height: 100%;
-  overflow: visible;
-  pointer-events: none;
+  z-index: 3;
+  left: calc(50% + 2.5 * var(--u));
+  top: calc(80 * var(--u));
+  width: calc(41 * var(--u));
+  height: calc(200 * var(--u));
+  clip-path: inset(0 0 100% 0);
+  transition: clip-path 1.2s var(--e-in-out-quart) 0.3s;
+
+  svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+    max-width: none;
+    overflow: visible;
+  }
 
   path {
     fill: none;
-    stroke: rgb(var(--rgb-bone) / 0.3);
+    stroke: rgb(var(--rgb-ink) / 0.24);
     stroke-width: 1;
     vector-effect: non-scaling-stroke;
   }
 }
 
-.hero__cta { will-change: transform, opacity; }
-
-
-// Centred. The type sits over her, and because each line is a different length
-// the silhouette shows through the ragged edges rather than behind a solid block.
-/**
- * Given a frame of her own rather than the whole stage.
- *
- * The previous plate was a wide photograph with the subject small inside it,
- * so stretching it across the hero and letting `contain` do the fitting put
- * her at a sensible size by accident. This one is cropped to her alpha — at
- * full stage height the crop fills the viewport and she reads as a face
- * pressed against the glass. Sizing the frame explicitly is what makes her a
- * figure standing in the picture, and it holds at any viewport rather than at
- * the one it happened to be checked on.
- */
-.hero__front {
+// The straight run: from the foot of the step, through the hands, to the
+// bottom of the section, where the next screen's thread picks it up three
+// and a half design pixels right of centre.
+.hero__run {
   position: absolute;
-  // Larger than the frame by a little at both ends: the crown of her head is
-  // cropped by the top edge, as the reference crops it, and the few pixels
-  // below the bottom edge are slack — the pointer lifts her a hair, and slack
-  // is what keeps that from showing the ground under her feet.
-  top: -3vh;
-  bottom: -5vh;
-  left: var(--subject-x);
-  margin-left: calc(var(--subject-w) / -2);
-  width: var(--subject-w);
   z-index: 3;
+  left: calc(50% + 3.5 * var(--u) - 0.5px);
+  top: calc(var(--top) + 280 * var(--u));
+  bottom: 0;
+  width: 1px;
+  background: rgb(var(--rgb-ink) / 0.24);
   pointer-events: none;
-  will-change: transform, opacity;
+  transform: scaleY(0);
+  transform-origin: top center;
+  transition: transform 1.6s var(--e-in-out-quart) 1.2s;
+}
 
-  img {
-    width: 100%;
-    height: 100%;
-    // `contain`, not `cover`: the cut-out is the whole subject on transparency,
-    // and cropping it to fill would cut her chin off on a tall viewport.
-    // `contain`, not `cover`: the cut-out is the whole subject on transparency,
-    // and cropping it to fill would take her chin off on a tall viewport.
-    object-fit: contain;
-    object-position: center bottom;
-    // The resting pose only. Motion overwrites this inline every frame and
-    // carries the same proportion in `STRETCH`; this is what a reader sees
-    // before the first frame and under reduced motion.
-    transform: scale(0.98, 1);
-    transform-origin: center bottom;
-    will-change: transform;
+.is-shown {
+  .hero__thread { clip-path: inset(0); }
+  .hero__run { transform: none; }
+}
+
+// Each placed on its own baseline from the design: line-height 1 puts the
+// baseline 0.86em below the top of the box in Montserrat, so a top of
+// `baseline - 0.86 * size` lands the letters where they are drawn.
+.hero__brand {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(44.2 * var(--u));
+  z-index: 1;
+  text-align: center;
+  font-family: var(--font-say);
+  font-weight: 600;
+  font-size: calc(26.5 * var(--u));
+  line-height: 1;
+  letter-spacing: -0.05em;
+  color: var(--c-wine);
+}
+
+.hero__title {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(141 * var(--u));
+  z-index: 1;
+  text-align: center;
+  font-family: var(--font-say);
+  font-weight: 300;
+  font-size: calc(40.4 * var(--u));
+  line-height: calc(49 * var(--u));
+  letter-spacing: 0;
+  color: var(--c-wine);
+}
+
+// Masked, so each line rises into place. The mask is given room below the
+// baseline for the tail of the "y", and the same room is taken back.
+.hero__line {
+  display: block;
+  overflow: hidden;
+  padding-bottom: 0.12em;
+  margin-bottom: -0.12em;
+
+  > span {
+    display: block;
+    white-space: nowrap;
+    transform: translate3d(0, 110%, 0);
+    transition: transform 1.2s var(--e-out-quart) 0.1s;
+  }
+
+  & + & > span { transition-delay: 0.22s; }
+}
+
+.hero__line--strong { font-weight: 800; }
+
+.is-shown .hero__line > span { transform: none; }
+
+.hero__cta {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(280 * var(--u));
+  z-index: 1;
+  display: flex;
+  justify-content: center;
+  --pill-h: calc(35 * var(--u));
+  --pill-px: calc(21 * var(--u));
+  --pill-fs: max(10px, calc(11.3 * var(--u)));
+
+  :deep(.act) { pointer-events: auto; }
+}
+
+// Against the right edge of the screen, as the design sets it, ragged left.
+.hero__aside {
+  position: absolute;
+  right: calc(27 * var(--u));
+  top: calc(346 * var(--u));
+  z-index: 1;
+  text-align: right;
+  font-family: var(--font-say);
+  font-weight: 400;
+  font-size: max(11px, calc(13.35 * var(--u)));
+  line-height: max(14px, calc(16.3 * var(--u)));
+  color: #121212;
+  pointer-events: auto;
+
+  span {
+    display: block;
+    white-space: nowrap;
   }
 }
 
-// Back in the corner, and set light: with her centred the corner is clear,
-// and with the ground dark the wine it used to be set in is not dim, it is
-// gone.
+.hero__brand,
+.hero__cta,
 .hero__aside {
-  position: absolute;
-  right: var(--gutter);
-  bottom: clamp(4.2rem, 11vh, 6.5rem);
-  z-index: 5;
-  max-width: 26ch;
-  font-size: var(--t-body);
-  line-height: 1.5;
-  color: rgb(var(--rgb-bone) / 0.78);
-  font-weight: 400;
-  text-align: left;
-  will-change: transform, opacity;
-
+  opacity: 0;
+  transform: translate3d(0, calc(14 * var(--u)), 0);
+  transition:
+    opacity 1.1s var(--e-out-quart),
+    transform 1.1s var(--e-out-quart);
 }
-@media (max-width: 48rem) {
-  // Off the flow and back onto the picture: heading low-left, the call to
-  // action directly under it, both clear of the foot of the frame.
-  .hero__type {
-    position: absolute;
-    left: 0;
-    right: 0;
+
+.hero__cta { transition-delay: 0.5s; }
+.hero__aside { transition-delay: 0.65s; }
+
+.is-shown {
+  .hero__brand,
+  .hero__cta,
+  .hero__aside { opacity: 1; transform: none; }
+}
+
+/**
+ * Portrait: the same screen, stacked.
+ *
+ * A frame wider than it is tall cannot be fitted into a phone without every
+ * word shrinking to a caption, so the words stand in a column from the top and
+ * the film takes the rest of the screen and a stretch below it, cropped to the
+ * clasp: the arms run off both sides, as they do on a wide screen.
+ */
+@media (orientation: portrait) {
+  .hero {
+    --m: min(calc(100vw / 390), calc(var(--vh, 1vh) * 100 / 844));
+    --top: 0px;
+    // The lower half of the screen. Cropped to a phone's width at this
+    // height, the slice kept is about half the film - the whole of the clasp,
+    // at a scale the 1280 frames still hold sharply.
+    --film-top: calc(var(--screen) * 0.5);
+    --film-h: min(calc(var(--screen) * 0.5), 130vw);
+    background: linear-gradient(
+      to bottom,
+      #FEB4B8 0,
+      #FDC2C6 calc(var(--screen) * 0.11),
+      #FDD6DA calc(var(--screen) * 0.25),
+      #FCE8EB calc(var(--screen) * 0.34),
+      #FDF3F4 calc(var(--screen) * 0.40),
+      #FFFFFF calc(var(--screen) * 0.47)
+    );
+  }
+
+  .hero__frame {
+    top: 0;
+    height: auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: calc(62 * var(--m)) calc(20 * var(--m)) 0;
+  }
+
+  .hero__brand,
+  .hero__title,
+  .hero__cta,
+  .hero__aside {
+    position: relative;
     top: auto;
-    // Over her lower body, clear of the note standing under the picture.
-    bottom: 26%;
-    transform: none;
-    z-index: 6;
-    width: auto;
-    gap: clamp(1.15rem, 3.2vh, 1.9rem);
+    left: auto;
+    right: auto;
+  }
+
+  .hero__brand { font-size: calc(22 * var(--m)); }
+
+  .hero__title {
+    margin-top: calc(30 * var(--m));
+    max-width: calc(340 * var(--m));
+    font-size: calc(33 * var(--m));
+    line-height: calc(40 * var(--m));
+  }
+
+  .hero__line > span { white-space: normal; }
+
+  .hero__cta {
+    margin-top: calc(28 * var(--m));
+    --pill-h: calc(42 * var(--m));
+    --pill-px: calc(24 * var(--m));
+    --pill-fs: max(10.5px, calc(11.5 * var(--m)));
   }
 
   .hero__aside {
-    position: absolute;
-    left: 0;
-    right: 0;
-    // Directly under the foot of her box, so the sentence begins where the
-    // picture ends, and above the hint in the corner.
-    bottom: clamp(3.4rem, 8.5vh, 4.4rem);
-    z-index: 6;
-    margin: 0;
-    padding-inline: var(--gutter);
-    max-width: none;
-    font-size: 0.8rem;
+    margin-top: calc(26 * var(--m));
+    max-width: calc(316 * var(--m));
+    text-align: center;
+    font-size: calc(14 * var(--m));
     line-height: 1.5;
-    color: rgb(var(--rgb-bone) / 0.72);
+
+    span { display: inline; white-space: normal; }
+  }
+
+  // Under the words here, not over them: stacked and centred, every block of
+  // copy sits on the thread's line, and drawn on top it read as a strike
+  // through the paragraph.
+  .hero__thread {
+    z-index: 0;
+    left: calc(50% + 2.5 * var(--m));
+    top: calc(92 * var(--m));
+    width: calc(41 * var(--m));
+    height: calc(120 * var(--m));
+  }
+
+  .hero__run {
+    z-index: 1;
+    left: calc(50% + 3.5 * var(--m) - 0.5px);
+    top: calc(212 * var(--m));
   }
 }
-/**
- * The handheld hero.
- *
- * On a wide frame she stands beside the heading and the two share the width.
- * A phone has no width to share, so the composition changes rather than
- * shrinks: she fills the frame and the heading sits on her.
- *
- * Her box is the frame, not a multiple of it. At 152vw she was rendered 587px
- * wide inside a 390px screen - just under a hundred pixels cut off each side,
- * and the side that mattered was the one with her face on it. `contain` keeps
- * the whole cut-out, so the box only has to be narrow enough that nothing
- * leaves it: the pointer grows her to 1.09 and the resting stretch takes
- * 0.98 of that, so 92vw is the widest she can start and still be whole at the
- * top of her breath.
- *
- * She is anchored to the foot of her box and the note sits directly beneath
- * it, which is what puts the copy at the end of the picture rather than over
- * it.
- */
-@media (max-width: 60rem) {
-  .hero__front {
-    top: 0;
-    // The band the note stands in, under her - deep enough that the note
-    // clears the scroll hint standing in the corner below it.
-    bottom: clamp(7rem, 18vh, 8.6rem);
-    left: 50%;
-    right: auto;
-    width: 92vw;
-    margin-left: -46vw;
-    height: auto;
-    opacity: 1;
-  }
-
-  .hero__front img {
-    object-position: center bottom;
-  }
-
-  // Her ground is bright where the heading crosses it, so the type gets a
-  // little dark under it - weighted to the foot of the frame, nothing across
-  // her face.
-  .hero__stage::after {
-    content: "";
-    position: absolute;
-    inset: 0;
-    z-index: 4;
-    pointer-events: none;
-    background: linear-gradient(
-      to top,
-      rgb(var(--rgb-void) / 0.66) 0%,
-      rgb(var(--rgb-void) / 0.38) 24%,
-      rgb(var(--rgb-void) / 0.10) 48%,
-      transparent 70%
-    );
-  }
-}
-
 </style>

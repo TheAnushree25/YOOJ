@@ -2,52 +2,44 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { Backdrop } from "../webgl/Backdrop";
 import { usePointer } from "../composables/usePointer";
-import { useSmoothScroll } from "../composables/useSmoothScroll";
-import { ScrollTrigger, prefersReduced } from "../composables/useMotion";
+import { pageGlideTo, useSmoothScroll } from "../composables/useSmoothScroll";
+import { ScrollTrigger } from "../composables/useMotion";
 import { cinema, entered, onPale, pulseCorner } from "../lib/session";
 import { heroImageReady } from "../lib/hero-image";
-import { holdAmbient, startAmbient } from "../lib/sound";
+import { duckAmbient } from "../lib/sound";
 
-import OpeningFilm from "../components/chrome/OpeningFilm.vue";
-import ScrollHint from "../components/chrome/ScrollHint.vue";
 import SiteHeader from "../components/chrome/SiteHeader.vue";
 import SiteMenu from "../components/chrome/SiteMenu.vue";
 import SplashGate from "../components/chrome/SplashGate.vue";
 
+import CentreSection from "../components/sections/CentreSection.vue";
 import CloseSection from "../components/sections/CloseSection.vue";
 import FrontierSection from "../components/sections/FrontierSection.vue";
 import HeroSection from "../components/sections/HeroSection.vue";
-import PerspectivesSection from "../components/sections/PerspectivesSection.vue";
+/*
+ * TWO SECTIONS ARE HIDDEN FOR NOW (2026-09-22), each commented out rather
+ * than removed. Both components are untouched on disk; bringing one back is
+ * only a matter of uncommenting every line carrying its marker.
+ *
+ * "4 R'S SECTION" (components/sections/TenetsSection.vue) — four places:
+ *   this import, its entry in `chapters`, the <TenetsSection /> line in the
+ *   template, and its link in the footer's `nav` (CloseSection.vue).
+ *
+ * "PERSPECTIVES SECTION" (components/sections/PerspectivesSection.vue) —
+ *   three places: this import, its entry in `chapters`, and the
+ *   <PerspectivesSection /> line in the template. It has no footer link.
+ *
+ * The chapter readout counts whatever is left, so nothing else needs editing.
+ */
+// import PerspectivesSection from "../components/sections/PerspectivesSection.vue"; // PERSPECTIVES SECTION
+// import TenetsSection from "../components/sections/TenetsSection.vue"; // 4 R'S SECTION
 import ReconnectSection from "../components/sections/ReconnectSection.vue";
 import SolutionSection from "../components/sections/SolutionSection.vue";
-import TenetsSection from "../components/sections/TenetsSection.vue";
+import TownSection from "../components/sections/TownSection.vue";
 
 const canvas = ref<HTMLCanvasElement | null>(null);
 const hero = ref<InstanceType<typeof HeroSection> | null>(null);
-const film = ref<InstanceType<typeof OpeningFilm> | null>(null);
-
-/**
- * Whether the opening film is due.
- *
- * Decided once, as the page is set up. The film plays exactly once, on the
- * press that lifts the gate, and only for a reader who has not asked for less
- * motion. A reader arriving from the second page has already answered the
- * gate somewhere else and gets the hero straight away - as they did before
- * there was a film.
- */
-const filmDue = ref(!entered.value && !prefersReduced());
-
-/**
- * The film's readiness, for the gate to wait on beside the hero's subject.
- * Resolved by the film once it can play through - or has failed, which is
- * also an answer - and ceilinged by the gate, like everything it waits for.
- */
-let filmLoaded: () => void = () => {};
-const filmReady = filmDue.value
-  ? new Promise<void>((resolve) => { filmLoaded = resolve; })
-  : Promise.resolve();
-const onFilmReady = () => filmLoaded();
-const gateWait = Promise.all([heroImageReady, filmReady]);
+const town = ref<InstanceType<typeof TownSection> | null>(null);
 
 const { progress, scrolled, mount, scrollTo, lock, unlock, toTop } = useSmoothScroll();
 const { x, y } = usePointer();
@@ -57,20 +49,30 @@ let backdrop: Backdrop | null = null;
 const chapters = [
   { id: "top", label: "Vision" },
   { id: "reconnect", label: "Reconnecting healthcare" },
+  { id: "town", label: "The solution" },
+  { id: "centre", label: "Primary care centre" },
   { id: "frontier", label: "Beyond fragmented care" },
-  { id: "tenets", label: "The 4 R’s" },
-  { id: "perspectives", label: "Perspectives" },
+  // Both hidden with their sections; uncomment together. See the imports above.
+  // { id: "tenets", label: "The 4 R’s" }, // 4 R'S SECTION
+  // { id: "perspectives", label: "Perspectives" }, // PERSPECTIVES SECTION
   { id: "solution", label: "JeevanBhar" },
   { id: "contact", label: "Contact" },
 ];
 
 const chapterIndex = ref(0);
 
+/**
+ * Whether the Reconnect stage is still showing its first beat - the
+ * perspective screen - rather than the argument that follows it. Read off the
+ * panel's own inline opacity, which the section writes every frame.
+ */
+const onPerspective = ref(false);
+
 /** The chapters that stand on the light ground throughout. The rest are wine. */
-const PALE = new Set(["frontier", "solution"]);
+const PALE = new Set(["top", "centre", "frontier", "solution"]);
 
 /**
- * The second section is three grounds in one — a pale panel, the field once
+ * The second section is three grounds in one — a white panel, the field once
  * the panel has faded, and a dome climbing over both — so its chapter id is
  * not an answer. Its state is read off the elements themselves: the panel's
  * opacity and the dome's rounded crown, both of which the section writes
@@ -139,11 +141,31 @@ const updateChapter = () => {
   });
 
   chapterIndex.value = best;
+  // On the stage the panel says how present it is; without motion it stands
+  // on its own ahead of the stage, and is present while it spans the middle
+  // of the screen.
+  const panel = document.querySelector<HTMLElement>(".rc__panel");
+  const still = document.querySelector<HTMLElement>(".rc__still")?.getBoundingClientRect();
+  onPerspective.value = chapters[best]?.id === "reconnect" && (
+    panel
+      ? parseFloat(panel.style.opacity || "1") > 0.5
+      : !!still && still.top <= view / 2 && still.bottom >= view / 2
+  );
   const id = under >= 0 ? chapters[under]?.id : undefined;
   onPale.value = id === "reconnect" ? paleInReconnect(px, corner) : PALE.has(id ?? "");
 };
 
-const chapter = computed(() => chapters[chapterIndex.value]?.label ?? "Vision");
+const chapter = computed(() =>
+  onPerspective.value ? "The perspective" : (chapters[chapterIndex.value]?.label ?? "Vision"),
+);
+
+/**
+ * The header's wordmark, stood down while the hero's own is on screen. The
+ * hero sets YOOJ where the header's mark sits, so the two would print over
+ * each other; the header's returns once the hero's has scrolled out from
+ * under it.
+ */
+const markHidden = computed(() => scrolled.value < 96);
 
 /**
  * The menu, and the page held still behind it.
@@ -161,26 +183,25 @@ const jump = (id: string) => {
   if (el) scrollTo(el);
 };
 
-// The gate hands off to the film, and the film to the hero.
+// The gate hands off to the hero.
 //
-// The page is already laid out behind the gate, so each entrance plays into a
-// settled page rather than racing the first paint. With no film due - a reader
-// who asked for less motion, or one whose browser would not play it - the gate
-// hands straight to the hero, as it always did.
+// The page is already laid out behind the gate, so the entrance plays into a
+// settled page rather than racing the first paint.
 //
 // Deliberately not scheduled on requestAnimationFrame. rAF does not run in a
-// background tab, and the hero's parts start at opacity 0 — so a reader who
-// pressed Enter and switched away came back to a blank page that never
-// recovered. A timer still fires there, and the tween picks up on its own once
-// the tab is visible again.
+// background tab, and the hero's parts start hidden — so a reader who pressed
+// Enter and switched away came back to a blank page that never recovered. A
+// timer still fires there, and the transitions pick up on their own once the
+// tab is visible again.
 const onPress = () => {
-  // Inside the reader's press, which is what lets a film sound at all.
-  film.value?.prime();
+  // Inside the reader's press: the only moment a browser will let the clinic
+  // film, far down the page, be started with its sound later on.
+  town.value?.prime();
 };
 
 const onEnter = () => {
   entered.value = true;
-  setTimeout(async () => {
+  setTimeout(() => {
     // Whatever the page did while it was covered, the reader arrives at the
     // hero. Immediate rather than eased: this is the first frame after the
     // gate lifts, and a long glide down from wherever the document happened to
@@ -188,48 +209,46 @@ const onEnter = () => {
     toTop();
     // A hard refresh, and only now. Triggers created during mount measured a
     // page whose fonts had not loaded and whose sections had not reached their
-    // real heights — the pinned section computed a start of zero and pinned
-    // itself over the hero on arrival. Re-measuring once the page has settled
-    // is what puts every start and end where the reader will actually meet it.
+    // real heights. Re-measuring once the page has settled is what puts every
+    // start and end where the reader will actually meet it.
     ScrollTrigger.refresh(true);
-
-    if (filmDue.value && film.value) {
-      // The page stays held under the film, which says when it is over.
-      if (await film.value.start()) return;
-      // It could not be played. On with the page as if there were no film,
-      // bed and all.
-      filmDue.value = false;
-      holdAmbient(false);
-      void startAmbient();
-    }
-
     unlock();
     hero.value?.play();
   }, 0);
 };
 
-/** The film has finished and the cue is on its way: the bed rises under it. */
-const onFilmOver = () => {
-  holdAmbient(false);
-  void startAmbient();
+/* ------------------------------------------------------- the clinic film */
+
+/**
+ * The clinic film has the screen: the page holds still, the chrome stands
+ * down, the bed steps aside for the film's own sound, and the section glides
+ * the last stretch into place before it starts.
+ *
+ * Held twice over, as the gate is: the engine stops answering the wheel and
+ * the finger, and `is-cinema` takes the keyboard and the scrollbar, which are
+ * the browser's own. The class goes on first - it also stops a phone's native
+ * momentum dead, which the engine alone cannot.
+ */
+let filmHeld = false;
+
+const holdForFilm = async (el: HTMLElement) => {
+  if (filmHeld) return;
+  filmHeld = true;
+  document.documentElement.classList.add("is-cinema");
+  lock();
+  cinema.value = true;
+  duckAmbient(true);
+  await pageGlideTo(el);
+  if (!filmHeld) return;
+  void town.value?.start();
 };
 
-/** The curtain is lifting: the hero rises as it is uncovered. */
-const onFilmLeave = () => {
-  setTimeout(() => hero.value?.play(), 120);
-};
-
-/** The film stopped working partway. The page carries on as if there were none. */
-const onFilmSkip = () => {
-  holdAmbient(false);
-  void startAmbient();
-  unlock();
-  hero.value?.play();
-};
-
-/** The layer is gone; the page is the reader's. */
-const onFilmDone = () => {
-  filmDue.value = false;
+const releaseFilm = () => {
+  if (!filmHeld) return;
+  filmHeld = false;
+  document.documentElement.classList.remove("is-cinema");
+  cinema.value = false;
+  duckAmbient(false);
   unlock();
 };
 
@@ -250,8 +269,6 @@ onMounted(() => {
   }
   findChapters();
   mount();
-  // The bed waits for the film. Set before any key can ask for it.
-  if (filmDue.value) holdAmbient(true);
   // Held at the top until the gate is answered.
   //
   // Asserted twice. Setting `history.scrollRestoration` to manual does not
@@ -268,8 +285,8 @@ onMounted(() => {
     else window.addEventListener("load", settle, { once: true });
   }
   // Arrived from the second page, with the gate already answered: no gate
-  // and no film will call the entrance, and the hero's parts start at
-  // opacity 0. A timer rather than a frame, for the reason given above.
+  // will call the entrance, and the hero's parts start hidden. A timer rather
+  // than a frame, for the reason given above.
   if (entered.value) setTimeout(() => hero.value?.play(), 0);
   // Read once before any scroll arrives. A reload lands at the browser's
   // restored position, and until the first scroll event the header still read
@@ -282,8 +299,8 @@ onBeforeUnmount(() => {
   backdrop?.dispose();
   // The next page measures its own ground.
   onPale.value = false;
-  // And starts its own bed, if the film never got to release this one.
-  holdAmbient(false);
+  // A route change mid-film must not leave the next page held or silent.
+  releaseFilm();
 });
 </script>
 
@@ -292,31 +309,14 @@ onBeforeUnmount(() => {
        over it. That separation keeps the shader off the scroll's critical path. -->
   <div class="backdrop"><canvas ref="canvas" /></div>
 
-  <!-- Held until the hero's subject has decoded, so the page behind the
-       gate is whole when it lifts. -->
+  <!-- Held until the hero's drawing has decoded, so the page behind the gate
+       is whole when it lifts. -->
   <SplashGate
     v-if="!entered"
-    :wait-for="gateWait"
-    :hold-sound="filmDue"
+    :wait-for="heroImageReady"
     @press="onPress"
     @enter="onEnter"
   />
-
-  <!-- The opening: between the gate and the hero, once, with the page held
-       still beneath it. A fixed layer rather than a section, so the hero
-       stays laid out at the top of a document that has not moved. -->
-  <OpeningFilm
-    v-if="filmDue"
-    ref="film"
-    src="/intro/opening.mp4"
-    poster="/intro/opening.jpg"
-    @ready="onFilmReady"
-    @over="onFilmOver"
-    @leave="onFilmLeave"
-    @skip="onFilmSkip"
-    @done="onFilmDone"
-  />
-
 
   <SiteHeader
     :progress="progress"
@@ -324,6 +324,7 @@ onBeforeUnmount(() => {
     :index="chapterIndex"
     :total="chapters.length"
     :hidden="cinema"
+    :mark-hidden="markHidden"
     @jump="jump"
     @menu="openMenu"
   />
@@ -331,24 +332,31 @@ onBeforeUnmount(() => {
   <SiteMenu :open="menuOpen" contact-href="#contact" @close="closeMenu" />
 
   <main class="content">
-    <HeroSection ref="hero" :progress="progress" />
+    <HeroSection ref="hero" />
     <ReconnectSection />
+    <TownSection
+      ref="town"
+      src="/intro/opening.mp4"
+      poster="/intro/opening.jpg"
+      still="/intro/opening-end.jpg"
+      @hold="holdForFilm"
+      @release="releaseFilm"
+    />
+    <CentreSection />
     <FrontierSection />
-    <TenetsSection />
-    <PerspectivesSection />
+    <!-- 4 R'S SECTION - hidden for now. Uncomment the line below, and the
+         import and the `chapters` entry in the script, to bring it back. -->
+    <!-- <TenetsSection /> -->
+    <!-- PERSPECTIVES SECTION - hidden for now. Uncomment the line below, and
+         the import and the `chapters` entry in the script, to bring it back. -->
+    <!-- <PerspectivesSection /> -->
     <SolutionSection />
   </main>
 
   <CloseSection @jump="jump" />
-
-  <ScrollHint :hidden="progress > 0.02 || !entered || filmDue" />
 </template>
 
 <style scoped lang="scss">
-// Named for what it is, and deliberately not `.field` — a child component's
-// root element inherits its parent's scope id as well as its own, so a class
-// this generic silently reached the section that shares the name and fixed it
-// to the viewport on top of the hero.
 // Named for what it is, and deliberately not `.field` — a child component's
 // root element inherits its parent's scope id as well as its own, so a class
 // this generic silently reached the section that shares the name and fixed it
@@ -383,5 +391,4 @@ onBeforeUnmount(() => {
   z-index: 10;
   width: 100%;
 }
-
 </style>

@@ -168,8 +168,11 @@ onBeforeUnmount(() => {
   }
 }
 
+// Montserrat, like the header: the cursor's word appears over the front page's
+// first two screens, which are set in nothing else.
 .cursor__label {
-  font-family: "Space Grotesk", monospace;
+  font-family: var(--font-say);
+  font-weight: 600;
   font-size: 0.5rem;
   letter-spacing: var(--ls-label);
   text-transform: uppercase;

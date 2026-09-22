@@ -2,6 +2,7 @@
 import { onBeforeUnmount, onMounted, ref } from "vue";
 import { prefersReduced, scrubThrough } from "../../composables/useMotion";
 import { SEED_FIELD, SEED_INK, SEED_RINGS } from "../../lib/seed";
+import GapPanel from "./GapPanel.vue";
 import StepRing from "../ui/StepRing.vue";
 
 /**
@@ -22,6 +23,30 @@ import StepRing from "../ui/StepRing.vue";
 const root = ref<HTMLElement | null>(null);
 const p = ref(0);
 let trigger: ReturnType<typeof scrubThrough> = null;
+let arrival: ReturnType<typeof scrubThrough> = null;
+
+/**
+ * Where the section's travel now begins, on the timeline below.
+ *
+ * The section used to open on a belief statement, rising a line at a time on
+ * the pale panel for the first fifth of its travel before the dome began to
+ * climb. That beat is now the perspective screen, which arrives complete as
+ * the stage comes up from below - so the stretch that played the statement is
+ * cut, and the stage locks with the dome's crown about a third of a screen's
+ * scroll below the frame (it breaks the bottom edge at 0.2455). Every later
+ * beat keeps its number; the section is shorter by exactly the part that was
+ * cut.
+ */
+const P0 = 0.213;
+
+/**
+ * The approach, on its own clock: the stage sliding up into place under the
+ * hero. The perspective screen makes its entrance on this, so it is settled
+ * by the moment the stage locks rather than beginning then.
+ */
+const entry = ref(0);
+
+const reduced = prefersReduced();
 
 /** Normalised position inside one beat, clamped at both ends. */
 const span = (from: number, to: number) =>
@@ -30,19 +55,6 @@ const span = (from: number, to: number) =>
 /** Smoothstep, so a beat eases in and out rather than starting at full speed. */
 const ease = (t: number) => t * t * (3 - 2 * t);
 const beat = (from: number, to: number) => ease(span(from, to));
-
-/**
- * The statement the pale panel carries.
- *
- * The panel is already in place when the section opens. An earlier cut had it
- * climb from below over the first third, which left a long opening stretch
- * where the only thing on screen was the grained field behind it — four
- * viewports of scrolling that began with nothing to read.
- */
-const statement = [
-  "500 million working Indians",
-  "deserve better healthcare.",
-];
 
 /**
  * Three passages, read in turn over the dome once it has risen.
@@ -251,38 +263,43 @@ const told = (i: number) => {
 
 onMounted(() => {
   if (!root.value) return;
-  if (prefersReduced()) { p.value = 1; return; }
-  trigger = scrubThrough(root.value, (v) => (p.value = v), {
+  if (reduced) { p.value = 1; entry.value = 1; return; }
+  p.value = P0;
+  trigger = scrubThrough(root.value, (v) => (p.value = P0 + v * (1 - P0)), {
     start: "top top",
     end: "bottom bottom",
   });
+  arrival = scrubThrough(root.value, (v) => (entry.value = v), {
+    start: "top bottom",
+    end: "top top",
+  });
 });
 
-onBeforeUnmount(() => trigger?.kill());
+onBeforeUnmount(() => { trigger?.kill(); arrival?.kill(); });
 </script>
 
 <template>
   <section id="reconnect" ref="root" class="rc">
-    <div class="rc__stage">
-      <!-- The pale ground. Held on its own clock, not the statement's: the
-           dome has to rise *against* something light, which is the whole read
-           of the beat. Faded with the words, the frame went dark the moment
-           they left and the arc then arrived on a ground it could not be seen
-           against. This leaves once the dome covers the frame anyway. -->
-      <div class="rc__ground ground-drift--slow" :style="{ opacity: 1 - beat(0.22, 0.30) }" aria-hidden="true" />
+    <!-- Without motion there is no stage to hold the perspective screen, so it
+         stands on its own ahead of the frame the section resolves to. -->
+    <div v-if="reduced" class="rc__still">
+      <GapPanel />
+    </div>
 
-      <!-- Beat one: the statement, present from the first frame, rising a line
-           at a time on the pale panel. -->
-      <div class="rc__panel" :style="{ opacity: 1 - beat(0.20, 0.26) }">
-        <p class="label rc__eyebrow">Our belief</p>
-        <p class="rc__statement">
-          <span v-for="(line, i) in statement" :key="i" class="rc__line">
-            <span :style="{ transform: `translate3d(0, ${(1 - beat(0.005 + i * 0.03, 0.12 + i * 0.03)) * 110}%, 0)` }">
-              {{ line }}
-            </span>
-          </span>
-        </p>
-      </div>
+    <div class="rc__stage">
+      <!-- The light ground: white, because the perspective screen is drawn on
+           white, and held until the dome has covered the frame - its crown is
+           still curved when it reaches the top, so the last of the white is in
+           the upper corners. Faded any earlier, the dark field came through a
+           thinning white and the whole frame went grey before the dome was
+           even in it. -->
+      <div class="rc__ground" :style="{ opacity: 1 - beat(0.40, 0.46) }" aria-hidden="true" />
+
+      <!-- Beat one: the perspective screen, complete by the time the stage
+           locks, and covered by the dome as it climbs. It is only taken away
+           once the dome is over it; faded under the dome's approach, it went
+           to a wash of itself on an empty frame. -->
+      <GapPanel v-if="!reduced" class="rc__panel" :entry="entry" :style="{ opacity: 1 - beat(0.32, 0.345) }" />
 
       <!-- Beat two: the deep ground climbs through it as a wide circular arc. -->
       <div class="rc__domeWrap">
@@ -417,16 +434,15 @@ onBeforeUnmount(() => trigger?.kill());
 </template>
 
 <style scoped lang="scss">
-// Five viewports of travel. The stage inside holds for all of it, so this is a
-// duration rather than a height.
-// Eleven viewports for five beats — the statement on the pale panel, three
-// passages over the risen dome, and the turn at the end. At seven the
-// passages spent most of their slice arriving and leaving; each now holds
-// still for the better part of a viewport of travel once its lines are in.
+// The stage inside holds for all of this, so it is a duration rather than a
+// height. It was eleven viewports for five beats - a statement, three passages
+// over the risen dome, and the turn at the end - with the statement's slice
+// now cut (see P0): 1080 x (1 - 0.213). The passages keep their pace; each
+// still holds for the better part of a viewport once its lines are in.
 .rc {
   position: relative;
-  height: 1080vh;
-  height: calc(var(--sv) * 1080);
+  height: 850vh;
+  height: calc(var(--sv) * 850);
 }
 
 .rc__stage {
@@ -446,34 +462,12 @@ onBeforeUnmount(() => trigger?.kill());
   position: absolute;
   inset: 0;
   z-index: 0;
-  background: var(--ground-light);
-  // Beside the shorthand, which resets it, and not in the drift class.
-  background-size: 190% 190%;
+  background: #FFFFFF;
 }
 
-.rc__panel {
-  position: absolute;
-  inset: 0;
-  z-index: 1;
-  display: grid;
-  align-content: center;
-  justify-items: center;
-  gap: clamp(1.4rem, 4vh, 2.4rem);
-  padding: var(--stack) var(--gutter);
-}
-
-.rc__eyebrow { color: var(--c-indigo); }
-
-.rc__statement {
-  font-family: var(--font-say);
-  max-width: 24ch;
-  text-align: center;
-  font-size: var(--t-h2);
-  font-weight: 250;
-  line-height: 1.16;
-  letter-spacing: -0.024em;
-  color: var(--c-indigo);
-}
+// The perspective screen lays itself out; the stage only says where it sits
+// in the stack - over the ground, under the dome.
+.rc__panel { z-index: 1; }
 
 .rc__line {
   display: block;
@@ -851,6 +845,16 @@ onBeforeUnmount(() => trigger?.kill());
   .rc__stage { position: relative; height: auto; min-height: 100vh; }
   .rc__panel { display: none; }
   .rc__dome { transform: translateX(-50%) !important; }
+}
+
+// The perspective screen, standing alone: one screen of white, with the
+// panel laid out inside it exactly as it is on the stage.
+.rc__still {
+  position: relative;
+  height: 100vh;
+  height: calc(var(--vh, 1vh) * 100);
+  overflow: hidden;
+  background: #FFFFFF;
 }
 
 </style>
