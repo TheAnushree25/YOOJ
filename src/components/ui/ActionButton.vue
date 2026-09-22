@@ -16,7 +16,13 @@ const props = withDefaults(defineProps<{
    * link, so middle-click and open-in-new-tab keep working.
    */
   to?: string;
-  variant?: "line" | "solid";
+  /**
+   * `pill` is the front page's own call to action: a filled wine capsule set
+   * in the headline face, with no travelling dot. Its size is the caller's,
+   * through `--pill-h`, `--pill-px` and `--pill-fs`, because it is measured
+   * against the composition it sits in rather than against the label ramp.
+   */
+  variant?: "line" | "solid" | "pill";
 }>(), { href: "#", variant: "line" });
 
 const emit = defineEmits<{ activate: [] }>();
@@ -34,10 +40,14 @@ let chars: HTMLElement[] = [];
  * timeline so the two can never desynchronise on a fast in-out.
  */
 const enter = () => {
-  if (!root.value || !dot.value) return;
-  const travel = root.value.offsetWidth - dot.value.offsetWidth - 24;
-  gsap.to(dot.value, { x: travel, duration: 0.55, ease: "expo.out", overwrite: "auto" });
-  gsap.to(labelEl.value, { x: -8, duration: 0.55, ease: "expo.out", overwrite: "auto" });
+  if (!root.value) return;
+  // The pill has no dot to carry, and nothing for the label to make room for;
+  // it keeps only the letters' lift.
+  if (dot.value) {
+    const travel = root.value.offsetWidth - dot.value.offsetWidth - 24;
+    gsap.to(dot.value, { x: travel, duration: 0.55, ease: "expo.out", overwrite: "auto" });
+    gsap.to(labelEl.value, { x: -8, duration: 0.55, ease: "expo.out", overwrite: "auto" });
+  }
   gsap.to(chars, {
     y: -2,
     duration: 0.4,
@@ -80,7 +90,7 @@ onBeforeUnmount(() => revert?.());
     @pointerleave="leave"
     @click="emit('activate')"
   >
-    <span ref="dot" class="act__dot" aria-hidden="true" />
+    <span v-if="variant !== 'pill'" ref="dot" class="act__dot" aria-hidden="true" />
     <span ref="labelEl" class="act__label">{{ label }}</span>
   </component>
 </template>
@@ -111,6 +121,27 @@ onBeforeUnmount(() => revert?.());
     border-color: var(--c-indigo);
     color: var(--c-bone);
     &:hover { background: #B81A42; border-color: #B81A42; }
+  }
+
+  &--pill {
+    justify-content: center;
+    gap: 0;
+    height: var(--pill-h, 2.4rem);
+    padding: 0 var(--pill-px, 1.4rem);
+    border: 0;
+    background: var(--c-indigo);
+    color: #FFFFFF;
+    font-family: var(--font-say);
+    // Light, and a hair open: measured against the design, the label's ink
+    // covers a third of its box, which is Montserrat's 300 - the 400 filled
+    // two fifths and read as bold on the wine.
+    font-weight: 300;
+    font-size: var(--pill-fs, 0.75rem);
+    letter-spacing: 0.01em;
+    line-height: 1;
+    white-space: nowrap;
+
+    &:hover { background: #B81A42; }
   }
 }
 

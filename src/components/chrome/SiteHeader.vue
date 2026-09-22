@@ -7,8 +7,14 @@ const props = defineProps<{
   chapter: string;
   index: number;
   total: number;
-  /** Stood down - for the opening film, which has the screen to itself. */
+  /** Stood down - for a film that has the screen to itself. */
   hidden?: boolean;
+  /**
+   * The wordmark alone stood down: the front page's hero sets its own YOOJ
+   * in the same place, and two of them would print one over the other. It
+   * comes back once the hero's has scrolled out from under it.
+   */
+  markHidden?: boolean;
 }>();
 const emit = defineEmits<{ jump: [id: string]; menu: [] }>();
 
@@ -23,7 +29,14 @@ const filled = computed(() => Math.max(0.008, Math.min(1, props.progress)));
 
 <template>
   <header class="head" :class="{ 'is-hidden': hidden }">
-    <a class="head__mark" href="#top" data-cursor="Top" @click.prevent="emit('jump', 'top')">
+    <a
+      class="head__mark"
+      :class="{ 'is-bare': markHidden }"
+      href="#top"
+      data-cursor="Top"
+      :tabindex="markHidden ? -1 : undefined"
+      @click.prevent="emit('jump', 'top')"
+    >
       <BrandMark class="head__glyph" />
       <span class="head__name">YOOJ</span>
     </a>
@@ -105,6 +118,13 @@ const filled = computed(() => Math.max(0.008, Math.min(1, props.progress)));
   gap: 0.6rem;
   justify-self: center;
   pointer-events: auto;
+  transition: opacity 0.45s var(--e-out-quart), visibility 0.45s;
+
+  &.is-bare {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+  }
 }
 
 // The mark itself, at a size that still reads as a drawing rather than a dot.
@@ -115,8 +135,14 @@ const filled = computed(() => Math.max(0.008, Math.min(1, props.progress)));
   color: var(--c-bone);
 }
 
+// Set in Montserrat, the front page's one face: the header stands over the
+// hero and the perspective screen for their whole length, and those two are
+// Montserrat throughout, to the letter. Semibold, because tracked capitals at
+// label size go thin in the regular weight once the difference blend takes
+// the ground out from under them.
 .head__name {
-  font-family: "Space Grotesk", monospace;
+  font-family: var(--font-say);
+  font-weight: 600;
   font-size: var(--t-label);
   letter-spacing: var(--ls-label);
   text-transform: uppercase;
@@ -130,9 +156,10 @@ const filled = computed(() => Math.max(0.008, Math.min(1, props.progress)));
   gap: clamp(0.5rem, 1vh, 0.8rem);
   justify-items: stretch;
   min-width: clamp(9rem, 18vw, 15rem);
-  font-family: "Space Grotesk", monospace;
+  font-family: var(--font-say);
+  font-weight: 600;
   font-size: var(--t-label);
-  letter-spacing: var(--ls-label);
+  letter-spacing: 0.2em;
   text-transform: uppercase;
 }
 

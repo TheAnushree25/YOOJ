@@ -15,9 +15,61 @@ import { ScrollTrigger } from "./useMotion";
  */
 let engine: Lenis | null = null;
 
+/**
+ * Marks a scroll the page made itself rather than one the reader made.
+ *
+ * Lenis forwards `userData` through every scroll event of that one animation
+ * and clears it the moment it finishes - or the moment the reader takes the
+ * wheel back, which starts a scroll of their own. So it answers exactly the
+ * question a section with an arrival needs asked: is someone actually
+ * scrolling into me, or is the menu carrying them past?
+ */
+const JUMP = { jump: true } as const;
+
+/** Whether the scroll in flight is one of the page's own jumps. */
+export const isJumping = () =>
+  Boolean((engine?.userData as { jump?: boolean } | undefined)?.jump);
+
 /** Eases the document to an absolute offset. A no-op before a view mounts. */
 export const pageScrollTo = (top: number, duration = 1.1) =>
-  engine?.scrollTo(top, { duration });
+  engine?.scrollTo(top, { duration, userData: JUMP });
+
+/** Quick out, long settle: the page arriving somewhere rather than being thrown. */
+const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
+
+/**
+ * Carries the page to an element, whatever the engine's state, and says when
+ * it is there.
+ *
+ * For a section that takes the screen: it glides the last stretch into place
+ * and holds. Forced, because the page is already stopped by the time this is
+ * asked. Ceilinged on a timer, because the glide is driven by animation frames
+ * and a tab in the background runs none - it lands instantly there instead of
+ * never landing at all.
+ */
+export const pageGlideTo = (el: HTMLElement, duration = 0.9) =>
+  new Promise<void>((resolve) => {
+    const lenis = engine;
+    if (!lenis) { resolve(); return; }
+    let done = false;
+    const land = () => {
+      if (done) return;
+      done = true;
+      resolve();
+    };
+    const ceiling = setTimeout(() => {
+      if (done) return;
+      lenis.scrollTo(el, { immediate: true, force: true });
+      land();
+    }, duration * 1000 + 450);
+    lenis.scrollTo(el, {
+      duration,
+      easing: easeOutCubic,
+      force: true,
+      lock: true,
+      onComplete: () => { clearTimeout(ceiling); land(); },
+    });
+  });
 
 /**
  * Smooth scrolling on the document itself.
@@ -131,7 +183,7 @@ export function useSmoothScroll() {
   };
 
   const scrollTo = (target: number | string | HTMLElement) =>
-    lenis?.scrollTo(target as never, { offset: 0 });
+    lenis?.scrollTo(target as never, { offset: 0, userData: JUMP });
 
   /**
    * Holds the page still, and lets it go again.

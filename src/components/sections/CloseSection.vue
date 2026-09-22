@@ -22,7 +22,9 @@ const title = ["Healthcare", "closer", "to you"];
 const nav = [
   { id: "reconnect", label: "Reconnecting healthcare" },
   { id: "frontier", label: "Beyond fragmented care" },
-  { id: "tenets", label: "The 4 R’s" },
+  // 4 R'S SECTION - hidden for now, so its link is too: it would jump to a
+  // section that is not on the page. Uncomment with the section (HomeView).
+  // { id: "tenets", label: "The 4 R’s" },
 ];
 
 const reach = [

@@ -7,6 +7,11 @@ import { vReveal } from "./composables/useReveal";
 import "@fontsource-variable/inter";
 import "@fontsource/montserrat/300.css";
 import "@fontsource/montserrat/400.css";
+// The front page's headlines pair a light line with a heavy word, and the
+// wordmark over the hero is set semibold. Weights measured off the designs.
+import "@fontsource/montserrat/600.css";
+import "@fontsource/montserrat/700.css";
+import "@fontsource/montserrat/800.css";
 import "@fontsource/space-grotesk/400.css";
 import "@fontsource/space-grotesk/500.css";
 import "./styles/main.scss";
