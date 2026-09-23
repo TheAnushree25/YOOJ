@@ -150,7 +150,7 @@ const body =
           <p v-reveal class="sl__eyebrow">Meet JeevanBhar</p>
           <p v-reveal="120" class="sl__body">{{ body }}</p>
           <div v-reveal="240" class="sl__act">
-            <ActionButton label="Discover solution" href="#contact" variant="solid" />
+            <ActionButton label="Discover solution" to="/solutions" variant="solid" />
           </div>
         </div>
       </div>

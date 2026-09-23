@@ -58,7 +58,9 @@ const enter = () => {
 };
 
 const leave = () => {
-  gsap.to([dot.value, labelEl.value], { x: 0, duration: 0.65, ease: "expo.out", overwrite: "auto" });
+  // The pill has no dot, and gsap throws on a null in the target list - which
+  // it was given on every pointer-leave of the hero's control.
+  gsap.to([dot.value, labelEl.value].filter(Boolean), { x: 0, duration: 0.65, ease: "expo.out", overwrite: "auto" });
   gsap.to(chars, {
     y: 0,
     duration: 0.45,

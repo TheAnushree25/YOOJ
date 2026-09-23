@@ -1,26 +1,30 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { onBeforeUnmount, onMounted, ref } from "vue";
 import { ScrollTrigger, prefersReduced } from "../../composables/useMotion";
 import { isJumping } from "../../composables/useSmoothScroll";
-import { soundOn } from "../../lib/sound";
 
 /**
  * The solution: the clinic film, where the page says what YOOJ does.
  *
- * Eight seconds of a tired clinic becoming a YOOJ one - the same film that
- * used to open the site, moved to where it makes the argument. It is one
- * screen, laid out to the design: the picture full-bleed, and the heading
- * over the sky above the clinic.
+ * Eight seconds of a tired clinic becoming a YOOJ one, and for those eight
+ * seconds it is the whole screen. When the reader scrolls down into it the
+ * section glides the last stretch into place, the page stops answering the
+ * wheel, the chrome stands down, and the film runs edge to edge from its first
+ * frame. Nothing is printed over the transformation; a hairline along the foot
+ * of the screen is the only sign that it will end. As the new clinic settles,
+ * the ground darkens along the bottom of the frame and the heading lands there,
+ * and then the page is the reader's again, resting on the film's last frame.
  *
- * It plays once, and it plays with the page held. When the reader scrolls
- * down into it the section glides the last stretch into place, the page stops
- * answering the wheel, and the film runs from its first frame with its own
- * sound; the heading comes in as the picture starts to move. When the film is
- * over its last frame stays - which is the design's picture - and the page is
- * the reader's again.
+ * The heading is a lower third, as it would be in a film, because a full-bleed
+ * picture leaves no clear sky: at sixteen by ten the roofline stands a sixth of
+ * the way down the screen and two lines of heading need a quarter. At the foot
+ * of the frame it sits over the floor and the lower glass - the parts the film
+ * is not about - and never across the sign, which is.
  *
- * The page owns the hold, the chrome and the sound; this section only says
- * when (`hold` and `release`), as the gate does.
+ * Silent, always. The picture makes the argument on its own.
+ *
+ * The page owns the hold and the chrome; this section only says when (`hold`
+ * and `release`), as the gate does.
  */
 
 const props = defineProps<{
@@ -54,40 +58,61 @@ const state = ref<State>(reduced ? "passed" : "idle");
 /** The heading is in. */
 const told = ref(reduced);
 
+/**
+ * How long before the end the heading lands: as the last of the new clinic
+ * resolves, so the words arrive with the thing they describe rather than over
+ * the transformation.
+ */
+const TELL_BEFORE_END = 1.9;
+
 const root = ref<HTMLElement | null>(null);
 const video = ref<HTMLVideoElement | null>(null);
+const bar = ref<HTMLElement | null>(null);
 
 let trigger: ScrollTrigger | null = null;
 let ceiling: ReturnType<typeof setTimeout> | null = null;
-let tellTimer: ReturnType<typeof setTimeout> | null = null;
 let torn = false;
+let ticking = 0;
 
 const clearTimers = () => {
   if (ceiling) { clearTimeout(ceiling); ceiling = null; }
-  if (tellTimer) { clearTimeout(tellTimer); tellTimer = null; }
+  if (ticking) { cancelAnimationFrame(ticking); ticking = 0; }
 };
 
 /**
- * Unlock the element inside the reader's press at the gate.
+ * The film's own clock, drawn along the foot of the screen and used to land
+ * the heading. Read every frame rather than on `timeupdate`, which fires four
+ * times a second and would step the line visibly.
+ */
+const tick = () => {
+  const v = video.value;
+  if (!v || state.value !== "playing") { ticking = 0; return; }
+  const length = Number.isFinite(v.duration) && v.duration > 0 ? v.duration : 8;
+  const at = Math.min(1, v.currentTime / length);
+  if (bar.value) bar.value.style.transform = `scaleX(${at.toFixed(4)})`;
+  if (!told.value && v.currentTime >= length - TELL_BEFORE_END) told.value = true;
+  ticking = requestAnimationFrame(tick);
+};
+
+/**
+ * Start the element inside the reader's press at the gate.
  *
- * A browser lets a video sound only if the reader started it, and some decide
- * that per element: once `play()` has been called from a gesture, the element
- * may be played again from anywhere. The film is a long way down the page, so
- * it is started and stopped, silently, in the gate's press - which also starts
- * it loading.
+ * A muted video may be played from anywhere, but some browsers only begin
+ * fetching one that has been asked to play, and this gets the download started
+ * at the gate rather than when the reader arrives at the section.
  */
 const prime = () => {
   const v = video.value;
   if (!v || state.value !== "idle") return;
   v.volume = 0;
-  v.muted = !soundOn.value;
+  v.muted = true;
   const p = v.play();
   if (!p) { v.pause(); return; }
   p.then(() => {
     if (state.value === "playing") return;
     v.pause();
     v.currentTime = 0;
-  }).catch(() => { /* refused here; the real start tries again, silent if it must */ });
+  }).catch(() => { /* refused here; the real start tries again */ });
 };
 
 /** It was never played; rest on the design's frame, heading and all. */
@@ -117,6 +142,7 @@ const finish = () => {
   clearTimers();
   const v = video.value;
   if (v && !v.ended) { try { v.pause(); } catch { /* already stopped */ } }
+  if (bar.value) bar.value.style.transform = "scaleX(1)";
   state.value = "done";
   told.value = true;
   emit("release");
@@ -127,30 +153,24 @@ const timeout = (ms: number) => new Promise<"late">((r) => setTimeout(() => r("l
 /**
  * The page is held and the section is in place: play, from the first frame.
  *
- * With sound if the reader has it on; silent if the browser will not allow
- * that; and not at all if it cannot start within a few seconds, because the
+ * Silent, and not at all if it cannot start within a few seconds, because the
  * page is being held while it tries.
  */
 const start = async () => {
   const v = video.value;
   if (!v || state.value !== "arriving") return;
   try { v.currentTime = 0; } catch { /* the first frame will do */ }
-  v.volume = 1;
-  v.muted = !soundOn.value;
+  v.volume = 0;
+  v.muted = true;
 
   const attempt = async () => {
     try {
       await v.play();
     } catch {
-      try {
-        v.muted = true;
-        await v.play();
-      } catch {
-        return false;
-      }
+      return false;
     }
     // Started only after the page had stopped waiting for it: stop it again,
-    // or it would run on unseen, and aloud, under the still.
+    // or it would run on unseen under the still.
     if (state.value !== "arriving") { v.pause(); return false; }
     return true;
   };
@@ -163,8 +183,7 @@ const start = async () => {
   }
 
   state.value = "playing";
-  // The heading follows the picture in, a beat after it starts to move.
-  tellTimer = setTimeout(() => { told.value = true; }, 450);
+  ticking = requestAnimationFrame(tick);
   // A ceiling, so a stalled stream can never keep the page held: the film's
   // own length plus a margin for buffering.
   const left = Number.isFinite(v.duration) ? Math.max(0, v.duration - v.currentTime) : 10;
@@ -184,10 +203,8 @@ const onVisibility = () => {
   const v = video.value;
   if (document.hidden || !v || state.value !== "playing") return;
   if (v.paused && !v.ended) void v.play().catch(() => {});
+  if (!ticking) ticking = requestAnimationFrame(tick);
 };
-
-// The reader's choice, followed while the film runs: the M key writes it.
-watch(soundOn, (on) => { if (video.value && state.value === "playing") video.value.muted = !on; });
 
 /**
  * Start fetching the film once the page itself has finished loading, so it is
@@ -239,6 +256,10 @@ defineExpose({ prime, start });
 <template>
   <section id="town" ref="root" class="tw" :class="[`is-${state}`, { 'is-told': told }]">
     <div class="tw__stage">
+      <!-- The site's dark ground: all that shows before the first frame has
+           painted, so the screen is never a blank while the film loads. -->
+      <div class="tw__wash ground-drift" aria-hidden="true" />
+
       <div class="tw__picture">
         <video
           ref="video"
@@ -246,6 +267,7 @@ defineExpose({ prime, start });
           :src="props.src"
           :poster="props.poster"
           preload="none"
+          muted
           playsinline
           disablepictureinpicture
           disableremoteplayback
@@ -258,6 +280,9 @@ defineExpose({ prime, start });
         <img class="tw__still" :src="props.still" alt="" aria-hidden="true" decoding="async" draggable="false">
       </div>
 
+      <!-- The ground rising along the foot of the frame for the heading. -->
+      <div class="tw__scrim" aria-hidden="true" />
+
       <div class="tw__copy">
         <p class="tw__eyebrow">The solution</p>
         <h2 class="tw__title">
@@ -265,6 +290,9 @@ defineExpose({ prime, start });
           <span class="tw__line tw__line--strong"><span>town</span></span>
         </h2>
       </div>
+
+      <!-- The film's length, while it has the screen. -->
+      <div class="tw__clock" aria-hidden="true"><i ref="bar" /></div>
     </div>
   </section>
 </template>
@@ -276,12 +304,6 @@ defineExpose({ prime, start });
   height: calc(var(--vh, 1vh) * 100);
 }
 
-/**
- * The design's frame is 831 x 618 with the film covering it. The heading is
- * set in the design's pixels (`--u`), and placed down the screen as a share
- * of its height - the film always shows its full height, so the heading keeps
- * its place against the clinic's roofline whatever the screen's width.
- */
 .tw__stage {
   --u: min(calc(100vw / 831), calc(var(--vh, 1vh) * 100 / 618));
 
@@ -289,28 +311,30 @@ defineExpose({ prime, start });
   height: 100%;
   overflow: hidden;
   isolation: isolate;
-  // The film's own edges, carried out to the screen's for a screen wider than
-  // the film: a near-flat wine down its left side, and a rose falling to wine
-  // down its right. Read off the film's first and last columns.
-  background:
-    linear-gradient(to bottom, #DF929C, #D07A87 25%, #B15668 50%, #9B3C50 75%, #852139) right / 50.5% 100% no-repeat,
-    linear-gradient(to bottom, #480413, #38030D) left / 50.5% 100% no-repeat;
+  background: var(--g-bg);
 }
 
-// Always the film's full height, at the film's own shape. On a screen
-// narrower than sixteen by nine it runs off both sides, as it does in the
-// design. On a wider one its sides are its own edges carried on - where a
-// plain cover would have cut into the sky and pushed the clinic's sign up
-// under the heading.
+.tw__wash {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background: var(--ground-dark);
+  // Beside the shorthand, which resets it, and not in the drift class.
+  background-size: 190% 190%;
+}
+
+/**
+ * The film, edge to edge.
+ *
+ * Covered rather than fitted: nothing of the stage shows round it, at any
+ * shape of screen. On a screen wider than sixteen by nine it is cropped top
+ * and bottom, and the crop is weighted a little toward the top of the frame -
+ * the sky and the sign are what the film is about, the floor is not.
+ */
 .tw__picture {
   position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 50%;
-  width: calc(var(--vh, 1vh) * 100 * 16 / 9);
-  transform: translateX(-50%);
-  -webkit-mask-image: linear-gradient(to right, transparent 0, #000 2.5%, #000 97.5%, transparent 100%);
-  mask-image: linear-gradient(to right, transparent 0, #000 2.5%, #000 97.5%, transparent 100%);
+  inset: 0;
+  z-index: 1;
 }
 
 .tw__video,
@@ -321,7 +345,7 @@ defineExpose({ prime, start });
   height: 100%;
   max-width: none;
   object-fit: cover;
-  object-position: center;
+  object-position: 50% 42%;
 }
 
 .tw__still {
@@ -332,47 +356,78 @@ defineExpose({ prime, start });
   .is-passed & { opacity: 1; }
 }
 
-/* -------------------------------------------------------------- the words */
-
-.tw__copy {
+/**
+ * The ground, rising along the foot of the frame.
+ *
+ * In the site's own darkest wine rather than black, so the lower third reads as
+ * the page coming up into the picture rather than as a shadow over it. It comes
+ * in with the heading: over the transformation the film has the whole screen.
+ */
+.tw__scrim {
   position: absolute;
   inset: 0;
   z-index: 2;
   pointer-events: none;
+  background: linear-gradient(
+    to top,
+    rgb(var(--rgb-void) / 0.86) 0%,
+    rgb(var(--rgb-void) / 0.62) 16%,
+    rgb(var(--rgb-deep) / 0.3) 34%,
+    rgb(var(--rgb-deep) / 0) 56%
+  );
+  opacity: 0;
+  transition: opacity 1.6s var(--e-out-quart);
+
+  .is-told & { opacity: 1; }
+}
+
+/* -------------------------------------------------------------- the words */
+
+.tw__copy {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: clamp(3.2rem, 11vh, 7.5rem);
+  z-index: 3;
+  pointer-events: none;
+  padding-inline: var(--gutter);
   color: #FFFFFF;
   text-align: center;
 }
 
-// On the design's baselines: 86 and 144 of 618, in Montserrat's line-height-1
-// box, whose baseline is 0.86em down.
 .tw__eyebrow {
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: calc(13.916% - 0.86 * 18.1 * var(--u));
-  font-family: var(--font-say);
-  font-weight: 400;
-  font-size: max(11px, calc(18.1 * var(--u)));
-  line-height: 1;
-  letter-spacing: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 1.1em;
+  margin-bottom: clamp(0.9rem, 2.4vh, 1.5rem);
+  font-family: "Space Grotesk", ui-monospace, monospace;
+  font-size: var(--t-label);
+  letter-spacing: var(--ls-label);
   text-transform: uppercase;
+  color: rgb(var(--rgb-bone) / 0.78);
   opacity: 0;
-  transform: translate3d(0, calc(12 * var(--u)), 0);
+  transform: translate3d(0, 0.8rem, 0);
   transition: opacity 1.1s var(--e-out-quart), transform 1.1s var(--e-out-quart);
+
+  // A short rule either side: a title card's mark.
+  &::before,
+  &::after {
+    content: "";
+    width: clamp(1.4rem, 2.6vw, 2.6rem);
+    height: 1px;
+    background: rgb(var(--rgb-bone) / 0.45);
+  }
 
   .is-told & { opacity: 1; transform: none; }
 }
 
 .tw__title {
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: calc(23.3% - (25.5 + 0.36 * 40.6) * var(--u));
   font-family: var(--font-say);
   font-weight: 300;
-  font-size: calc(40.6 * var(--u));
-  line-height: calc(51 * var(--u));
-  letter-spacing: 0;
+  font-size: clamp(2.3rem, calc(40.6 * var(--u)), 5.4rem);
+  line-height: 1.12;
+  letter-spacing: -0.01em;
+  text-shadow: 0 0.1em 1.4em rgb(var(--rgb-void) / 0.35);
 }
 
 .tw__line {
@@ -395,37 +450,69 @@ defineExpose({ prime, start });
 .tw__line--strong { font-weight: 800; }
 
 /**
- * Portrait: the film at a size that keeps the clinic whole.
- *
- * Filled to a phone's height, a sixteen-by-nine picture shows its middle
- * quarter and the clinic is a door. At 150vw it stands in the middle of the
- * screen with its top and bottom faded into the site's dark ground, and the
- * heading has the ground above it to itself.
+ * The film's clock: a hairline along the very foot of the screen, filling as
+ * it plays. The page is held for these eight seconds, and a hold with no sign
+ * of its end reads as the page having stopped working.
+ */
+.tw__clock {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 4;
+  height: 2px;
+  background: rgb(var(--rgb-bone) / 0.14);
+  opacity: 0;
+  transition: opacity 0.6s var(--e-out-quart);
+
+  i {
+    position: absolute;
+    inset: 0;
+    background: rgb(var(--rgb-bone) / 0.85);
+    transform: scaleX(0);
+    transform-origin: left center;
+  }
+
+  .is-playing & { opacity: 1; }
+}
+
+/**
+ * Portrait: a film sixteen by nine cannot be covered onto a phone without
+ * keeping only its middle quarter, where the clinic is a door. It stands as a
+ * wide plate across the middle of the phone instead, dissolving at its top
+ * and foot into the ground, and the heading has the ground below it.
  */
 @media (orientation: portrait) {
   .tw__stage {
     --m: min(calc(100vw / 390), calc(var(--vh, 1vh) * 100 / 844));
-    background: var(--ground-dark);
-    background-size: 190% 190%;
+  }
+
+  // Held at one pose rather than drifting: the film is a plate in the middle
+  // of it here, and a ground moving behind a still picture reads as a wobble.
+  .tw__wash {
     background-position: 78% 26%;
+    animation: none;
   }
 
   .tw__picture {
-    top: auto;
-    bottom: calc(var(--vh, 1vh) * 12);
+    inset: auto;
+    left: 50%;
+    top: calc(var(--vh, 1vh) * 16);
     width: 150vw;
     height: calc(150vw * 9 / 16);
+    transform: translateX(-50%);
     -webkit-mask-image: linear-gradient(to bottom, transparent, #000 16%, #000 84%, transparent);
     mask-image: linear-gradient(to bottom, transparent, #000 16%, #000 84%, transparent);
   }
 
-  .tw__eyebrow {
-    top: calc(var(--vh, 1vh) * 16);
-    font-size: calc(14 * var(--m));
-  }
+  .tw__video,
+  .tw__still { object-position: 50% 50%; }
+
+  .tw__scrim { display: none; }
+
+  .tw__copy { bottom: calc(var(--vh, 1vh) * 14); }
 
   .tw__title {
-    top: calc(var(--vh, 1vh) * 16 + 40 * var(--m));
     font-size: calc(34 * var(--m));
     line-height: calc(42 * var(--m));
   }
@@ -433,6 +520,7 @@ defineExpose({ prime, start });
 
 @media (prefers-reduced-motion: reduce) {
   .tw__eyebrow,
+  .tw__scrim,
   .tw__line > span { transition: none; }
 }
 </style>
