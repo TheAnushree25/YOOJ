@@ -86,7 +86,7 @@ const year = new Date().getFullYear();
 </template>
 
 <style scoped lang="scss">
-
+@use "../../styles/media" as *;
 
 .cl {
   position: relative;
@@ -181,7 +181,11 @@ const year = new Date().getFullYear();
     transition: color var(--t-hover) var(--e-out-quart);
 
     &:first-child { color: var(--c-bone); }
-    &:hover { color: var(--c-accent); }
+
+    // A pointer's only: after a tap the accent stayed on the link.
+    @include hover {
+      &:hover { color: var(--c-accent); }
+    }
   }
 }
 
@@ -198,7 +202,9 @@ const year = new Date().getFullYear();
     color: rgb(var(--rgb-bone) / 0.72);
     transition: color var(--t-hover) var(--e-out-quart);
 
-    &:hover { color: var(--c-accent); }
+    @include hover {
+      &:hover { color: var(--c-accent); }
+    }
   }
 }
 
@@ -250,5 +256,23 @@ const year = new Date().getFullYear();
     padding-block: 0.9rem;
     margin-block: -0.9rem;
   }
+}
+
+/**
+ * A phone on its side: the call and the ways out side by side, as on a wide
+ * screen, rather than a column three screens tall.
+ */
+@include short {
+  .cl { padding-top: clamp(4.5rem, 18vh, 6rem); }
+
+  .cl__grid {
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+    gap: 1.5rem clamp(1.5rem, 5vw, 3rem);
+    align-items: start;
+  }
+
+  .cl__h { font-size: clamp(2rem, 5vw, 3rem); }
+
+  .cl__acts { margin-top: clamp(1.25rem, 5vh, 2rem); }
 }
 </style>

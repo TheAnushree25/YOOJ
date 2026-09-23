@@ -434,6 +434,8 @@ onBeforeUnmount(() => { trigger?.kill(); arrival?.kill(); });
 </template>
 
 <style scoped lang="scss">
+@use "../../styles/media" as *;
+
 // The stage inside holds for all of this, so it is a duration rather than a
 // height. It was eleven viewports for five beats - a statement, three passages
 // over the risen dome, and the turn at the end - with the statement's slice
@@ -645,25 +647,6 @@ onBeforeUnmount(() => { trigger?.kill(); arrival?.kill(); });
     grid-column: 2;
     justify-self: end;
   }
-
-  /**
-   * On a phone the figure was 58vw - a coaster in the middle of an empty
-   * frame. Keyed to the larger of the two axes here and allowed past both
-   * edges, it becomes the ground the passages are read against, which is
-   * what it is for.
-   */
-  /**
-   * Same story as the gate: at 148vw the figure overflowed its grid area and
-   * was clamped to the start edge, landing 114px right of centre. Inside the
-   * frame it centres itself, and at 96vw it is still five times the 58vw it
-   * started at.
-   */
-  @media (max-width: 60rem) {
-    // Against the column's own width, not the viewport's: the container keeps
-    // a gutter either side, so 96vw still overflowed the track it sits in and
-    // was clamped 14px off centre. `100%` is the track.
-    width: min(100%, 84vh);
-  }
 }
 
 // The light at the head of the stroke. Drawn after the line and over it, with
@@ -716,11 +699,6 @@ onBeforeUnmount(() => { trigger?.kill(); arrival?.kill(); });
   color: var(--c-bone);
 
   > span { transition: opacity 0.45s var(--e-out-quart); }
-
-  @media (max-width: 60rem) {
-    margin-top: clamp(1.6rem, 5vh, 2.6rem);
-    max-width: none;
-  }
 }
 
 
@@ -855,6 +833,128 @@ onBeforeUnmount(() => { trigger?.kill(); arrival?.kill(); });
   height: calc(var(--vh, 1vh) * 100);
   overflow: hidden;
   background: #FFFFFF;
+}
+
+/* --------------------------------------------------------------- handheld */
+
+/**
+ * The closing turn, stacked: the figure, and the words under it.
+ *
+ * Below the wide layout the two used to share one grid cell - the copy set
+ * straight across the rings, and the name at the figure's heart struck
+ * through by the middle of the sentence. The figure now has the room between
+ * the ring counter and the copy, however much that is: it is sized to fit its
+ * row (an SVG fitted to a box keeps its shape and centres itself), so a short
+ * phone gets a smaller figure rather than an overlap.
+ */
+@include handheld {
+  .rc__turn {
+    grid-template-rows: minmax(0, 1fr) auto;
+    align-content: stretch;
+    row-gap: clamp(1.1rem, calc(var(--vh, 1vh) * 3.2), 2rem);
+    // Under the ring counter, and over the standing marker.
+    padding-top: calc(clamp(4.6rem, 12vh, 6.5rem) + 3.4rem + clamp(0.6rem, calc(var(--vh, 1vh) * 2.2), 1.4rem));
+    padding-bottom: clamp(4.25rem, calc(var(--vh, 1vh) * 11), 6rem);
+  }
+
+  .rc__seed {
+    grid-row: 1;
+    grid-column: 1;
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    justify-self: center;
+    align-self: center;
+  }
+
+  .rc__turn-copy {
+    grid-row: 2;
+    grid-column: 1;
+    max-width: 30ch;
+  }
+}
+
+/**
+ * Handheld: the rail's stops sized to hold their words.
+ *
+ * Below the wide layout a stop could not hold "Prescription" in tracked
+ * capitals - the word ran out through both sides of its circle, on a phone and
+ * on a tablet alike. The label is tracked tighter and keyed to the width, the
+ * circle is given what the longest word needs (measured: the widest label sits
+ * inside the circle's chord with room either side at 320px and at 960px), and
+ * the rail rides higher, so a passage long enough to wrap on a small phone
+ * rises into clear ground rather than into it.
+ */
+@include handheld {
+  .rc__rail { top: 23%; }
+
+  .rc__stop {
+    width: clamp(6.5rem, 31vw, 10rem);
+    padding: 0.25rem;
+    font-size: clamp(0.68rem, 2.9vw, 0.8rem);
+    letter-spacing: 0.1em;
+  }
+}
+
+// A phone: the passages a touch smaller on the narrowest screens.
+@include phone {
+  .rc__argument-copy { font-size: clamp(0.94rem, 4.1vw, 1.08rem); }
+
+  // The marker wraps before it reaches the sound control in the corner;
+  // on a 320px phone "Reconnecting healthcare" ran underneath it.
+  .rc__marker { right: calc(var(--gutter) + 4.6rem); }
+}
+
+/**
+ * A phone on its side: everything the stacked layout does, turned back into
+ * two columns, because the height that stacking needs is the one thing this
+ * screen does not have.
+ */
+@include short {
+  .rc__ring {
+    --ring-size: 2.75rem;
+    top: 3.9rem;
+  }
+
+  // Under the ring counter rather than across it: on a screen this shallow
+  // the counter's corner and the rail's first stop were the same place. The
+  // stops are as small as their longest word allows, so the rail still clears
+  // a five-line passage rising beneath it.
+  .rc__rail { top: 31%; }
+
+  .rc__stop {
+    width: 5.25rem;
+    padding: 0.2rem;
+    font-size: 0.6rem;
+    letter-spacing: 0.04em;
+  }
+
+  .rc__argument { bottom: clamp(2.25rem, calc(var(--vh, 1vh) * 10), 4rem); }
+
+  .rc__argument-copy { font-size: 0.95rem; }
+
+  .rc__turn {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr);
+    align-items: center;
+    column-gap: clamp(1.5rem, 5vw, 3rem);
+    padding-top: 3.5rem;
+    padding-bottom: 2.25rem;
+  }
+
+  .rc__seed {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  // Clear of the ring counter above it in the same column.
+  .rc__turn-copy {
+    grid-column: 1;
+    grid-row: 1;
+    max-width: 28ch;
+    padding-top: 2.5rem;
+    font-size: clamp(0.98rem, 2.2vw, 1.15rem);
+  }
 }
 
 </style>

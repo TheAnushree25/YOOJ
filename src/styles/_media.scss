@@ -1,0 +1,57 @@
+/**
+ * The device classes, named once.
+ *
+ * Every component used to state its own query - `max-width: 60rem` here,
+ * `orientation: portrait` there, `pointer: coarse` somewhere else - and the
+ * one class nobody named was a phone on its side, which matched none of them
+ * and got the desktop composition in a frame 340px tall. These are the
+ * vocabulary instead; `composables/useViewport` mirrors them for the scripts,
+ * so a layout and the choreography drawn over it switch at the same width.
+ *
+ * Mobile blocks go at the END of a component's style block: a later base rule
+ * beats an earlier media query at equal specificity.
+ */
+
+/// Phones held upright, and any window that narrow.
+@mixin phone {
+  @media (max-width: 40rem) { @content; }
+}
+
+/// Everything below the wide layouts: phones, and tablets held upright.
+@mixin handheld {
+  @media (max-width: 60rem) { @content; }
+}
+
+/// Held upright, whatever the size.
+@mixin portrait {
+  @media (orientation: portrait) { @content; }
+}
+
+/// On its side, whatever the size.
+@mixin landscape {
+  @media (orientation: landscape) { @content; }
+}
+
+/**
+ * A phone on its side: wide, and too shallow for any composition that is
+ * built on the height - which on this site is most of them.
+ */
+@mixin short {
+  @media (orientation: landscape) and (max-height: 32rem) { @content; }
+}
+
+/// Below the wide layouts in either way: a handheld, or a phone on its side.
+@mixin compact {
+  @media (max-width: 60rem), (orientation: landscape) and (max-height: 32rem) { @content; }
+}
+
+/// A pointer that can hover. The only place a hover state belongs: on a
+/// touch screen it sticks after the tap and reads as a selection.
+@mixin hover {
+  @media (hover: hover) and (pointer: fine) { @content; }
+}
+
+/// A finger.
+@mixin touch {
+  @media (pointer: coarse) { @content; }
+}

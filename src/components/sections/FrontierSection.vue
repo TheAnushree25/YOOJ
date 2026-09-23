@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { prefersReduced, scrubThrough } from "../../composables/useMotion";
+import { useViewport } from "../../composables/useViewport";
 
 /**
  * The third movement: one shape, carried the length of the section.
@@ -163,8 +164,34 @@ const straight = (key: "r" | "b" | "o") => {
   return FLIGHT[i][key] + (FLIGHT[i + 1][key] - FLIGHT[i][key]) * t;
 };
 
+/* ---------------------------------------------------------------- devices */
+
+const vp = useViewport();
+
+/**
+ * Below the wide layout: a phone or tablet, or a phone on its side.
+ *
+ * The figure is the desktop's - one figure, the words inside the tiles - sized
+ * to the frame, with the tracked capitals scaled to each tile's own width so
+ * "Standardised" and its plus sit inside the shape on a 320px phone too.
+ */
+const compact = computed(() => vp.handheld || vp.short);
+
+/**
+ * Upright, the reading comes up from the foot of the screen as a sheet, and
+ * the figure lifts into the room above it; on a wide screen or a phone on its
+ * side it slides in from the right, as it always has.
+ */
+const stacked = computed(() => vp.handheld && vp.portrait);
+
+/**
+ * The flight's sideways reach. The poses are in viewport units and were drawn
+ * for a wide frame: at full reach on a phone the tile left the screen.
+ */
+const reach = computed(() => (compact.value ? 0.55 : 1));
+
 const flight = () => ({
-  transform: `translate(${curved("x")}vw, ${curved("y")}vh) rotate(${straight("r")}deg) scale(${curved("s")})`,
+  transform: `translate(${curved("x") * reach.value}vw, ${curved("y")}vh) rotate(${straight("r")}deg) scale(${curved("s")})`,
   filter: straight("b") > 0.15 ? `blur(${straight("b")}px)` : "none",
   opacity: straight("o"),
 });
@@ -259,8 +286,13 @@ const copyY = () => -beat(0.05, 0.52) * 146;
  * over half a viewport tall, so its tail was still cutting across the top of
  * the frame long after the words had left. A fade does not depend on anyone
  * having measured the tallest part correctly.
+ *
+ * Sooner on the compact layouts: there the statement and the note are one
+ * short column, so the note meets the header's bar far earlier in the travel
+ * than it does on a wide screen. It is gone by the time it gets there, rather
+ * than passing under the menu word.
  */
-const copyFade = () => 1 - beat(0.44, 0.54);
+const copyFade = () => (compact.value ? 1 - beat(0.05, 0.2) : 1 - beat(0.44, 0.54));
 
 onMounted(() => {
   if (!root.value) return;
@@ -353,8 +385,16 @@ onBeforeUnmount(() => { trigger?.kill(); arrival?.kill(); });
         </div>
       </div>
 
-      <!-- The reading. Off to the right until a tile is opened. -->
-      <aside class="fr__panel" :class="{ 'is-open': isOpen }" :aria-hidden="!isOpen">
+      <!-- The reading. Off to the right until a tile is opened - or, held
+           upright, below the foot of the screen. On the compact layouts it
+           can be taller than the room it has, so it scrolls in itself there,
+           and the page's engine leaves that scroll to the browser. -->
+      <aside
+        class="fr__panel"
+        :class="{ 'is-open': isOpen, 'is-sheet': stacked }"
+        :aria-hidden="!isOpen"
+        :data-lenis-prevent="compact ? '' : undefined"
+      >
         <button class="fr__close" type="button" data-cursor="scale" @click="close">
           Close
           <span aria-hidden="true">&rarr;</span>
@@ -375,7 +415,7 @@ onBeforeUnmount(() => { trigger?.kill(); arrival?.kill(); });
 </template>
 
 <style scoped lang="scss">
-
+@use "../../styles/media" as *;
 
 // Four and a half viewports of travel. The stage holds for all of it, so this
 // is a duration rather than a height.
@@ -631,24 +671,31 @@ onBeforeUnmount(() => { trigger?.kill(); arrival?.kill(); });
 
 // All three are controls once the figure has landed. Pointer events stay off
 // the traveller until then — a hover target moving across the frame is a trap.
+//
+// The hover is for a pointer only. On a touch screen it stuck to whichever
+// tile had last been tapped, so a second tile read as selected beside the one
+// actually open.
 .fr__tile--apex,
 .fr__tile--left,
 .fr__tile--right {
   pointer-events: auto;
   cursor: pointer;
 
-  &:hover,
   &:focus-visible {
     .fr__face { opacity: 1; }
     .fr__plus { color: var(--c-bone); transform: translateY(-2px); }
     .fr__label { opacity: 0; }
     .fr__caption { opacity: 1; }
   }
-}
 
-.fr__tile--apex:hover {
-  .fr__label { opacity: 0; }
-  .fr__caption { opacity: 1; }
+  @include hover {
+    &:hover {
+      .fr__face { opacity: 1; }
+      .fr__plus { color: var(--c-bone); transform: translateY(-2px); }
+      .fr__label { opacity: 0; }
+      .fr__caption { opacity: 1; }
+    }
+  }
 }
 
 // A tile that is open keeps its fill, so the panel and the shape it came from
@@ -688,11 +735,6 @@ onBeforeUnmount(() => { trigger?.kill(); arrival?.kill(); });
     transform: translate3d(0, 0, 0);
     visibility: visible;
   }
-
-  @media (max-width: 60rem) {
-    width: 100%;
-    padding-inline: var(--gutter);
-  }
 }
 
 // Below the header band. The site header is fixed and sits above every
@@ -712,7 +754,9 @@ onBeforeUnmount(() => { trigger?.kill(); arrival?.kill(); });
   color: var(--c-indigo);
   transition: gap var(--t-hover) var(--e-out-quart), color var(--t-hover) var(--e-out-quart);
 
-  &:hover { gap: 1.4em; color: var(--c-accent-dim); }
+  @include hover {
+    &:hover { gap: 1.4em; color: var(--c-accent-dim); }
+  }
 }
 
 .fr__panel-body {
@@ -778,8 +822,251 @@ onBeforeUnmount(() => { trigger?.kill(); arrival?.kill(); });
   color: var(--c-accent-dim);
 }
 
+/* ---------------------------------------------------------- compact layouts */
+
+/**
+ * Below the wide layout: the desktop's figure, fitted to the frame.
+ *
+ * One figure with the words inside its tiles, as on a wide screen. It used to
+ * break up here - three tiles stacked in a column, each wide enough for its
+ * word - and a column of three identical triangles says three separate
+ * things, the opposite of the section's argument. The figure is sized to the
+ * frame instead, and the tracked capitals to each tile: a tile is a size
+ * container, so its word scales with the shape it has to sit in, and
+ * "Standardised" and its plus stay inside on a 320px phone as on a tablet.
+ *
+ * The sizes live on the stage: `--k-tri` is a tile's side, `--k-x`/`--k-y`
+ * the figure's centre.
+ */
+@include compact {
+  .fr__trio {
+    --tri: var(--k-tri);
+    left: var(--k-x, 50%);
+    top: var(--k-y, 50%);
+  }
+
+  .fr__tile { container-type: inline-size; }
+
+  // Nearer the corners than the wide layout sets it: at this size the word
+  // needs the width of the tile's base, which is where it sits.
+  .fr__plate {
+    left: 12.5%;
+    right: 12%;
+    bottom: 8.5%;
+    align-items: center;
+    gap: 0.45em;
+  }
+
+  .fr__label {
+    font-size: clamp(0.56rem, 6.8cqi, 0.8rem);
+    letter-spacing: 0.12em;
+    line-height: 1.3;
+    white-space: nowrap;
+  }
+
+  .fr__plus { font-size: clamp(0.75rem, 8cqi, 1rem); }
+
+  // The sentence a pointer's hover swaps in has no room in a tile this size;
+  // it is in the reading, one tap away. The word stays.
+  .fr__caption { display: none; }
+
+  .fr__tile:focus-visible .fr__label { opacity: 1; }
+
+  @include hover {
+    .fr__tile:hover .fr__label { opacity: 1; }
+  }
+
+  // Clear of the sound control in the corner: "Beyond fragmented care" ran
+  // underneath it on a small phone.
+  .fr__marker { right: calc(var(--gutter) + 4.6rem); }
+
+  // The statement and the note, as one short column. The heading is keyed to
+  // the width so "everyday healthcare" holds one line on a 320px phone - at
+  // the desktop ramp's floor it broke onto a fourth, and the note's last line
+  // landed on the marker at the foot of the frame.
+  .fr__copy { padding-top: clamp(4.75rem, 14vh, 8rem); }
+
+  .fr__title { font-size: clamp(1.75rem, 8.8vw, 3.4rem); }
+
+  .fr__note {
+    margin: clamp(1.5rem, 4.5vh, 3rem) auto 0;
+    width: min(38ch, 100%);
+    padding-left: clamp(1.1rem, 4vw, 1.75rem);
+  }
+
+  .fr__body { font-size: clamp(0.94rem, 4vw, 1.1rem); }
+
+  // Only as long as the note, and narrow enough that its step sideways stays
+  // in the margin: at full width the step crossed the paragraph.
+  .fr__thread {
+    width: 0.9rem;
+    height: calc(100% + 1.25rem);
+  }
+
+  .fr__panel {
+    width: min(26rem, 54%);
+    padding-inline: clamp(1.5rem, 4vw, 2.5rem);
+  }
+
+  .fr__close { right: clamp(1.5rem, 4vw, 2.5rem); }
+}
+
+/**
+ * Upright: the figure centred, as wide as the column allows - two tiles and
+ * their gap across it - and the reading as a sheet from the foot of the
+ * screen.
+ *
+ * Opening a tile lifts the figure into the room the sheet leaves above it and
+ * brings it down to size, so the tile that was opened is still in view over
+ * what it says - the reason the wide layout pushes the figure aside rather
+ * than covering it.
+ */
+@include handheld {
+  @include portrait {
+    .fr__stage {
+      --k-tri: min(calc((100vw - var(--gutter) * 2) / 2.02), 17rem, calc(var(--vh, 1vh) * 30));
+      --k-y: 50%;
+    }
+
+    .fr__trio.is-aside {
+      transform: translate(-50%, -50%) translateY(calc(var(--vh, 1vh) * -27)) scale(0.55);
+    }
+
+    // A tablet's sheet is a short band at the foot of a tall screen: the
+    // figure needs to give up far less of itself to clear it.
+    @media (min-width: 40.01rem) {
+      .fr__trio.is-aside {
+        transform: translate(-50%, -50%) translateY(calc(var(--vh, 1vh) * -15)) scale(0.78);
+      }
+    }
+
+    .fr__panel {
+      top: auto;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      width: 100%;
+      max-height: 62%;
+      align-content: start;
+      gap: clamp(1rem, calc(var(--vh, 1vh) * 2.5), 1.5rem);
+      // Room at the foot for the sound control, which stands over the sheet.
+      padding: 3.6rem var(--gutter) calc(5rem + var(--safe-b));
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      border-radius: 1.4rem 1.4rem 0 0;
+      background: linear-gradient(180deg, #FFFFFF 0%, #FFF5F6 58%, #FEE0E2 100%);
+      box-shadow: 0 -1.5rem 4rem rgb(var(--rgb-ink) / 0.16);
+      transform: translate3d(0, 101%, 0);
+
+      &.is-open { transform: translate3d(0, 0, 0); }
+
+      // The grip, which says "sheet" before the close control is read.
+      &::before {
+        content: "";
+        position: absolute;
+        top: 0.65rem;
+        left: 50%;
+        width: 2.5rem;
+        height: 4px;
+        margin-left: -1.25rem;
+        border-radius: 2px;
+        background: rgb(var(--rgb-ink) / 0.14);
+      }
+    }
+
+    .fr__close {
+      top: 1.2rem;
+      right: var(--gutter);
+    }
+
+    .fr__panel-h { font-size: clamp(1.55rem, 6.4vw, 2.3rem); }
+
+    .fr__panel-body { gap: clamp(0.8rem, calc(var(--vh, 1vh) * 2), 1.25rem); }
+  }
+}
+
+/**
+ * On its side: the figure centred in the band between the header's bar and
+ * the foot of the frame, and moved into the left half when the reading slides
+ * in over the right.
+ */
+@include compact {
+  @include landscape {
+    .fr__stage {
+      --k-tri: min(calc((var(--vh, 1vh) * 100 - 5.5rem) / 1.75), 17rem, calc((100vw - var(--gutter) * 2) / 2.02));
+      --k-y: calc(50% + 1.25rem);
+    }
+
+    .fr__trio.is-aside {
+      transform: translate(-50%, -50%) translateX(-24vw) scale(0.85);
+    }
+  }
+}
+
+/**
+ * A phone on its side: the statement and the note side by side, because
+ * there is not the height to stack them - the note used to start below the
+ * foot of the screen and was only ever seen passing through.
+ */
+@include short {
+  .fr__copy {
+    display: grid;
+    grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+    align-items: center;
+    column-gap: clamp(1.5rem, 5vw, 3rem);
+    padding: 3.5rem var(--gutter) 2.75rem;
+  }
+
+  .fr__title {
+    margin: 0;
+    max-width: 14ch;
+    text-align: left;
+    font-size: clamp(1.75rem, 4.4vw, 2.6rem);
+  }
+
+  .fr__note {
+    margin: 0;
+    width: auto;
+  }
+
+  .fr__eyebrow { margin-bottom: 0.75rem; }
+
+  .fr__body {
+    font-size: 0.9rem;
+    line-height: 1.5;
+  }
+
+  // The reading is taller than this screen: it scrolls, starting under its
+  // close control, which stays below the header's bar as it does everywhere.
+  // Room at the foot for the sound control, which stands over the panel's
+  // lower corner; the last line scrolls clear of it.
+  .fr__panel {
+    align-content: start;
+    padding: 6.5rem clamp(1.25rem, 4vw, 2rem) calc(4.75rem + var(--safe-b));
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  .fr__panel-h { font-size: clamp(1.3rem, 3.2vw, 1.7rem); }
+
+  .fr__panel-copy { font-size: 0.92rem; }
+}
+
+// Closing the panel is the only way out of it, and it measured 67 x 18.
+@include touch {
+  .fr__close {
+    min-height: 44px;
+    min-width: 44px;
+    padding: 0.8rem 0.7rem;
+    margin: -0.8rem -0.7rem;
+    display: inline-flex;
+    align-items: center;
+  }
+}
+
 // Without motion the section is one settled frame: the statement, then the
-// figure it resolves into, with every caption already open.
+// figure it resolves into, with every caption already open. Last in the
+// block, so it stands over the compact layouts' positions as well.
 @media (prefers-reduced-motion: reduce) {
   .fr { height: auto; }
 
@@ -820,43 +1107,5 @@ onBeforeUnmount(() => { trigger?.kill(); arrival?.kill(); });
   .fr__tile { opacity: 1 !important; }
   .fr__caption { opacity: 1; transform: none; }
   .fr__tile--left .fr__face, .fr__tile--right .fr__face { opacity: 0.16; }
-}
-
-// The figure needs real width, and not because three triangles are wide: the
-// labels sit inside a shape that narrows toward its point, so a tile below
-// roughly 200px cannot hold two words of tracked capitals at the height they
-// sit at. Stacked, each tile is as wide as the column and the problem is gone.
-/**
- * Handheld: three tiles in a column, sized to the column's own height.
- *
- * At 74vw the stack came to about 780px - taller than the frame it is centred
- * in, so the third tile ran under the standing marker at the foot and the two
- * were read on top of one another. The tile is sized from what has to fit
- * instead: three of them plus their gaps, inside the band left between the
- * fixed bar and the marker.
- */
-@media (max-width: 60rem) {
-  .fr__trio {
-    --tri: min(48vw, 13rem);
-    --tri-step: calc(var(--tri-h) + 0.75rem);
-    width: var(--tri);
-    height: calc(var(--tri-step) * 2 + var(--tri-h));
-  }
-
-  .fr__tile--apex { left: 0; margin-left: 0; }
-  .fr__tile--left { top: var(--tri-step); }
-  .fr__tile--right { right: auto; left: 0; top: calc(var(--tri-step) * 2); }
-  .fr__note { margin-left: auto; }
-}
-// Closing the panel is the only way out of it, and it measured 67 x 18.
-@media (pointer: coarse) {
-  .fr__close {
-    min-height: 44px;
-    min-width: 44px;
-    padding: 0.8rem 0.7rem;
-    margin: -0.8rem -0.7rem;
-    display: inline-flex;
-    align-items: center;
-  }
 }
 </style>

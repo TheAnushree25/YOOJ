@@ -74,6 +74,8 @@ const filled = computed(() => Math.max(0.008, Math.min(1, props.progress)));
 </template>
 
 <style scoped lang="scss">
+@use "../../styles/media" as *;
+
 .head {
   position: fixed;
   top: 0;
@@ -89,6 +91,8 @@ const filled = computed(() => Math.max(0.008, Math.min(1, props.progress)));
   align-items: start;
   gap: 1rem;
   padding: clamp(1.1rem, 2.4vw, 1.9rem) var(--gutter);
+  // Clear of the status bar when the page is given the whole screen.
+  padding-top: calc(clamp(1.1rem, 2.4vw, 1.9rem) + var(--safe-t));
   mix-blend-mode: difference;
   // The band is a full-width fixed bar at the top of every section, and almost
   // all of it is paint. Left clickable it silently swallowed whatever sat
@@ -200,9 +204,14 @@ const filled = computed(() => Math.max(0.008, Math.min(1, props.progress)));
 
 .head__word--menu { color: var(--c-accent); }
 
-.head__trigger:hover .head__stack,
 .head__trigger:focus-visible .head__stack {
   transform: translateY(-1em);
+}
+
+// A pointer's only: after a tap on a phone the word stayed swapped to "Menu"
+// with the menu already closed again.
+@include hover {
+  .head__trigger:hover .head__stack { transform: translateY(-1em); }
 }
 
 .head__count {
@@ -241,7 +250,7 @@ const filled = computed(() => Math.max(0.008, Math.min(1, props.progress)));
     grid-template-columns: auto 1fr;
     align-items: center;
     gap: 0.75rem;
-    padding-top: 0.9rem;
+    padding-top: calc(0.9rem + var(--safe-t));
     padding-bottom: 0.9rem;
   }
 
