@@ -21,7 +21,10 @@ import { isJumping } from "../../composables/useSmoothScroll";
  * of the frame it sits over the floor and the lower glass - the parts the film
  * is not about - and never across the sign, which is.
  *
- * Silent, always. The picture makes the argument on its own.
+ * Silent, always. The picture makes the argument on its own - and the file
+ * itself carries no sound track (removed 2026-09-23, picture stream copied
+ * bit for bit), so no browser and no older build can ever play one. The
+ * site's own bed is lib/sound's, and is untouched by this section.
  *
  * The page owns the hold and the chrome; this section only says when (`hold`
  * and `release`), as the gate does.
@@ -280,6 +283,10 @@ defineExpose({ prime, start });
         <img class="tw__still" :src="props.still" alt="" aria-hidden="true" decoding="async" draggable="false">
       </div>
 
+      <!-- What the building stands on when the picture is a plate rather than
+           the whole screen (held upright). -->
+      <div class="tw__base" aria-hidden="true" />
+
       <!-- The ground rising along the foot of the frame for the heading. -->
       <div class="tw__scrim" aria-hidden="true" />
 
@@ -355,6 +362,9 @@ defineExpose({ prime, start });
   .is-done &,
   .is-passed & { opacity: 1; }
 }
+
+// Only the upright plate stands on a base; full-bleed, the floor is the frame.
+.tw__base { display: none; }
 
 /**
  * The ground, rising along the foot of the frame.
@@ -483,8 +493,15 @@ defineExpose({ prime, start });
  * and foot into the ground, and the heading has the ground below it.
  */
 @media (orientation: portrait) {
+  // A pixel of a 390-wide phone, capped by the page a browser actually shows
+  // (760 tall) rather than the phone's whole screen, which set the heading at
+  // four-fifths of its size on a real phone.
   .tw__stage {
-    --m: min(calc(100vw / 390), calc(var(--vh, 1vh) * 100 / 844));
+    --m: min(calc(100vw / 390), calc(var(--vh, 1vh) * 100 / 760));
+    /// The plate's height: half again the width at sixteen by nine, but never
+    /// more than half the screen, or on a tablet it reached the heading.
+    --plate-h: min(calc(150vw * 9 / 16), calc(var(--vh, 1vh) * 52));
+    --plate-top: calc(var(--vh, 1vh) * 16);
   }
 
   // Held at one pose rather than drifting: the film is a plate in the middle
@@ -494,15 +511,50 @@ defineExpose({ prime, start });
     animation: none;
   }
 
+  /**
+   * The plate dissolves into the ground at its head only. Its foot used to
+   * dissolve as well, and the building's own floor went with it - on a phone
+   * the clinic read as a blur hanging in the ground rather than a building
+   * standing on it. The foot is now a hard edge, with a contact shadow where
+   * the building meets it, on the base below.
+   */
   .tw__picture {
     inset: auto;
     left: 50%;
-    top: calc(var(--vh, 1vh) * 16);
-    width: 150vw;
-    height: calc(150vw * 9 / 16);
+    top: var(--plate-top);
+    width: calc(var(--plate-h) * 16 / 9);
+    height: var(--plate-h);
     transform: translateX(-50%);
-    -webkit-mask-image: linear-gradient(to bottom, transparent, #000 16%, #000 84%, transparent);
-    mask-image: linear-gradient(to bottom, transparent, #000 16%, #000 84%, transparent);
+    -webkit-mask-image: linear-gradient(to bottom, transparent, #000 16%);
+    mask-image: linear-gradient(to bottom, transparent, #000 16%);
+
+    &::after {
+      content: "";
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      height: 12%;
+      background: linear-gradient(to top, rgb(var(--rgb-void) / 0.32), rgb(var(--rgb-void) / 0));
+      pointer-events: none;
+    }
+  }
+
+  // A plinth the width of the screen: a top edge that catches the light, a
+  // face in the site's deep wine, and a soft shadow thrown onto the ground.
+  .tw__base {
+    display: block;
+    position: absolute;
+    z-index: 2;
+    left: 0;
+    right: 0;
+    top: calc(var(--plate-top) + var(--plate-h));
+    height: clamp(0.85rem, 3.6vw, 1.35rem);
+    background:
+      linear-gradient(to bottom, rgb(255 255 255 / 0.3) 0, rgb(255 255 255 / 0.3) 1px, rgb(255 255 255 / 0) 1px),
+      linear-gradient(to bottom, #6A0E2E 0%, #3C010E 100%);
+    box-shadow: 0 0.9rem 1.8rem -0.4rem rgb(var(--rgb-void) / 0.55);
+    pointer-events: none;
   }
 
   .tw__video,
@@ -513,8 +565,8 @@ defineExpose({ prime, start });
   .tw__copy { bottom: calc(var(--vh, 1vh) * 14); }
 
   .tw__title {
-    font-size: calc(34 * var(--m));
-    line-height: calc(42 * var(--m));
+    font-size: max(27px, calc(34 * var(--m)));
+    line-height: 1.24;
   }
 }
 

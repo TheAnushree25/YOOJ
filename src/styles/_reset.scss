@@ -37,6 +37,11 @@ img, svg, canvas { display: block; max-width: 100%; }
 
 a { color: inherit; text-decoration: none; }
 
+// The grey flash a phone lays over anything tapped. Every control on the site
+// draws its own pressed and focused states; the flash is a second, square
+// one on top of rounded shapes.
+a, button, [role="button"] { -webkit-tap-highlight-color: transparent; }
+
 button {
   font: inherit;
   color: inherit;

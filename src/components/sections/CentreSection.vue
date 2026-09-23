@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref } from "vue";
 import { ScrollTrigger, prefersReduced } from "../../composables/useMotion";
+import { isDevice } from "../../composables/useViewport";
 
 /**
  * The YOOJ Primary Care Centre: one roof, and what is under it.
@@ -92,8 +93,18 @@ const layout = () => {
   const H = g.clientHeight;
   if (!W || !H) return;
 
-  const portrait = window.matchMedia("(orientation: portrait)").matches;
-  const visible = reduced ? COUNT : portrait ? 1 : 3;
+  /**
+   * How many stand in the frame at once: three on a wide screen, one on a
+   * phone held upright, and two on a tablet held upright or a phone on its
+   * side - where the gallery is the right-hand part of a shallow frame, and
+   * three cards in it came out eighty pixels wide. The stylesheet gives each
+   * count its own length of travel (`--travel`), on the same queries.
+   */
+  const portrait = isDevice("portrait");
+  const short = isDevice("short");
+  const pairs = short || (portrait && W >= 600);
+  const visible = reduced ? COUNT : pairs ? 2 : portrait ? 1 : 3;
+  const tight = portrait || short;
   const gutter = clamp(W * 0.034, 20, 52);
   const wave = reduced ? 0 : clamp(H * 0.035, 6, 22);
 
@@ -101,8 +112,8 @@ const layout = () => {
   let tall = H - INDEX - wave * 2 - RULE;
   let card = tall / RATIO;
   // ...and no wider than leaves room for the others and a real gap.
-  const peekMin = portrait ? 18 : 28;
-  const gapMin = portrait ? 18 : 40;
+  const peekMin = tight ? 18 : 28;
+  const gapMin = tight ? 18 : 40;
   card = Math.min(card, (W - 2 * gutter - (visible - 1) * gapMin - (visible < COUNT ? 2 * peekMin : 0)) / visible);
   tall = card * RATIO;
 
@@ -290,6 +301,8 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped lang="scss">
+@use "../../styles/media" as *;
+
 /**
  * The stage, the row's travel, and the exit.
  *
@@ -459,7 +472,9 @@ onBeforeUnmount(() => {
   }
 }
 
-.ce__slot:hover .ce__index::after { transform: none; }
+@include hover {
+  .ce__slot:hover .ce__index::after { transform: none; }
+}
 
 /**
  * The card.
@@ -526,7 +541,9 @@ onBeforeUnmount(() => {
   opacity: 0;
   transition: opacity 0.6s var(--e-out-quart);
 
-  .ce__card:hover & { opacity: 1; }
+  @include hover {
+    .ce__card:hover & { opacity: 1; }
+  }
 }
 
 // How far along the row the reader is: a short rule under it, centred.
@@ -552,35 +569,105 @@ onBeforeUnmount(() => {
  * Portrait: the words stacked over a single card at a time, and the scroll
  * carries the reader through all four. Three cards of travel rather than one,
  * so a longer stage.
+ *
+ * `--u` is a pixel of a 390-wide phone design. Its height term is the page a
+ * browser actually shows (760), not the phone's whole screen (844), which had
+ * every size here at four-fifths on a real phone - the eyebrow at ten pixels,
+ * the paragraph at eleven. The type has floors besides.
  */
-@media (orientation: portrait) {
+@include portrait {
   .ce { --travel: 190; }
 
   .ce__stage {
-    --u: min(calc(100vw / 390), calc(var(--vh, 1vh) * 100 / 844));
+    --u: min(calc(100vw / 390), calc(var(--vh, 1vh) * 100 / 760));
   }
 
   .ce__eyebrow {
-    font-size: calc(13 * var(--u));
+    font-size: max(12px, calc(13 * var(--u)));
 
     &::before { bottom: calc(100% + 14 * var(--u)); }
   }
 
   .ce__title {
     margin-top: calc(18 * var(--u));
-    font-size: calc(34 * var(--u));
-    line-height: calc(40 * var(--u));
+    font-size: max(28px, calc(34 * var(--u)));
+    line-height: 1.18;
 
     strong { display: block; }
   }
 
   .ce__body {
+    margin-inline: auto;
+    max-width: 44ch;
     margin-top: calc(16 * var(--u));
-    font-size: calc(14.5 * var(--u));
+    font-size: max(13.5px, calc(14.5 * var(--u)));
     line-height: 1.5;
 
     span { display: inline; }
     span + span::before { content: " "; }
+  }
+}
+
+// A tablet held upright shows two cards at a time (see `layout`), so the row
+// has two cards of travel to make rather than three.
+@include portrait {
+  @media (min-width: 37.5rem) {
+    .ce { --travel: 150; }
+  }
+}
+
+/**
+ * A phone on its side: the words in a column on the left and the gallery
+ * beside them, two cards at a time. Stacked, the words took two thirds of a
+ * shallow frame and the cards were sized from what was left.
+ */
+@include short {
+  .ce { --travel: 150; }
+
+  .ce__stage {
+    flex-direction: row;
+    align-items: stretch;
+  }
+
+  .ce__words {
+    flex: 0 0 38%;
+    align-self: center;
+    padding: 3.25rem 0 1rem var(--gutter);
+    text-align: left;
+  }
+
+  // The thread comes down to the middle of a centred word; beside a column
+  // set flush left it would hang in the middle of nothing.
+  .ce__eyebrow {
+    font-size: 0.75rem;
+
+    &::before { display: none; }
+  }
+
+  .ce__title {
+    margin-top: 0.6rem;
+    font-size: clamp(1.45rem, 3.6vw, 2rem);
+    line-height: 1.12;
+
+    strong { display: block; }
+  }
+
+  .ce__body {
+    margin-top: 0.8rem;
+    font-size: 0.8rem;
+    line-height: 1.5;
+
+    span { display: inline; }
+    span + span::before { content: " "; }
+  }
+
+  // Cut at its own left edge, and only there: the row travels left, and here
+  // the words stand where a card used to leave the screen. The other three
+  // sides are let out so the shadows and the numbers keep their room.
+  .ce__gallery {
+    flex: 1;
+    margin: 3.5rem 0 1.25rem;
+    clip-path: inset(-6rem -6rem -6rem 0);
   }
 }
 

@@ -159,6 +159,8 @@ const body =
 </template>
 
 <style scoped lang="scss">
+@use "../../styles/media" as *;
+
 /**
  * Laid over the end of the section above it, and faded in.
  *
@@ -312,4 +314,45 @@ const body =
 }
 
 .sl__act { margin-top: clamp(1.8rem, 5vh, 3rem); }
+
+/**
+ * A phone: the room under the control was sized for the card's exit on a
+ * wide screen, where the card leaves across it. Stacked, the card is above the
+ * copy and has left long before, and the same room was a third of a screen of
+ * empty blush before the close.
+ */
+@include phone {
+  .sl { padding-bottom: clamp(5rem, 14vh, 8rem); }
+}
+
+/**
+ * A phone on its side: the card beside the note, as on a wide screen. In one
+ * column the card came out wider than the screen is tall.
+ */
+@include short {
+  .sl {
+    padding-top: clamp(5.5rem, 20vh, 7rem);
+    padding-bottom: clamp(4rem, 14vh, 6rem);
+  }
+
+  .sl__h {
+    max-width: none;
+    font-size: clamp(1.9rem, 4.6vw, 2.8rem);
+  }
+
+  .sl__row {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    align-items: center;
+    justify-items: stretch;
+    column-gap: clamp(1.5rem, 5vw, 3rem);
+    margin-top: clamp(1.75rem, 7vh, 2.5rem);
+  }
+
+  .sl__slot {
+    justify-self: center;
+    width: min(20rem, 40vw);
+  }
+
+  .sl__note { width: auto; }
+}
 </style>

@@ -154,7 +154,20 @@
    */
   --font-say: "Montserrat", "Inter Variable", system-ui, sans-serif;
 
-  --gutter: clamp(1.25rem, 3.4vw, 3.25rem);
+  /**
+   * The device's own margins: the notch, the rounded corners, the home bar.
+   *
+   * The page asks for the whole screen (`viewport-fit=cover`), so on a phone
+   * on its side the notch is inside the frame. Zero everywhere else - which is
+   * why the gutter can take them into account without moving anything on a
+   * desktop: the larger of the two is the one that was already there.
+   */
+  --safe-t: env(safe-area-inset-top, 0px);
+  --safe-r: env(safe-area-inset-right, 0px);
+  --safe-b: env(safe-area-inset-bottom, 0px);
+  --safe-l: env(safe-area-inset-left, 0px);
+
+  --gutter: max(clamp(1.25rem, 3.4vw, 3.25rem), var(--safe-l), var(--safe-r));
 
   /**
    * The scroll-length scale.

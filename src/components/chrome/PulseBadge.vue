@@ -95,7 +95,8 @@ $beat: 2.4s;
 .pulse {
   position: fixed;
   right: var(--gutter);
-  bottom: clamp(1.1rem, 2.6vw, 1.9rem);
+  // Above the home bar when the page is given the whole screen.
+  bottom: calc(clamp(1.1rem, 2.6vw, 1.9rem) + var(--safe-b));
   z-index: 60;
   display: grid;
   place-items: center;

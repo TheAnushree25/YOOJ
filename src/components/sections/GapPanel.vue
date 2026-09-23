@@ -152,7 +152,7 @@ onBeforeUnmount(() => {
   text-align: center;
   font-family: var(--font-say);
   font-weight: 400;
-  font-size: max(11px, calc(20.3 * var(--u)));
+  font-size: max(12px, calc(20.3 * var(--u)));
   line-height: 1;
   letter-spacing: 0;
   text-transform: uppercase;
@@ -287,10 +287,16 @@ button.gp__play {
 /**
  * Portrait: stacked from the top, with the picture as wide as the column and
  * a little taller than the design's, so the people in it are not a strip.
+ *
+ * `--m` is one pixel of a 390-wide phone design. It used to be capped by an
+ * 844-tall one as well, which is the phone's *screen* - but a browser shows
+ * a good deal less of it than that, so on a real phone every size here came
+ * out at four-fifths and the eyebrow at nine pixels. The height term is now
+ * the page a phone actually shows, and the type has floors besides.
  */
 @media (orientation: portrait) {
   .gp {
-    --m: min(calc(100vw / 390), calc(var(--vh, 1vh) * 100 / 844));
+    --m: min(calc(100vw / 390), calc(var(--vh, 1vh) * 100 / 760));
   }
 
   .gp__frame {
@@ -314,7 +320,7 @@ button.gp__play {
   }
 
   .gp__eyebrow {
-    font-size: calc(14 * var(--m));
+    font-size: max(12px, calc(14 * var(--m)));
 
     &::before {
       left: calc(50% + 3.5 * var(--m));
@@ -324,13 +330,15 @@ button.gp__play {
 
   .gp__title {
     margin-top: calc(22 * var(--m));
-    font-size: calc(33 * var(--m));
-    line-height: calc(41 * var(--m));
+    font-size: max(26px, calc(33 * var(--m)));
+    line-height: 1.24;
   }
 
+  // As wide as the column on a phone; on a tablet held upright that was a
+  // picture the size of the screen, so it stops at a comfortable width.
   .gp__film {
     margin-top: calc(30 * var(--m));
-    width: 100%;
+    width: min(100%, 36rem);
     height: auto;
     aspect-ratio: 4 / 3;
     border-radius: calc(4 * var(--m));
