@@ -6,7 +6,6 @@ import { pageGlideTo, useSmoothScroll } from "../composables/useSmoothScroll";
 import { ScrollTrigger } from "../composables/useMotion";
 import { cinema, entered, onPale, pulseCorner } from "../lib/session";
 import { heroImageReady } from "../lib/hero-image";
-import { duckAmbient } from "../lib/sound";
 
 import SiteHeader from "../components/chrome/SiteHeader.vue";
 import SiteMenu from "../components/chrome/SiteMenu.vue";
@@ -46,12 +45,20 @@ const { x, y } = usePointer();
 
 let backdrop: Backdrop | null = null;
 
+/**
+ * The order of the argument, and the header's readout counts it.
+ *
+ * The clinic film and the care centre used to sit between the perspective and
+ * the network - so the page showed the shop before it had said what the shop
+ * is for. They now follow "Building the future of everyday healthcare": the
+ * case is made first, and the film and the four services are the answer to it.
+ */
 const chapters = [
   { id: "top", label: "Vision" },
   { id: "reconnect", label: "Reconnecting healthcare" },
+  { id: "frontier", label: "Beyond fragmented care" },
   { id: "town", label: "The solution" },
   { id: "centre", label: "Primary care centre" },
-  { id: "frontier", label: "Beyond fragmented care" },
   // Both hidden with their sections; uncomment together. See the imports above.
   // { id: "tenets", label: "The 4 R’s" }, // 4 R'S SECTION
   // { id: "perspectives", label: "Perspectives" }, // PERSPECTIVES SECTION
@@ -221,8 +228,7 @@ const onEnter = () => {
 
 /**
  * The clinic film has the screen: the page holds still, the chrome stands
- * down, the bed steps aside for the film's own sound, and the section glides
- * the last stretch into place before it starts.
+ * down, and the section glides the last stretch into place before it starts.
  *
  * Held twice over, as the gate is: the engine stops answering the wheel and
  * the finger, and `is-cinema` takes the keyboard and the scrollbar, which are
@@ -237,7 +243,6 @@ const holdForFilm = async (el: HTMLElement) => {
   document.documentElement.classList.add("is-cinema");
   lock();
   cinema.value = true;
-  duckAmbient(true);
   await pageGlideTo(el);
   if (!filmHeld) return;
   void town.value?.start();
@@ -248,7 +253,6 @@ const releaseFilm = () => {
   filmHeld = false;
   document.documentElement.classList.remove("is-cinema");
   cinema.value = false;
-  duckAmbient(false);
   unlock();
 };
 
@@ -334,6 +338,7 @@ onBeforeUnmount(() => {
   <main class="content">
     <HeroSection ref="hero" />
     <ReconnectSection />
+    <FrontierSection />
     <TownSection
       ref="town"
       src="/intro/opening.mp4"
@@ -343,7 +348,6 @@ onBeforeUnmount(() => {
       @release="releaseFilm"
     />
     <CentreSection />
-    <FrontierSection />
     <!-- 4 R'S SECTION - hidden for now. Uncomment the line below, and the
          import and the `chapters` entry in the script, to bring it back. -->
     <!-- <TenetsSection /> -->

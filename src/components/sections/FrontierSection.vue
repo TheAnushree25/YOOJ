@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { prefersReduced, scrubThrough } from "../../composables/useMotion";
 
 /**
@@ -182,28 +182,33 @@ const body =
 /**
  * The three tiles. The first is the traveller, already on screen for the whole
  * section; the other two are struck in beneath it once it lands.
+ *
+ * Each is named for what the network has to be rather than for a service -
+ * accessible, affordable, standardised - and the reading behind it says how
+ * that is done. One word per tile: the shape narrows toward its point, and a
+ * single tracked word is what sits in it squarely at any size.
  */
 const tiles = [
   {
     slot: "apex",
-    label: ["YOOJ", "Clinic"],
-    note: "Care that feels closer.",
-    title: ["Care that feels", "closer."],
-    body: "Qualified primary care, closer to where people live and work. YOOJ combines local doctors with a common quality standard, a better clinic experience and connected patient records.",
+    label: ["Accessible"],
+    note: "Within reach physically and in hours.",
+    title: ["Within reach physically", "and in hours."],
+    body: "A YOOJ Primary Care Centre in the Tier 3 town itself, not the district capital 40 km away. OPD, pharmacy, pathology and radiology under one roof, so a patient does one trip, not three. Extended hours for the working day.",
   },
   {
     slot: "left",
-    label: ["YOOJ", "Pharmacy"],
-    note: "The right medicine. Without the doubt.",
-    title: ["The right medicine.", "Without the doubt."],
-    body: "Genuine medicines, supplied through the YOOJ network and dispensed through a generic-first model. Better procurement means better access and better pricing — without compromising what the patient receives.",
+    label: ["Affordable"],
+    note: "Priced for a daily wage, not a salary.",
+    title: ["Priced for a daily wage,", "not a salary."],
+    body: "$4 consultation. Generic medicines first. $3 pathology tests, $7 imaging. Prices printed on the wall, the same for every patient, every day. No surprise bills, no upsell.",
   },
   {
     slot: "right",
-    label: ["YOOJ", "Diagnostics"],
-    note: "Diagnostics that stay with your care.",
-    title: ["Diagnostics that stay", "with your care."],
-    body: "Samples collected at YOOJ centres move through a connected diagnostic hub, with pathology, X-ray, ultrasound and cold-chain infrastructure supporting the network. Results become part of the patient’s continuing care.",
+    label: ["Standardised"],
+    note: "The same YOOJ, everywhere.",
+    title: ["The same YOOJ,", "everywhere."],
+    body: "Credentialed doctors, the same clinical protocols, the same JeevanBhar patient record, quarterly quality audits. A patient in an affiliate clinic gets the same guarantee as one in the flagship centre.",
   },
 ] as const;
 
@@ -219,14 +224,30 @@ const open = ref<number | null>(null);
 const isOpen = computed(() => open.value !== null);
 const shown = computed(() => (open.value === null ? tiles[0] : tiles[open.value]));
 
+/**
+ * The moment the figure is whole, and the one threshold everything keys on.
+ *
+ * Opening, focus and the marker used to each carry a number of their own -
+ * 0.92, 0.82 and 0.84 - so for the stretch between the figure landing and the
+ * last of them, the triangles stood complete, the marker said "three ways in",
+ * and a press on one did nothing at all. Half a screen of scrolling where the
+ * page invited a click and ignored it. They all answer to the landing now.
+ */
+const READY = LAND;
+const ready = computed(() => p.value >= READY);
+
 const reveal = (i: number) => {
   // Only once the figure has landed. Mid-flight the apex tile is somewhere
   // across the frame, and a panel opened from it would have no anchor.
-  if (p.value < 0.92) return;
+  if (!ready.value) return;
   open.value = open.value === i ? null : i;
 };
 
 const close = () => (open.value = null);
+
+// Scrolled back up out of the finished figure, the traveller takes off again
+// - and a panel still reading from it would be anchored to nothing.
+watch(ready, (now) => { if (!now) close(); });
 
 /** The copy's own travel: it leaves upward, at the rate a page would scroll. */
 const copyY = () => -beat(0.05, 0.52) * 146;
@@ -310,7 +331,7 @@ onBeforeUnmount(() => { trigger?.kill(); arrival?.kill(); });
             : { opacity: beat(0.56 + (i - 1) * 0.05, 0.74), transform: `translateY(${(1 - beat(0.56 + (i - 1) * 0.05, 0.74)) * 14}px)` }"
           :aria-expanded="open === i"
           role="button"
-          :tabindex="p > 0.82 ? 0 : -1"
+          :tabindex="ready ? 0 : -1"
           @click="reveal(i)"
           @keydown.enter.prevent="reveal(i)"
           @keydown.space.prevent="reveal(i)"
@@ -348,7 +369,7 @@ onBeforeUnmount(() => { trigger?.kill(); arrival?.kill(); });
         </div>
       </aside>
 
-      <p class="fr__marker">{{ p > 0.84 ? "Three ways in" : "Beyond fragmented care" }}</p>
+      <p class="fr__marker">{{ ready ? "Three ways in" : "Beyond fragmented care" }}</p>
     </div>
   </section>
 </template>
