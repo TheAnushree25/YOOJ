@@ -380,7 +380,9 @@ onBeforeUnmount(() => {
 }
 
 .ce__title {
-  margin-top: calc(9 * var(--u));
+  // Clear of the eyebrow: at the design's 9 the two read as one crowded
+  // block.
+  margin-top: calc(18 * var(--u));
   font-family: var(--font-say);
   font-weight: 300;
   font-size: calc(45.5 * var(--u));
@@ -645,7 +647,7 @@ onBeforeUnmount(() => {
   }
 
   .ce__title {
-    margin-top: 0.6rem;
+    margin-top: 0.9rem;
     font-size: clamp(1.45rem, 3.6vw, 2rem);
     line-height: 1.12;
 

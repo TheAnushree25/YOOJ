@@ -51,11 +51,13 @@ interface Piece {
 /**
  * The argument, in order.
  *
- * Two blocks: what the supply chain does and what it is worth, then what a hub
- * is and what it holds. The figures are set at the display size because they
- * are the claim rather than a footnote to it — a number at eighty reads as the
- * point being made, the same number at twenty reads as a caption to something
- * else on the screen.
+ * Two blocks: what a hub is and what it holds, then what the affiliate network
+ * does and what that adds up to. It ends on the four R's, below.
+ *
+ * There are no figures in it any more — every one was taken out. A `stat`
+ * piece still renders if one is added back: the figure at the display size,
+ * because a number at eighty reads as the point being made and the same
+ * number at twenty reads as a caption to something else on the screen.
  */
 const pieces: readonly Piece[] = [
   {
@@ -63,10 +65,11 @@ const pieces: readonly Piece[] = [
     lead: "By connecting\nyour care history,\nwe build one\ncontinuous health record.",
   },
   {
+    // The heading is the claim itself now; the line that used to sit under it
+    // said the same thing again, so it went.
     kind: "say",
-    lead: "One hub.\nMany points of care.",
     label: "The hub",
-    copy: "One centrally owned diagnostic hub per town or city cluster.",
+    lead: "One centrally owned\ndiagnostic hub\nper cluster.",
   },
   {
     kind: "list",
@@ -87,7 +90,7 @@ const pieces: readonly Piece[] = [
   },
   {
     kind: "list",
-    label: "The YOOJ supply chain",
+    label: "The YOOJ Affiliate Network",
     items: [
       "Centralized negotiation.",
       "Generic-first dispensing.",
@@ -96,51 +99,43 @@ const pieces: readonly Piece[] = [
     ],
   },
   {
-    kind: "stat",
-    value: "8–12%",
-    of: "Better generic medicine pricing through bulk negotiation",
-  },
-  {
-    kind: "stat",
-    value: "45–60 days",
-    of: "Potential distributor credit terms through YOOJ versus typical individual terms",
-  },
-  {
     kind: "say",
     lead: "Better economics.\nAt network scale.",
-  },
-  {
-    kind: "stat",
-    value: "₹35 / test",
-    of: "Sample collection and handling fee structure",
-  },
-  {
-    kind: "stat",
-    value: "8–12%",
-    of: "Generic procurement advantage",
-  },
-  {
-    kind: "stat",
-    value: "₹50K–₹75K",
-    of: "Projected total monthly monetary benefit to an affiliate",
   },
 ];
 
 /**
- * Where each piece sits in the section.
+ * The four R's: what joining the network does to a clinic.
+ *
+ * Four words that share their first letter, and are set to make the most of
+ * it. Ranged left in a centred column, their capitals stack into a spine of
+ * four R's in the page's rose, and each word is drawn out of its own R. They
+ * arrive one by one — the R first, out of the distance the way everything in
+ * this corridor arrives, then the rest of the word unfurling from it — and the
+ * newest is the one lit, until the fourth lands and all four light together.
+ * Then the set is carried past the camera, the same exit every statement
+ * before it takes, and the light comes up behind it.
+ */
+const RS = ["Rebuild", "Refurbish", "Revive", "Rebrand"] as const;
+
+/**
+ * Where everything sits in the section.
  *
  * Stepped rather than overlapped. Each window is a fraction shorter than the
  * distance between them, so one pass is finished and gone before the next
  * begins — anything else puts two statements on screen together, each at half
  * strength, and the reader is left to work out which of them they are reading.
+ *
+ * The R's are one window three and a half statements long: four words have to
+ * land in turn and then be seen together. Everything spoken is gone by
+ * `WORDS_END`, which is where the light takes the frame.
  */
 const LEAD = 0.04;
-// The count and the light that follows it take the last fifth of the section,
-// so the six pieces are laid out across what is left rather than across all of
-// it — otherwise the last of them is still leaving while the number runs up.
-const TAIL = 0.21;
-const STEP = (1 - LEAD - TAIL) / pieces.length;
+const RS_STEPS = 3.4;
+const WORDS_END = 0.935;
+const STEP = (WORDS_END - LEAD) / (pieces.length + RS_STEPS);
 const SPAN = STEP * 0.97;
+const RS_FROM = LEAD + pieces.length * STEP;
 
 /**
  * One pass of the camera.
@@ -224,54 +219,67 @@ const linePose = (pass: ReturnType<typeof fly>, i: number, n: number) => {
   };
 };
 
-/**
- * The count.
- *
- * A number that has to be arrived at rather than stated: the reader watches it
- * run up and stop, which is a different claim from the same figure simply
- * appearing. Each column is a strip of digits behind a window, offset by its
- * own place value — so the units spin, the tens turn, and the thousands barely
- * move, which is what an odometer does and why one reads as a count rather
- * than as a number changing.
- *
- * The figure and its caption are the only invented content on the page and
- * they are meant to be replaced: nothing in the deck is a per-second rate.
- */
-const COUNT = { to: 10, unit: "+", of: "Affiliates — the threshold before a diagnostic hub opens" };
-/** One wheel per digit of the target, most significant first. */
-const PLACES = Array.from({ length: String(COUNT.to).length }, (_, i) => i).reverse();
+/* ---------------------------------------------------------------- the R's */
 
-const counter = computed(() => {
-  const from = LEAD + pieces.length * STEP;
-  /**
-   * A long window, and a gentle ramp across nearly all of it.
-   *
-   * Both halves of this were too quick. The window was a third again of a
-   * single statement's, and the ramp was a cube — which front-loads a
-   * deceleration so hard that most of the count was over in the first fifth of
-   * it and the rest was a wheel creeping the last digit home. Two and a fifth
-   * statements' worth of travel, climbed on a much shallower curve, and the
-   * number is genuinely counting for the whole time it is on screen.
-   */
-  const t = clamp01((p.value - from) / (STEP * 2.2));
-  const arrive = ease(clamp01(t / 0.16));
-  const leave = ease(clamp01((t - 0.84) / 0.16));
-  /**
-   * Settled well before it leaves.
-   *
-   * Running the climb to the end of the window meant the wheels reached ten at
-   * the moment the whole thing started fading — the reader watched a number
-   * count and never saw it arrive, which is the one frame the beat exists for.
-   * Finished at two thirds, it then simply stands there reading ten for the
-   * better part of a viewport before it goes.
-   */
-  const run = 1 - Math.pow(1 - clamp01(t / 0.66), 1.8);
-  return { shown: arrive * (1 - leave), value: run * COUNT.to, t };
+/**
+ * The R's window, and the set as a whole.
+ *
+ * `t` runs across their own window. Each word has a slot of `R_SLOT` of it, so
+ * the fourth has landed by 0.7; all four are lit by 0.8, stand together until
+ * 0.86, and are carried off across the last seventh. The set comes gently
+ * closer the whole time it is on screen, as everything in the corridor does —
+ * a block that held dead still would read as a caption laid over the travel
+ * rather than as something in it.
+ */
+const R_AT = 0.04;
+const R_SLOT = 0.17;
+
+const rs = computed(() => {
+  const t = clamp01((p.value - RS_FROM) / (STEP * RS_STEPS));
+  const leave = ease(clamp01((t - 0.86) / 0.14));
+  const scale = 0.92 + t * 0.14 + leave * 0.5;
+  return {
+    t,
+    leave,
+    shown: ease(clamp01((t - R_AT) / 0.05)) * (1 - leave),
+    lit: ease(clamp01((t - 0.72) / 0.08)),
+    style: {
+      opacity: (1 - leave).toFixed(3),
+      transform: `translate3d(-50%, -50%, 0) scale(${scale.toFixed(3)})`,
+      filter: leave > 0.001 ? `blur(${(leave * leave * 14).toFixed(2)}px)` : "none",
+    },
+  };
 });
 
-/** Each column's continuous position, in digit-heights. */
-const column = (place: number) =>
-  (counter.value.value / Math.pow(10, place)) % 10;
+/**
+ * One word at a time.
+ *
+ * `land` is its R arriving out of the distance, `unfurl` the rest of the word
+ * drawn out of it a beat later, and `pulse` the light the R gives off as it
+ * lands. `dim` is the word stepping back once the next one arrives — and
+ * coming forward again when all four light up together.
+ */
+const rWords = computed(() => RS.map((_, k) => {
+  const { t, lit } = rs.value;
+  const at = R_AT + k * R_SLOT;
+  const land = ease(clamp01((t - at) / 0.07));
+  const unfurl = ease(clamp01((t - at - 0.035) / 0.11));
+  const pulse = clamp01((t - at - 0.02) / 0.14);
+  const next = k < RS.length - 1 ? ease(clamp01((t - at - R_SLOT) / 0.08)) : 0;
+  return {
+    opacity: (1 - next * (1 - lit) * 0.64).toFixed(3),
+    cap: {
+      opacity: land.toFixed(3),
+      transform: `scale(${(0.5 + land * 0.5).toFixed(3)})`,
+      filter: land < 0.999 ? `blur(${((1 - land) * (1 - land) * 12).toFixed(2)}px)` : "none",
+    },
+    halo: {
+      opacity: (Math.sin(pulse * Math.PI) * 0.8).toFixed(3),
+      transform: `translate(-50%, -50%) scale(${(0.35 + pulse * 1.45).toFixed(3)})`,
+    },
+    unfurl: unfurl.toFixed(4),
+  };
+}));
 
 /**
  * The light that ends the section.
@@ -320,6 +328,13 @@ onMounted(() => {
        * three or four are usually crossing and the rest are resting.
        */
       comets: 14,
+      /**
+       * Let go as the last statement leaves, so the R's land in open sky.
+       * Held until the end, the outline was still being drawn through the
+       * four words while they were read — a bright contour across the middle
+       * of "Refurbish" at exactly the moment it was arriving.
+       */
+      release: RS_FROM - 0.03,
     });
     scene = built;
     built.start();
@@ -405,36 +420,41 @@ onBeforeUnmount(() => {
 
       <!-- The reference's ring: a hairline circle at the right, drawing an arc
            as the current statement is read, with the statement's number in
-           it. It goes with the pieces and leaves before the count. -->
+           it. It goes with the pieces and leaves before the R's. -->
       <StepRing
         class="aq__ring"
         :index="step.index"
         :total="pieces.length"
         :progress="step.progress"
         light
-        :style="{ opacity: beat(0.03, 0.07) * (1 - counter.shown) * (1 - sky()) }"
+        :style="{ opacity: beat(0.03, 0.07) * (1 - rs.shown) * (1 - sky()) }"
       />
 
-      <!-- The count, on its own after the six pieces. -->
-      <div
-        class="aq__count"
-        :style="{
-          opacity: counter.shown,
-          transform: `translate3d(-50%, -50%, 0) scale(${(0.72 + counter.t * 0.5).toFixed(3)})`,
-        }"
-        :aria-hidden="counter.shown < 0.5"
+      <!-- The four R's, one by one, after the last statement. Each word is
+           split at its R for the eye; the whole word is what is read out. -->
+      <ul
+        class="aq__rs"
+        :style="{ ...rs.style, '--glow': rs.lit.toFixed(3) }"
+        :aria-hidden="rs.shown < 0.5"
       >
-        <p class="aq__odo">
-          <span v-for="place in PLACES" :key="place" class="aq__wheel">
-            <span
-              class="aq__strip"
-              :style="{ transform: `translate3d(0, ${-column(place) * (100 / 11)}%, 0)` }"
-            ><i v-for="d in 11" :key="d">{{ (d - 1) % 10 }}</i></span>
+        <li
+          v-for="(word, k) in RS"
+          :key="word"
+          class="aq__rword"
+          :style="{ opacity: rWords[k].opacity }"
+        >
+          <span class="aq__vh">{{ word }}</span>
+          <span class="aq__rcap" aria-hidden="true">
+            <i class="aq__rhalo" :style="rWords[k].halo" />
+            <span class="aq__rglyph" :style="rWords[k].cap">{{ word.charAt(0) }}</span>
           </span>
-        <span v-if="COUNT.unit" class="aq__unit">{{ COUNT.unit }}</span>
-        </p>
-        <p class="aq__of">{{ COUNT.of }}</p>
-      </div>
+          <span
+            class="aq__rrest"
+            aria-hidden="true"
+            :style="{ '--u': rWords[k].unfurl }"
+          >{{ word.slice(1) }}</span>
+        </li>
+      </ul>
 
       <!-- The light, rising. -->
       <div
@@ -451,14 +471,16 @@ onBeforeUnmount(() => {
 
 <style scoped lang="scss">
 /**
- * Twelve viewports and a bit, and it starts more than one before it appears to.
+ * Seventeen viewports, and it starts more than one before it appears to.
  *
  * The length is set by the content rather than chosen. Six pieces have to
  * arrive, hold still long enough to be read, and leave, one after another with
  * no two on screen together — and a pass that is over in less than a viewport
  * and a half of travel goes by faster than the sentence inside it can be
- * finished. At this height each piece holds sharp for about seventy
- * viewport-heights of scrolling, which is a read rather than a glimpse.
+ * finished. At this height each piece gets a viewport and a half, and the
+ * four R's five, which is a read rather than a glimpse. Take a piece out and
+ * this has to come down by a hundred and fifty with it, or every other
+ * statement slows down to fill the gap.
  *
  * The negative margin is the join. A sticky stage releases over the last
  * viewport of its own section, so the dispersal above would otherwise spend
@@ -491,8 +513,8 @@ onBeforeUnmount(() => {
    */
   margin-top: -120vh;
   margin-top: calc(var(--vh, 1vh) * -120);
-  height: 2300vh;
-  height: calc(var(--sv) * 2300);
+  height: 1680vh;
+  height: calc(var(--sv) * 1680);
 }
 
 .aq__stage {
@@ -681,64 +703,104 @@ onBeforeUnmount(() => {
   @media (max-width: 60rem) { display: none; }
 }
 
-/* --------------------------------------------------------------- the count */
+/* ---------------------------------------------------------------- the R's */
 
-.aq__count {
+/**
+ * Four lines, ranged left, the column centred on the frame.
+ *
+ * Sized off the height as well as the width, because it is four lines at a
+ * line-height of one: keyed to width alone, a short laptop screen had the set
+ * taller than half its frame. The ceiling keeps a wide desktop from turning
+ * the words into a wall.
+ */
+.aq__rs {
   position: absolute;
   left: var(--mid);
   top: var(--mid);
   z-index: 4;
-  text-align: center;
-  color: #FFFFFF;
-  transform-origin: 50% 50%;
-  will-change: transform, opacity;
-}
-
-.aq__odo {
-  display: flex;
-  justify-content: center;
-  align-items: center;
+  display: grid;
+  justify-items: start;
+  gap: 0.06em;
   margin: 0;
-  font-size: clamp(4rem, 9vw, 8.5rem);
+  padding: 0;
+  list-style: none;
+  font-size: clamp(3rem, min(14vw, 12vh), 7rem);
   line-height: 1;
   letter-spacing: var(--ls-display);
   font-weight: 200;
-  font-variant-numeric: tabular-nums;
+  color: #FFFFFF;
+  white-space: nowrap;
+  transform-origin: 50% 50%;
+  will-change: transform, opacity, filter;
 }
 
-// The window. One digit tall, and what makes the strip behind it read as a
-// wheel rather than as a list sliding past.
-// The sign after the wheels, set as the wheels are.
-.aq__unit {
-  display: block;
-  margin-left: 0.04em;
-  line-height: 1;
-  // The plus sits on the maths axis, a hair under the centre of a lining
-  // figure. Level with the wheels, not with the baseline.
-  transform: translateY(-0.02em);
+.aq__rword {
+  display: flex;
+  align-items: baseline;
+  transition: opacity 0.5s var(--e-out-quart);
 }
 
-.aq__wheel {
-  display: block;
-  overflow: hidden;
-  height: 1em;
-  // Tabular figures are all one width, so the window can be too — otherwise
-  // the columns jostle as a 1 rolls past an 8.
-  width: 0.62em;
+// The capital: the page's rose, and a light of its own that grows as the set
+// completes. Its box is what the halo is centred on.
+.aq__rcap {
+  position: relative;
+  display: inline-block;
 }
 
-// Eleven cells for ten digits: the last is a second zero, so the wrap from
-// nine back round happens inside the strip and never as a jump.
-.aq__strip {
-  display: block;
-  height: 1100%;
+.aq__rglyph {
+  position: relative;
+  z-index: 1;
+  display: inline-block;
+  color: #FEB3B8;
+  text-shadow: 0 0 0.3em rgb(254 179 184 / calc(0.08 + var(--glow, 0) * 0.42));
+  transform-origin: 50% 62%;
+  will-change: transform, opacity, filter;
+}
+
+// The light an R gives off as it lands: soft, rose, and gone by the time the
+// rest of its word has been drawn.
+.aq__rhalo {
+  position: absolute;
+  left: 50%;
+  top: 56%;
+  z-index: 0;
+  width: 1.9em;
+  height: 1.9em;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgb(254 179 184 / 0.4) 0%, rgb(254 179 184 / 0.12) 38%, transparent 68%);
+  opacity: 0;
+  pointer-events: none;
+  will-change: transform, opacity;
+}
+
+/**
+ * The rest of the word, drawn out of its R.
+ *
+ * A soft-edged mask sweeping left to right, with the letters easing out from
+ * behind the capital as it goes: the word reads as growing from its R rather
+ * than as a second thing arriving beside it. The gradient's edge is thirty
+ * percent of the word wide, which is what keeps the sweep from reading as a
+ * wipe.
+ */
+.aq__rrest {
+  --u: 0;
+  display: inline-block;
+  -webkit-mask-image: linear-gradient(90deg, #000 calc(var(--u) * 130% - 30%), transparent calc(var(--u) * 130%));
+  mask-image: linear-gradient(90deg, #000 calc(var(--u) * 130% - 30%), transparent calc(var(--u) * 130%));
+  transform: translate3d(calc((1 - var(--u)) * -0.16em), 0, 0);
   will-change: transform;
+}
 
-  i {
-    display: block;
-    height: calc(100% / 11);
-    font-style: normal;
-  }
+// Read out whole; the split is for the eye.
+.aq__vh {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 /* ---------------------------------------------------------------- the dawn */
@@ -819,7 +881,7 @@ onBeforeUnmount(() => {
   }
 
   .aq__piece,
-  .aq__count {
+  .aq__rs {
     position: relative;
     left: auto;
     top: auto;
@@ -829,6 +891,11 @@ onBeforeUnmount(() => {
 
     li, .aq__payoff { opacity: 1 !important; transform: none !important; }
   }
+
+  // The R's stand whole: every capital landed, every word drawn out.
+  .aq__rglyph { opacity: 1 !important; transform: none !important; filter: none !important; }
+  .aq__rhalo { display: none; }
+  .aq__rrest { --u: 1 !important; }
 
   // No rising light without motion; the sections simply meet.
   .aq__bloom, .aq__dawn { display: none; }

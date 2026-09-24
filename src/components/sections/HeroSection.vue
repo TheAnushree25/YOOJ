@@ -13,8 +13,7 @@ import { HANDS_COUNT, handsFrame, heroImageReady } from "../../lib/hero-image";
  * moves.
  *
  * The statement is the landing. Everything else on the screen is quiet around
- * it: the lockup above, one control below, a note in one corner and an
- * invitation to scroll in the other. The ground is alive the way every ground
+ * it: the lockup above and a note in one corner. The ground is alive the way every ground
  * on the site is - a soft light walking slowly across the blush - and the
  * page's thread, which falls from the lockup behind the words and into the
  * hands, carries a drop of light down its length every few seconds: the eye
@@ -36,8 +35,14 @@ const frame = ref<HTMLElement | null>(null);
 const mark = ref<HTMLElement | null>(null);
 const title = ref<HTMLElement | null>(null);
 const say = ref<HTMLElement | null>(null);
-const cue = ref<HTMLElement | null>(null);
 const mag = ref<HTMLElement | null>(null);
+
+/**
+ * The call to action ("Start your YOOJ journey") is HIDDEN FOR NOW
+ * (2026-09-24). Its markup, pull and styles are all still here; set this to
+ * true to bring it back under the statement.
+ */
+const SHOW_CTA = false;
 
 let sequence: FrameSequence | null = null;
 let trigger: ScrollTrigger | null = null;
@@ -166,8 +171,6 @@ const recede = (p: number, scroll: number) => {
     el.style.transform = `translate3d(0, ${(p * 11).toFixed(3)}vh, 0)`;
     el.style.opacity = (1 - smooth(fade)).toFixed(3);
   }
-  // The invitation has been taken up: gone within the first few steps.
-  if (cue.value) cue.value.style.opacity = Math.max(0, 1 - p * 6).toFixed(3);
 };
 
 onMounted(() => {
@@ -276,7 +279,7 @@ onBeforeUnmount(() => {
           </span>
         </h1>
 
-        <div class="hero__cta">
+        <div v-if="SHOW_CTA" class="hero__cta">
           <RouterLink
             to="/solutions"
             class="hero__go"
@@ -297,13 +300,6 @@ onBeforeUnmount(() => {
           </RouterLink>
         </div>
       </div>
-
-      <p class="hero__cue" aria-hidden="true">
-        <span ref="cue" class="hero__cue-in">
-          <span class="hero__cue-line"><i /></span>
-          Scroll to begin
-        </span>
-      </p>
 
       <p class="hero__aside">{{ aside }}</p>
     </div>
@@ -461,9 +457,9 @@ onBeforeUnmount(() => {
 
 /**
  * The first screen's composition: everything above the film. A column - the
- * lockup at the top, the statement and its control standing in the room that
- * is left, the cue and the note in the lower corners - so it holds its
- * proportions on a window of any shape.
+ * lockup at the top, the statement standing in the room that is left, the
+ * note in the lower corner - so it holds its proportions on a window of any
+ * shape.
  */
 .hero__frame {
   position: relative;
@@ -801,53 +797,7 @@ onBeforeUnmount(() => {
   svg + svg { transform: none; }
 }
 
-/* ------------------------------------------------------- the corners */
-
-// The invitation, in the lower left: the one thing the reader does next.
-.hero__cue {
-  position: absolute;
-  left: var(--gutter);
-  bottom: clamp(1rem, 3.4vh, 2.6rem);
-  z-index: 2;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.9rem;
-  font-family: "Space Grotesk", ui-monospace, monospace;
-  font-size: var(--t-label);
-  letter-spacing: var(--ls-label);
-  text-transform: uppercase;
-  color: rgb(var(--rgb-ink) / 0.55);
-}
-
-.hero__cue-in {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.9rem;
-}
-
-// A short channel with a bead falling through it.
-.hero__cue-line {
-  position: relative;
-  width: 1px;
-  height: 2.2rem;
-  overflow: hidden;
-  background: rgb(var(--rgb-ink) / 0.16);
-
-  i {
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 1px;
-    height: 45%;
-    background: var(--c-indigo);
-    animation: hero-cue 2.2s var(--e-in-out-quart) infinite;
-  }
-}
-
-@keyframes hero-cue {
-  0%   { transform: translate3d(0, -100%, 0); }
-  100% { transform: translate3d(0, 230%, 0); }
-}
+/* ------------------------------------------------------- the corner */
 
 // In the corner, against the right edge, ragged left.
 .hero__aside {
@@ -868,7 +818,6 @@ onBeforeUnmount(() => {
 
 .hero__brand,
 .hero__cta,
-.hero__cue,
 .hero__aside {
   translate: 0 0.9rem;
   transition:
@@ -878,17 +827,14 @@ onBeforeUnmount(() => {
 
 .hero__brand,
 .hero__cta,
-.hero__cue,
 .hero__aside { opacity: 0; }
 
 .hero__cta { transition-delay: 0.62s; }
 .hero__aside { transition-delay: 0.78s; }
-.hero__cue { transition-delay: 0.9s; }
 
 .is-shown {
   .hero__brand,
   .hero__cta,
-  .hero__cue,
   .hero__aside { opacity: 1; translate: none; }
 }
 
@@ -993,10 +939,7 @@ onBeforeUnmount(() => {
 
   .hero__go-label { font-size: 0.95rem; }
 
-  // No corner to stand in: the note goes under the statement, and the hands
-  // below are cue enough.
-  .hero__cue { display: none; }
-
+  // No corner to stand in: the note goes under the statement.
   .hero__aside {
     position: static;
     margin-top: clamp(1.25rem, calc(var(--vh, 1vh) * 3.6), 2.25rem);
@@ -1047,8 +990,6 @@ onBeforeUnmount(() => {
 
   .hero__go-label { font-size: 0.9rem; }
 
-  .hero__cue { display: none; }
-
   .hero__aside {
     position: static;
     margin: clamp(0.9rem, calc(var(--vh, 1vh) * 4.2), 1.4rem) 0 clamp(1rem, calc(var(--vh, 1vh) * 5), 1.6rem);
@@ -1087,8 +1028,7 @@ onBeforeUnmount(() => {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .hero__light i,
-  .hero__cue-line i { animation: none; }
+  .hero__light i { animation: none; }
 
   .is-shown .hero__drop,
   .is-shown .hero__run::after,

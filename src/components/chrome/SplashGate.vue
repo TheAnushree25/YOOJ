@@ -2,6 +2,7 @@
 import { onMounted, ref } from "vue";
 import { SEED_FIELD, SEED_INK, SEED_RINGS } from "../../lib/seed";
 import { preloadSound, primeSound, startAmbient } from "../../lib/sound";
+import BrandMark from "../ui/BrandMark.vue";
 
 const emit = defineEmits<{ press: []; enter: [] }>();
 
@@ -149,7 +150,13 @@ const enter = () => {
       </button>
     </div>
 
-    <p class="sg__word">Healthcare closer to you</p>
+    <!-- Who is behind the gate: the lockup, mark and name, the same pair the
+         header carries. It arrives just behind the rings, so the figure opens
+         first and then says whose it is. -->
+    <p class="sg__brand" :class="{ 'is-open': opened }">
+      <BrandMark class="sg__glyph" />
+      <span class="sg__name">YOOJ</span>
+    </p>
   </div>
 </template>
 
@@ -271,18 +278,58 @@ const enter = () => {
   text-indent: 0.3em;
 }
 
-.sg__word {
+/**
+ * The lockup, where the strapline used to stand.
+ *
+ * Set as the hero sets it — Montserrat semibold, tracked, the mark a little
+ * taller than the capitals — and in the bone of the rings rather than a dimmed
+ * tint: this is a signature, not a caption. It comes in with the figure,
+ * half a second behind the first ring, and settles its tracking as it does,
+ * which is the one gesture here that is about the name rather than the load.
+ */
+.sg__brand {
   position: absolute;
-  bottom: clamp(1.5rem, 5vh, 3rem);
-  font-family: "Space Grotesk", monospace;
-  font-size: var(--t-label);
-  letter-spacing: var(--ls-label);
-  text-transform: uppercase;
-  color: var(--c-bone-dim);
+  bottom: max(clamp(1.6rem, 5.5vh, 3.2rem), calc(var(--safe-b) + 1rem));
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55em;
+  margin: 0;
+  font-family: var(--font-say);
+  font-weight: 600;
+  font-size: clamp(0.95rem, 1.15vw, 1.15rem);
+  line-height: 1;
+  letter-spacing: 0.42em;
+  // The trailing tracking after the J is the only thing on its right; pulled
+  // back so the pair is centred by eye rather than by box.
+  margin-right: -0.42em;
+  color: var(--c-bone);
+  opacity: 0;
+  transform: translate3d(0, 0.6rem, 0);
+  transition:
+    opacity 1.4s var(--e-out-quart) 0.5s,
+    transform 1.6s var(--e-out-expo) 0.5s,
+    letter-spacing 2.2s var(--e-out-expo) 0.5s,
+    margin-right 2.2s var(--e-out-expo) 0.5s;
+
+  &.is-open {
+    opacity: 1;
+    transform: none;
+    letter-spacing: 0.22em;
+    margin-right: -0.22em;
+  }
 }
+
+.sg__glyph {
+  flex: none;
+  width: 1.3em;
+  height: 1.3em;
+}
+
+.sg__name { display: block; }
 
 // The figure is the loading screen; without motion it is simply already open.
 @media (prefers-reduced-motion: reduce) {
   .sg__seed circle { transition: none; }
+  .sg__brand { transition: none; }
 }
 </style>

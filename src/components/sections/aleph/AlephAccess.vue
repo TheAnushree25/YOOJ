@@ -27,18 +27,23 @@ const beat = (from: number, to: number) => ease(clamp01((p.value - from) / (to -
 /**
  * The form the brief asks for: who you are, and how to reach you.
  *
- * Four fields and one choice. Nothing here is sent anywhere yet — there is no
- * endpoint — so the submit is prevented and the markup is kept real, so that
- * connecting it later is a handler rather than a rebuild.
+ * Five fields and one choice, in two columns: the business name and the choice
+ * share the last row, since they are the two halves of one question. Nothing
+ * here is sent anywhere yet — there is no endpoint — so the submit is
+ * prevented and the markup is kept real, so that connecting it later is a
+ * handler rather than a rebuild.
  */
 const fields = [
-  { name: "name", label: "Name", type: "text", autocomplete: "name" },
-  { name: "number", label: "Number", type: "tel", autocomplete: "tel" },
-  { name: "city", label: "City", type: "text", autocomplete: "address-level2" },
-  { name: "email", label: "Email", type: "email", autocomplete: "email" },
+  { name: "name", label: "Name", type: "text", autocomplete: "name", inputmode: "text" },
+  { name: "phone", label: "Phone Number", type: "tel", autocomplete: "tel", inputmode: "tel" },
+  { name: "city", label: "City", type: "text", autocomplete: "address-level2", inputmode: "text" },
+  { name: "email", label: "Email", type: "email", autocomplete: "email", inputmode: "email" },
+  { name: "business", label: "Business Name", type: "text", autocomplete: "organization", inputmode: "text" },
 ] as const;
-const whoOptions = ["Investor", "Clinics", "Pharmacies", "Diagnostics"] as const;
-const entry = ref<Record<string, string>>({ name: "", number: "", city: "", email: "", who: "" });
+const whoOptions = ["Clinic OPDs", "Pathology", "Radiology", "Pharmacy"] as const;
+const entry = ref<Record<string, string>>({
+  name: "", phone: "", city: "", email: "", business: "", who: "",
+});
 
 onMounted(() => {
   if (!root.value) return;
@@ -76,8 +81,8 @@ onBeforeUnmount(() => trigger?.kill());
         transform: `translate3d(0, ${((1 - beat(0.2, 0.44)) * 1).toFixed(2)}rem, 0)`,
       }"
     >
-      YOOJ is building a connected primary-care network for the people who
-      keep India moving. Join us as we build what comes next.
+      YOOJ is building a connected primary-care network along with an existing
+      infrastructure in India.
     </p>
 
     <!-- Nothing is wired to a recipient: there is no endpoint for this yet, and
@@ -99,16 +104,22 @@ onBeforeUnmount(() => trigger?.kill());
           :type="f.type"
           :name="f.name"
           :autocomplete="f.autocomplete"
+          :inputmode="f.inputmode"
           :placeholder="f.label"
           data-cursor="scale"
         >
       </label>
-      <label class="ac__field ac__field--who">
+      <label class="ac__field ac__field--who" :class="{ 'is-set': entry.who }">
         <span class="ac__vh">You are</span>
         <select v-model="entry.who" name="who" data-cursor="scale">
           <option value="" disabled>You are</option>
           <option v-for="w in whoOptions" :key="w" :value="w">{{ w }}</option>
         </select>
+        <!-- A pill with nothing to say it opens reads as one more field to
+             type in; the chevron is the only thing that says "choose". -->
+        <svg class="ac__chev" viewBox="0 0 12 8" aria-hidden="true" focusable="false">
+          <path d="M1 1.5 L6 6.5 L11 1.5" />
+        </svg>
       </label>
       <button type="submit" class="ac__go" data-cursor="scale">Get in touch</button>
     </form>
@@ -178,8 +189,11 @@ onBeforeUnmount(() => trigger?.kill());
   span { display: block; will-change: transform, opacity; }
 }
 
+// Two even lines rather than two and an orphan: at 28rem the sentence left
+// "India." standing on a line of its own.
 .ac__copy {
-  max-width: 28rem;
+  max-width: 31rem;
+  text-wrap: balance;
   color: rgb(255 245 246 / 0.82);
   margin: 0;
   font-size: var(--ta-body);
@@ -235,9 +249,43 @@ onBeforeUnmount(() => trigger?.kill());
 .ac__field select {
   appearance: none;
   cursor: pointer;
+  // Room for the chevron, so a long choice never runs under it.
+  padding-right: 3rem;
 }
 
-.ac__field--who { grid-column: 1 / -1; }
+// Beside the business name, not across the card: the choice is the second
+// half of the same question.
+.ac__field--who {
+  position: relative;
+
+  // Until something is chosen, "You are" is a prompt like the placeholders
+  // beside it, and is set in their tint rather than as an answer.
+  &:not(.is-set) select { color: rgb(60 1 14 / 0.45); }
+}
+
+.ac__chev {
+  position: absolute;
+  right: 1.4rem;
+  top: 50%;
+  width: 0.7rem;
+  height: 0.7rem;
+  translate: 0 -50%;
+  overflow: visible;
+  pointer-events: none;
+
+  path {
+    fill: none;
+    stroke: var(--ga-ink);
+    stroke-width: 1.4;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    vector-effect: non-scaling-stroke;
+  }
+}
+
+// The options list is drawn by the system, on its own ground, and would
+// otherwise inherit the prompt's tint.
+.ac__field option { color: var(--ga-ink); }
 
 .ac__go {
   grid-column: 1 / -1;

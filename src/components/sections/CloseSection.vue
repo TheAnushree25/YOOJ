@@ -17,11 +17,11 @@ import ActionButton from "../ui/ActionButton.vue";
 
 const emit = defineEmits<{ jump: [id: string] }>();
 
-const title = ["Healthcare", "closer", "to you"];
+const title = ["Better health", "for more lives", "everyday"];
 
 const nav = [
   { id: "reconnect", label: "Reconnecting healthcare" },
-  { id: "frontier", label: "Beyond fragmented care" },
+  { id: "frontier", label: "The future of healthcare" },
   // 4 R'S SECTION - hidden for now, so its link is too: it would jump to a
   // section that is not on the page. Uncomment with the section (HomeView).
   // { id: "tenets", label: "The 4 R’s" },
@@ -30,7 +30,6 @@ const nav = [
 const reach = [
   { label: "Email", href: "mailto:hello@yooj.example" },
   { label: "LinkedIn", href: "#" },
-  { label: "Press", href: "#" },
 ];
 
 const year = new Date().getFullYear();
@@ -79,7 +78,7 @@ const year = new Date().getFullYear();
     </div>
 
     <div class="cl__base">
-      <p>{{ year }} YOOJ &mdash; At heart of you</p>
+      <p>&copy; YOOJ {{ year }}. All Rights Reserved</p>
       <p class="cl__credit">Built in the open</p>
     </div>
   </footer>
