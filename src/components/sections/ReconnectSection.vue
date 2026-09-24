@@ -40,6 +40,18 @@ let arrival: ReturnType<typeof scrubThrough> = null;
 const P0 = 0.213;
 
 /**
+ * Where the section's travel now ends, on the same timeline.
+ *
+ * There were three passages; the first ("Not someday. Not only when things
+ * get serious. Every day.") is cut (2026-09-24). Its slot, 0.28 to 0.45, runs
+ * under the dome's last climb, so it could not simply be skipped: the next
+ * passage takes its place instead, and every beat after it comes forward by
+ * the 0.17 the cut passage used to hold. The timeline ends that much sooner,
+ * and the section is shorter by exactly that part (see `.rc`).
+ */
+const END = 0.83;
+
+/**
  * The approach, on its own clock: the stage sliding up into place under the
  * hero. The perspective screen makes its entrance on this, so it is settled
  * by the moment the stage locks rather than beginning then.
@@ -57,24 +69,22 @@ const ease = (t: number) => t * t * (3 - 2 * t);
 const beat = (from: number, to: number) => ease(span(from, to));
 
 /**
- * Three passages, read in turn over the dome once it has risen.
+ * Two passages, read in turn over the dome once it has risen.
  *
- * Each arrives a line at a time in the same low-left slot, holds, and leaves
- * before the next takes its place — so the slot reads as one voice saying
- * three things rather than three blocks stacked. Every entry has to fit the
- * measure on one line: the mask that reveals a line clips whatever sits below
- * it, so an entry long enough to wrap slides up as a two-line block with its
- * own second line cut in half for the length of the reveal.
+ * Each arrives a line at a time, holds, and leaves before the next takes its
+ * place. The first stands in the middle of the frame, centred under the ring
+ * and a size up (`centred`); the second is read low and left, where the rail
+ * above it leaves room. Every entry has to fit the measure on one line: the
+ * mask that reveals a line clips whatever sits below it, so an entry long
+ * enough to wrap slides up as a two-line block with its own second line cut
+ * in half for the length of the reveal.
  *
  * `at` is where a passage begins arriving and `to` where it has gone.
  */
 const passages = [
   {
-    at: 0.28, to: 0.45,
-    lines: ["Not someday.", "Not only when things get serious.", "Every day."],
-  },
-  {
-    at: 0.45, to: 0.65,
+    at: 0.28, to: 0.48,
+    centred: true,
     lines: [
       "YOOJ exists to make quality",
       "primary healthcare accessible,",
@@ -83,7 +93,8 @@ const passages = [
     ],
   },
   {
-    at: 0.65, to: 0.87,
+    at: 0.48, to: 0.70,
+    centred: false,
     lines: [
       "Primary healthcare operates in fragments,",
       "with every visit treated as a separate event,",
@@ -95,7 +106,7 @@ const passages = [
 ] as const;
 
 /**
- * The fragmented journey, as the third passage describes it.
+ * The fragmented journey, as the second passage describes it.
  *
  * "Leaving patients to carry their history from doctor to pharmacy to
  * diagnostics and back again" is the argument; this is that sentence drawn.
@@ -134,23 +145,23 @@ const ARCS = [
  * as a settling rather than as something dragged - the same gesture whichever
  * direction the reader came from.
  */
-const ARC_BEARING = [0, 41, 78, 78];
+const ARC_BEARING = [0, 41, 78];
 
 const arcTurn = () => ARC_BEARING[Math.min(step().index, ARC_BEARING.length - 1)];
 
 /**
  * The field is the passages' own ground, and it hands over to the rail.
  *
- * It stands through the first two passages, and is gone before the journey
+ * It stands through the first passage, and is gone before the journey
  * begins - one thing in the middle of the frame at a time.
  */
-const arcsHold = () => beat(0.29, 0.35) - beat(0.585, 0.645);
+const arcsHold = () => beat(0.29, 0.35) - beat(0.415, 0.475);
 
 /**
  * The order of the middle of the frame, start to finish:
  *
- *   arcs (passage one, then turned for passage two)
- *   rail (passage three - the journey the passage describes)
+ *   arcs (passage one)
+ *   rail (passage two - the journey the passage describes)
  *   figure (the turn - the gate's own pattern, completed)
  *
  * Never two of them at once.
@@ -160,7 +171,7 @@ const arcsHold = () => beat(0.29, 0.35) - beat(0.585, 0.645);
 const step = () => {
   const i = passages.findIndex((x) => p.value >= x.at && p.value < x.to);
   if (i >= 0) return { index: i, progress: span(passages[i].at, passages[i].to) };
-  if (p.value >= 0.87) return { index: 3, progress: span(0.87, 1) };
+  if (p.value >= 0.70) return { index: passages.length, progress: span(0.70, END) };
   return { index: 0, progress: 0 };
 };
 
@@ -171,7 +182,7 @@ const lineIn = (pass: { at: number }, i: number) =>
 /**
  * The rings: contours first, the flower last.
  *
- * Through the three passages the eight outer rings hang close around the
+ * Through the passages the eight outer rings hang close around the
  * centre and drift with the reader's travel — spreading a little, turning a
  * little, each at a slightly different rate so the cluster never moves as one
  * piece. It reads as contour lines shifting under the words, not as a drawing
@@ -184,8 +195,8 @@ const lineIn = (pass: { at: number }, i: number) =>
  */
 const ring = (i: number) => {
   const o = SEED_RINGS[i] ?? [0, 0];
-  const drift = beat(0.30, 0.87);
-  const resolve = beat(0.87, 0.95);
+  const drift = beat(0.30, 0.70);
+  const resolve = beat(0.70, 0.78);
   if (i === 0) return { opacity: resolve, transform: "translate(0px, 0px)" };
 
   const own = 0.8 + 0.4 * ((i * 0.618) % 1);
@@ -256,16 +267,16 @@ const turn = (
 
 /** A word's brightness in the closing beat. The edge runs ahead of itself. */
 const told = (i: number) => {
-  const head = beat(0.89, 0.985) * (turn.length * 1.2);
+  const head = beat(0.72, 0.815) * (turn.length * 1.2);
   return 0.16 + Math.min(1, Math.max(0, (head - i) / (turn.length * 0.2))) * 0.84;
 };
 
 
 onMounted(() => {
   if (!root.value) return;
-  if (reduced) { p.value = 1; entry.value = 1; return; }
+  if (reduced) { p.value = END; entry.value = 1; return; }
   p.value = P0;
-  trigger = scrubThrough(root.value, (v) => (p.value = P0 + v * (1 - P0)), {
+  trigger = scrubThrough(root.value, (v) => (p.value = P0 + v * (END - P0)), {
     start: "top top",
     end: "bottom bottom",
   });
@@ -318,7 +329,7 @@ onBeforeUnmount(() => { trigger?.kill(); arrival?.kill(); });
            turn is read. -->
       <div
         class="rc__bloom"
-        :style="{ opacity: beat(0.8, 0.96), transform: `scale(${(0.6 + beat(0.8, 1) * 0.8).toFixed(3)})` }"
+        :style="{ opacity: beat(0.63, 0.79), transform: `scale(${(0.6 + beat(0.63, END) * 0.8).toFixed(3)})` }"
         aria-hidden="true"
       />
 
@@ -327,7 +338,7 @@ onBeforeUnmount(() => { trigger?.kill(); arrival?.kill(); });
       <StepRing
         class="rc__ring"
         :index="step().index"
-        :total="4"
+        :total="passages.length + 1"
         :progress="step().progress"
         light
         :style="{ opacity: beat(0.30, 0.36) }"
@@ -344,14 +355,14 @@ onBeforeUnmount(() => { trigger?.kill(); arrival?.kill(); });
         </svg>
       </div>
 
-      <!-- The journey the third passage is about: a continuous rail of the
+      <!-- The journey the second passage is about: a continuous rail of the
            stops a patient carries their own history between. Two identical
            runs of the list side by side, translated by exactly half the
            track, so the seam never arrives. Hidden from the reader in the
            accessibility tree - the sentence beneath already says it. -->
       <div
         class="rc__rail"
-        :style="{ opacity: beat(0.66, 0.72) - beat(0.78, 0.815) }"
+        :style="{ opacity: beat(0.49, 0.55) - beat(0.61, 0.645) }"
         aria-hidden="true"
       >
         <div class="rc__rail-track">
@@ -364,13 +375,14 @@ onBeforeUnmount(() => { trigger?.kill(); arrival?.kill(); });
         </div>
       </div>
 
-      <!-- Beats two to four: the three passages, low and left over the dome,
-           each arriving a line at a time and gone before the next. They share
-           one slot, so each lands where the last stood. -->
+      <!-- Beats two and three: the two passages over the dome, each arriving
+           a line at a time and gone before the next - the first centred in
+           the frame, the second low and left. -->
       <div
         v-for="(pass, n) in passages"
         :key="n"
         class="rc__argument"
+        :class="{ 'rc__argument--centred': pass.centred }"
         :style="{ opacity: beat(pass.at, pass.at + 0.05) - beat(pass.to - 0.04, pass.to) }"
         :aria-hidden="p < pass.at || p > pass.to"
       >
@@ -387,7 +399,7 @@ onBeforeUnmount(() => { trigger?.kill(); arrival?.kill(); });
            passages they are contours — close, faint, drifting with the
            scroll, no hub. At the turn they resolve into the figure the site
            opened with, and the copy arrives beside it. See ring(). -->
-      <div class="rc__turn" :style="{ opacity: beat(0.82, 0.875) }">
+      <div class="rc__turn" :style="{ opacity: beat(0.65, 0.705) }">
         <svg class="rc__seed" :viewBox="`0 0 ${SEED_FIELD.w} ${SEED_FIELD.h}`" aria-hidden="true">
           <!-- Struck from the centre and carried out to their places, exactly
                as the gate opens. Same figure, same gesture, second time. -->
@@ -412,7 +424,7 @@ onBeforeUnmount(() => { trigger?.kill(); arrival?.kill(); });
             :y="SEED_FIELD.cy"
             text-anchor="middle"
             dominant-baseline="central"
-            :style="{ opacity: beat(0.93, 0.985) }"
+            :style="{ opacity: beat(0.76, 0.815) }"
           >YOOJ</text>
         </svg>
 
@@ -420,14 +432,14 @@ onBeforeUnmount(() => { trigger?.kill(); arrival?.kill(); });
              for the rings; the words belong to the turn, and before it they
              must not show — they sit at a dim base until they are read, and
              dim is not invisible. -->
-        <p class="rc__turn-copy" :style="{ opacity: beat(0.87, 0.91) }" :aria-hidden="p < 0.87">
+        <p class="rc__turn-copy" :style="{ opacity: beat(0.70, 0.74) }" :aria-hidden="p < 0.70">
           <span v-for="(w, i) in turn" :key="i" :style="{ opacity: told(i) }">{{ `${w} ` }}</span>
         </p>
       </div>
 
       <!-- The standing marker, swapping its word as the argument turns. -->
       <p class="label rc__marker" :style="{ opacity: beat(0.26, 0.34) }">
-        {{ p > 0.88 ? "YOOJ" : "Reconnecting healthcare" }}
+        {{ p > 0.71 ? "YOOJ" : "Reconnecting healthcare" }}
       </p>
     </div>
   </section>
@@ -439,12 +451,13 @@ onBeforeUnmount(() => { trigger?.kill(); arrival?.kill(); });
 // The stage inside holds for all of this, so it is a duration rather than a
 // height. It was eleven viewports for five beats - a statement, three passages
 // over the risen dome, and the turn at the end - with the statement's slice
-// now cut (see P0): 1080 x (1 - 0.213). The passages keep their pace; each
-// still holds for the better part of a viewport once its lines are in.
+// cut (see P0) and then the first passage's (see END): 1080 x (0.83 - 0.213).
+// The passages keep their pace; each still holds for the better part of a
+// viewport once its lines are in.
 .rc {
   position: relative;
-  height: 850vh;
-  height: calc(var(--sv) * 850);
+  height: 666vh;
+  height: calc(var(--sv) * 666);
 }
 
 .rc__stage {
@@ -534,6 +547,21 @@ onBeforeUnmount(() => { trigger?.kill(); arrival?.kill(); });
   line-height: 1.45;
   font-weight: 250;
   color: var(--c-bone);
+}
+
+// The first passage: alone in the middle of the frame, under the ring, each
+// line centred, and a size up from the second. As wide as its longest line,
+// so it is centred on the frame rather than on a column.
+.rc__argument--centred {
+  left: 50%;
+  top: 50%;
+  bottom: auto;
+  width: max-content;
+  max-width: calc(100vw - var(--gutter) * 2);
+  transform: translate(-50%, -50%);
+  text-align: center;
+
+  .rc__argument-copy { font-size: clamp(1.2rem, 1.9vw, 1.8rem); }
 }
 
 // The closing bloom, frame-relative and over the dome, under the words.
@@ -900,6 +928,9 @@ onBeforeUnmount(() => { trigger?.kill(); arrival?.kill(); });
 @include phone {
   .rc__argument-copy { font-size: clamp(0.94rem, 4.1vw, 1.08rem); }
 
+  // Still a size up, and every line still whole at 320px.
+  .rc__argument--centred .rc__argument-copy { font-size: clamp(1.1rem, 4.9vw, 1.3rem); }
+
   // The marker wraps before it reaches the sound control in the corner;
   // on a 320px phone "Reconnecting healthcare" ran underneath it.
   .rc__marker { right: calc(var(--gutter) + 4.6rem); }
@@ -932,6 +963,14 @@ onBeforeUnmount(() => { trigger?.kill(); arrival?.kill(); });
   .rc__argument { bottom: clamp(2.25rem, calc(var(--vh, 1vh) * 10), 4rem); }
 
   .rc__argument-copy { font-size: 0.95rem; }
+
+  // Held by its middle, not its foot: a bottom as well as a top would
+  // stretch it between the two.
+  .rc__argument--centred {
+    bottom: auto;
+
+    .rc__argument-copy { font-size: 1.15rem; }
+  }
 
   .rc__turn {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);

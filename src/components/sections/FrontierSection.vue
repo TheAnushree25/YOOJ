@@ -200,12 +200,6 @@ const flight = () => ({
 
 const title = ["Building", "the future of", "everyday healthcare"];
 
-const body =
-  "YOOJ connects qualified local doctors, pharmacies and diagnostics through a "
-  + "common standard, shared infrastructure and one continuous patient record — "
-  + "making everyday healthcare more accessible, consistent and trusted across "
-  + "Tier 2 and Tier 3 India.";
-
 /**
  * The three tiles. The first is the traveller, already on screen for the whole
  * section; the other two are struck in beneath it once it lands.
@@ -240,6 +234,14 @@ const tiles = [
 ] as const;
 
 /**
+ * The reading panel is HIDDEN FOR NOW (2026-09-24): pressing a tile opens
+ * nothing, and the tiles are not offered as controls. A pointer's hover still
+ * swaps each tile's word for its sentence. The panel, its copy and its styles
+ * are all still here; set this to true to bring it back.
+ */
+const SHOW_PANEL = false;
+
+/**
  * Which tile has been opened, if any.
  *
  * The figure is the index and the panel is the page. Opening one slides the
@@ -266,7 +268,7 @@ const ready = computed(() => p.value >= READY);
 const reveal = (i: number) => {
   // Only once the figure has landed. Mid-flight the apex tile is somewhere
   // across the frame, and a panel opened from it would have no anchor.
-  if (!ready.value) return;
+  if (!SHOW_PANEL || !ready.value) return;
   open.value = open.value === i ? null : i;
 };
 
@@ -280,17 +282,12 @@ watch(ready, (now) => { if (!now) close(); });
 const copyY = () => -beat(0.05, 0.52) * 146;
 
 /**
- * And fades as it goes.
- *
- * Travel alone is not enough to clear it: the thread beside the paragraph is
- * over half a viewport tall, so its tail was still cutting across the top of
- * the frame long after the words had left. A fade does not depend on anyone
+ * And fades as it goes, so clearing the frame does not depend on anyone
  * having measured the tallest part correctly.
  *
- * Sooner on the compact layouts: there the statement and the note are one
- * short column, so the note meets the header's bar far earlier in the travel
- * than it does on a wide screen. It is gone by the time it gets there, rather
- * than passing under the menu word.
+ * Sooner on the compact layouts, where the statement meets the header's bar
+ * far earlier in the travel than it does on a wide screen. It is gone by the
+ * time it gets there, rather than passing under the menu word.
  */
 const copyFade = () => (compact.value ? 1 - beat(0.05, 0.2) : 1 - beat(0.44, 0.54));
 
@@ -338,21 +335,10 @@ onBeforeUnmount(() => { trigger?.kill(); arrival?.kill(); });
             </span>
           </span>
         </h2>
-
-        <div class="fr__note">
-          <svg class="fr__thread" viewBox="0 0 60 420" preserveAspectRatio="none" aria-hidden="true">
-            <path
-              d="M 1 0 L 1 196 C 1 244 40 252 40 300 L 40 420"
-              :style="{ strokeDashoffset: (1 - arrive(0.55, 1)) * 640 }"
-            />
-          </svg>
-          <p class="fr__eyebrow">The YOOJ network</p>
-          <p class="fr__body">{{ body }}</p>
-        </div>
       </div>
 
       <!-- Beats two and three: the flight, and the figure it resolves into. -->
-      <div class="fr__trio" :class="{ 'is-aside': isOpen }">
+      <div class="fr__trio" :class="{ 'is-aside': isOpen, 'is-live': SHOW_PANEL }">
         <div
           v-for="(tile, i) in tiles"
           :key="tile.slot"
@@ -361,9 +347,9 @@ onBeforeUnmount(() => { trigger?.kill(); arrival?.kill(); });
           :style="i === 0
             ? flight()
             : { opacity: beat(0.56 + (i - 1) * 0.05, 0.74), transform: `translateY(${(1 - beat(0.56 + (i - 1) * 0.05, 0.74)) * 14}px)` }"
-          :aria-expanded="open === i"
-          role="button"
-          :tabindex="ready ? 0 : -1"
+          :aria-expanded="SHOW_PANEL ? open === i : undefined"
+          :role="SHOW_PANEL ? 'button' : undefined"
+          :tabindex="SHOW_PANEL ? (ready ? 0 : -1) : undefined"
           @click="reveal(i)"
           @keydown.enter.prevent="reveal(i)"
           @keydown.space.prevent="reveal(i)"
@@ -388,8 +374,10 @@ onBeforeUnmount(() => { trigger?.kill(); arrival?.kill(); });
       <!-- The reading. Off to the right until a tile is opened - or, held
            upright, below the foot of the screen. On the compact layouts it
            can be taller than the room it has, so it scrolls in itself there,
-           and the page's engine leaves that scroll to the browser. -->
+           and the page's engine leaves that scroll to the browser. Hidden for
+           now: see SHOW_PANEL. -->
       <aside
+        v-if="SHOW_PANEL"
         class="fr__panel"
         :class="{ 'is-open': isOpen, 'is-sheet': stacked }"
         :aria-hidden="!isOpen"
@@ -408,8 +396,6 @@ onBeforeUnmount(() => { trigger?.kill(); arrival?.kill(); });
           <p class="fr__panel-copy">{{ shown.body }}</p>
         </div>
       </aside>
-
-      <p class="fr__marker">{{ ready ? "Three ways in" : "Beyond fragmented care" }}</p>
     </div>
   </section>
 </template>
@@ -417,12 +403,14 @@ onBeforeUnmount(() => { trigger?.kill(); arrival?.kill(); });
 <style scoped lang="scss">
 @use "../../styles/media" as *;
 
-// Four and a half viewports of travel. The stage holds for all of it, so this
-// is a duration rather than a height.
+// The stage holds for all of this, so it is a duration rather than a height.
+// It was 460 while a paragraph was read beside the statement; with that gone
+// (2026-09-24) the flight is the same flight over less travel, so the figure
+// assembles that much sooner.
 .fr {
   position: relative;
-  height: 460vh;
-  height: calc(var(--sv) * 460);
+  height: 360vh;
+  height: calc(var(--sv) * 360);
 }
 
 .fr__stage {
@@ -480,64 +468,6 @@ onBeforeUnmount(() => { trigger?.kill(); arrival?.kill(); });
   margin: -0.08em 0 -0.2em;
 
   > span { display: block; will-change: transform; }
-}
-
-// Set off-centre and measured narrow, the way a note in a margin is. Centred
-// under a centred heading it would read as a second heading.
-.fr__note {
-  position: relative;
-  margin: clamp(9rem, 26vh, 16rem) auto 0;
-  padding-left: clamp(1.4rem, 3.4vw, 3rem);
-  width: min(38ch, 78vw);
-
-  @media (min-width: 60rem) {
-    margin-left: 50%;
-    margin-right: 0;
-  }
-}
-
-.fr__thread {
-  position: absolute;
-  left: 0;
-  top: -0.4rem;
-  width: 3.2rem;
-  height: clamp(22rem, 52vh, 34rem);
-  overflow: visible;
-
-  path {
-    fill: none;
-    stroke: rgb(var(--rgb-action) / 0.22);
-    stroke-width: 1;
-    vector-effect: non-scaling-stroke;
-    stroke-dasharray: 640;
-  }
-}
-
-.fr__eyebrow {
-  font-family: "Space Grotesk", ui-monospace, monospace;
-  font-size: var(--t-label);
-  letter-spacing: var(--ls-label);
-  text-transform: uppercase;
-  color: var(--c-accent-dim);
-  margin-bottom: clamp(1rem, 2.4vh, 1.6rem);
-
-  &::before {
-    content: "";
-    display: inline-block;
-    width: 0.36em;
-    height: 0.36em;
-    margin-right: 0.9em;
-    vertical-align: 0.18em;
-    border-radius: 50%;
-    background: var(--c-accent);
-  }
-}
-
-.fr__body {
-  font-size: var(--t-lead);
-  line-height: 1.5;
-  font-weight: 250;
-  color: rgb(var(--rgb-ink) / 0.72);
 }
 
 /* -------------------------------------------------------------- the tiles */
@@ -669,8 +599,8 @@ onBeforeUnmount(() => { trigger?.kill(); arrival?.kill(); });
 .is-lead .fr__label,
 .is-lead .fr__plus { color: var(--c-bone); }
 
-// All three are controls once the figure has landed. Pointer events stay off
-// the traveller until then — a hover target moving across the frame is a trap.
+// All three answer a pointer's hover. While the reading panel is shown they
+// are controls as well (`is-live`), and only then do they offer a hand.
 //
 // The hover is for a pointer only. On a touch screen it stuck to whichever
 // tile had last been tapped, so a second tile read as selected beside the one
@@ -679,7 +609,8 @@ onBeforeUnmount(() => { trigger?.kill(); arrival?.kill(); });
 .fr__tile--left,
 .fr__tile--right {
   pointer-events: auto;
-  cursor: pointer;
+
+  .fr__trio.is-live & { cursor: pointer; }
 
   &:focus-visible {
     .fr__face { opacity: 1; }
@@ -810,18 +741,6 @@ onBeforeUnmount(() => { trigger?.kill(); arrival?.kill(); });
   filter: saturate(0.55);
 }
 
-.fr__marker {
-  position: absolute;
-  left: var(--gutter);
-  bottom: clamp(1.6rem, 4.5vh, 2.8rem);
-  z-index: 4;
-  font-family: "Space Grotesk", ui-monospace, monospace;
-  font-size: var(--t-label);
-  letter-spacing: var(--ls-label);
-  text-transform: uppercase;
-  color: var(--c-accent-dim);
-}
-
 /* ---------------------------------------------------------- compact layouts */
 
 /**
@@ -866,8 +785,8 @@ onBeforeUnmount(() => { trigger?.kill(); arrival?.kill(); });
 
   .fr__plus { font-size: clamp(0.75rem, 8cqi, 1rem); }
 
-  // The sentence a pointer's hover swaps in has no room in a tile this size;
-  // it is in the reading, one tap away. The word stays.
+  // The sentence a pointer's hover swaps in has no room in a tile this size.
+  // The word stays.
   .fr__caption { display: none; }
 
   .fr__tile:focus-visible .fr__label { opacity: 1; }
@@ -876,32 +795,11 @@ onBeforeUnmount(() => { trigger?.kill(); arrival?.kill(); });
     .fr__tile:hover .fr__label { opacity: 1; }
   }
 
-  // Clear of the sound control in the corner: "Beyond fragmented care" ran
-  // underneath it on a small phone.
-  .fr__marker { right: calc(var(--gutter) + 4.6rem); }
-
-  // The statement and the note, as one short column. The heading is keyed to
-  // the width so "everyday healthcare" holds one line on a 320px phone - at
-  // the desktop ramp's floor it broke onto a fourth, and the note's last line
-  // landed on the marker at the foot of the frame.
+  // The heading is keyed to the width so "everyday healthcare" holds one line
+  // on a 320px phone - at the desktop ramp's floor it broke onto a fourth.
   .fr__copy { padding-top: clamp(4.75rem, 14vh, 8rem); }
 
   .fr__title { font-size: clamp(1.75rem, 8.8vw, 3.4rem); }
-
-  .fr__note {
-    margin: clamp(1.5rem, 4.5vh, 3rem) auto 0;
-    width: min(38ch, 100%);
-    padding-left: clamp(1.1rem, 4vw, 1.75rem);
-  }
-
-  .fr__body { font-size: clamp(0.94rem, 4vw, 1.1rem); }
-
-  // Only as long as the note, and narrow enough that its step sideways stays
-  // in the margin: at full width the step crossed the paragraph.
-  .fr__thread {
-    width: 0.9rem;
-    height: calc(100% + 1.25rem);
-  }
 
   .fr__panel {
     width: min(26rem, 54%);
@@ -1004,37 +902,13 @@ onBeforeUnmount(() => { trigger?.kill(); arrival?.kill(); });
 }
 
 /**
- * A phone on its side: the statement and the note side by side, because
- * there is not the height to stack them - the note used to start below the
- * foot of the screen and was only ever seen passing through.
+ * A phone on its side: the statement sized to the height, which is the one
+ * thing this screen does not have.
  */
 @include short {
-  .fr__copy {
-    display: grid;
-    grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
-    align-items: center;
-    column-gap: clamp(1.5rem, 5vw, 3rem);
-    padding: 3.5rem var(--gutter) 2.75rem;
-  }
+  .fr__copy { padding-top: 3.5rem; }
 
-  .fr__title {
-    margin: 0;
-    max-width: 14ch;
-    text-align: left;
-    font-size: clamp(1.75rem, 4.4vw, 2.6rem);
-  }
-
-  .fr__note {
-    margin: 0;
-    width: auto;
-  }
-
-  .fr__eyebrow { margin-bottom: 0.75rem; }
-
-  .fr__body {
-    font-size: 0.9rem;
-    line-height: 1.5;
-  }
+  .fr__title { font-size: clamp(1.75rem, 4.4vw, 2.6rem); }
 
   // The reading is taller than this screen: it scrolls, starting under its
   // close control, which stays below the header's bar as it does everywhere.
@@ -1092,8 +966,6 @@ onBeforeUnmount(() => { trigger?.kill(); arrival?.kill(); });
     padding-top: 0;
     transform: none !important;
   }
-
-  .fr__note { margin-top: clamp(2rem, 6vh, 3.5rem); }
 
   .fr__trio {
     position: relative;

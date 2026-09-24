@@ -56,7 +56,7 @@ let backdrop: Backdrop | null = null;
 const chapters = [
   { id: "top", label: "Vision" },
   { id: "reconnect", label: "Reconnecting healthcare" },
-  { id: "frontier", label: "Beyond fragmented care" },
+  { id: "frontier", label: "The future of healthcare" },
   { id: "town", label: "The solution" },
   { id: "centre", label: "Primary care centre" },
   // Both hidden with their sections; uncomment together. See the imports above.
