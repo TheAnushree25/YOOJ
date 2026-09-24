@@ -1,15 +1,17 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref } from "vue";
 import { prefersReduced, scrubThrough } from "../../../composables/useMotion";
-import { scramble } from "../../../composables/useScramble";
 import { pageScrollTo } from "../../../composables/useSmoothScroll";
 
 /**
- * The Aleph page opens.
+ * The questions: one card at a time, each lighting a word at a time as the
+ * reader travels.
  *
- * Two beats in one held frame. The statement is centred and settles out of
- * noise; then it leaves upward and the questions begin arriving, one card at a
- * time, each lighting a word at a time as the reader travels.
+ * QUESTIONS SECTION - hidden for now: AlephView has it commented out, import
+ * and all. This section used to open on the page's title and a statement; the
+ * title now stands at the end of the line in AlephMeet and the statement was
+ * cut, so what is left here is the deck alone, and bringing it back is a
+ * matter of uncommenting the two lines in AlephView.
  *
  * Sticky stage rather than a pinned ScrollTrigger, for the reason recorded
  * across the front page: a pinned element becomes `fixed`, reports an offset
@@ -25,13 +27,6 @@ const clamp01 = (v: number) => Math.min(1, Math.max(0, v));
 const ease = (t: number) => t * t * (3 - 2 * t);
 const beat = (from: number, to: number) => ease(clamp01((p.value - from) / (to - from)));
 
-const title = ["Your care,", "mapped."];
-
-const statement =
-  "Behind every YOOJ visit is a connected system designed to move the patient "
-  + "from consultation to medicines to diagnostics and back again — without "
-  + "rebuilding the entire journey each time.";
-
 /** Mock copy, to the reference's own lengths. */
 const questions = [
   "Where does the consultation go?",
@@ -44,8 +39,8 @@ const questions = [
 
 const words = questions.map((q) => q.split(" "));
 
-/** The statement holds the frame, then clears out of the questions' way. */
-const TITLE_END = 0.22;
+/** A short run-in while the deck fades up, then one slice per question. */
+const TITLE_END = 0.08;
 const SLICE = (1 - TITLE_END) / questions.length;
 
 const active = () =>
@@ -138,23 +133,8 @@ const advance = () => {
   pageScrollTo(root.value.offsetTop + target * span, 1.25);
 };
 
-/* -------------------------------------------------------------- the decode */
-
-const statementEl = ref<HTMLElement | null>(null);
-let running: ReturnType<typeof scramble> | null = null;
-
 onMounted(() => {
   if (!root.value) return;
-
-  if (!prefersReduced() && statementEl.value) {
-    // Held a beat so the frame is settled before anything starts resolving —
-    // a decode that begins during the page's own entrance reads as a glitch
-    // rather than as a value arriving.
-    setTimeout(() => {
-      if (statementEl.value) running = scramble(statementEl.value, { dwell: 260, stagger: 7 });
-    }, 420);
-  }
-
   if (prefersReduced()) { p.value = TITLE_END + SLICE * 0.6; return; }
   trigger = scrubThrough(root.value, (v) => (p.value = v), {
     start: "top top",
@@ -162,30 +142,13 @@ onMounted(() => {
   });
 });
 
-onBeforeUnmount(() => {
-  trigger?.kill();
-  running?.stop();
-});
+onBeforeUnmount(() => trigger?.kill());
 </script>
 
 <template>
   <section id="aleph-top" ref="root" class="ah">
     <div class="ah__stage">
-      <!-- Beat one: the statement, centred, clearing as the questions begin. -->
-      <div
-        class="ah__open"
-        :style="{
-          opacity: 1 - beat(TITLE_END * 0.6, TITLE_END),
-          transform: `translate3d(0, ${-beat(TITLE_END * 0.6, TITLE_END) * 9}vh, 0)`,
-        }"
-      >
-        <h1 class="ah__title">
-          <span v-for="line in title" :key="line">{{ line }}</span>
-        </h1>
-        <p ref="statementEl" class="ah__statement">{{ statement }}</p>
-      </div>
-
-      <!-- Beat two: the questions, one being read and the next one waiting. -->
+      <!-- The questions, one being read and the next one waiting. -->
       <div class="ah__deck" :style="{ opacity: beat(TITLE_END * 0.72, TITLE_END + 0.05) }">
         <article
           v-for="(q, i) in questions"
@@ -235,11 +198,11 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped lang="scss">
-// One viewport per question, plus one for the statement to hold on.
+// A little under one viewport per question, and a short run-in.
 .ah {
   position: relative;
-  height: 460vh;
-  height: calc(var(--sv) * 460);
+  height: 400vh;
+  height: calc(var(--sv) * 400);
 }
 
 .ah__stage {
@@ -254,43 +217,7 @@ onBeforeUnmount(() => {
   isolation: isolate;
 }
 
-/* ---------------------------------------------------------------- beat one */
-
-.ah__open {
-  position: absolute;
-  display: grid;
-  justify-items: center;
-  gap: clamp(1.4rem, 3.6vh, 2.4rem);
-  width: min(48rem, 92vw);
-  text-align: center;
-  will-change: transform, opacity;
-}
-
-// 80px / lh 80 / -2px at 1440, which is the reference's own display step.
-.ah__title {
-  font-size: var(--ta-display);
-  line-height: var(--la-display);
-  letter-spacing: var(--ls-display);
-  font-weight: 200;
-  color: var(--ga-ink);
-
-  span { display: block; }
-}
-
-// 20px / lh 28, centred, 480px wide — measured, not chosen. The measure is
-// what puts the line breaks where the reference puts them.
-.ah__statement {
-  max-width: 30rem;
-  font-size: var(--ta-body);
-  line-height: var(--la-body);
-  font-weight: 300;
-  color: var(--ga-ink);
-  // The decode swaps every character every few frames; without this the
-  // proportional glyphs jostle the line while it resolves.
-  font-variant-numeric: tabular-nums;
-}
-
-/* ---------------------------------------------------------------- beat two */
+/* ---------------------------------------------------------------- the deck */
 
 .ah__deck {
   position: relative;
@@ -459,8 +386,7 @@ onBeforeUnmount(() => {
   }
 }
 
-// Without motion the page is one settled frame: the statement, and the first
-// question already open beneath it.
+// Without motion the section is one settled frame: the first question, open.
 @media (prefers-reduced-motion: reduce) {
   .ah { height: auto; }
 
@@ -471,7 +397,6 @@ onBeforeUnmount(() => {
     gap: clamp(3rem, 9vh, 6rem);
   }
 
-  .ah__open { position: relative; opacity: 1 !important; transform: none !important; }
   .ah__deck { height: auto; min-height: 12rem; opacity: 1 !important; }
   .ah__card:not(.is-live) { display: none; }
   .ah__card.is-live { position: relative; top: auto; transform: none !important; opacity: 1 !important; }

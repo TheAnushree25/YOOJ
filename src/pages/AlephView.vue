@@ -4,8 +4,10 @@ import { RouterLink } from "vue-router";
 import { Backdrop } from "../webgl/Backdrop";
 import { usePointer } from "../composables/usePointer";
 import { useSmoothScroll } from "../composables/useSmoothScroll";
-import AlephHero from "../components/sections/aleph/AlephHero.vue";
 import AlephMeet from "../components/sections/aleph/AlephMeet.vue";
+// QUESTIONS SECTION - hidden for now ("Where does the consultation go?" and
+// the five after it). Uncomment this and the tag in the template to restore.
+// import AlephHero from "../components/sections/aleph/AlephHero.vue";
 import AlephCard from "../components/sections/aleph/AlephCard.vue";
 import AlephQuantum from "../components/sections/aleph/AlephQuantum.vue";
 import AlephFound from "../components/sections/aleph/AlephFound.vue";
@@ -25,7 +27,8 @@ import BrandMark from "../components/ui/BrandMark.vue";
  * arguments. A second shader would have been two things to keep in step.
  *
  * The ground is lit rather than dark, so everything on it is set in one ink
- * and the only saturated mark on the page is the waveform in a question card.
+ * and the only saturated marks on the page are the label dots, and the point
+ * where the opening line lands.
  */
 
 const canvas = ref<HTMLCanvasElement | null>(null);
@@ -165,8 +168,10 @@ const advance = () => backdrop?.setProgress(progress.value);
     </header>
 
     <main class="al__content">
+      <!-- The mark, the line, and "Your care, mapped." -->
       <AlephMeet />
-      <AlephHero />
+      <!-- QUESTIONS SECTION - hidden for now; see the import above. -->
+      <!-- <AlephHero /> -->
       <AlephCard />
       <AlephQuantum />
       <AlephFound />

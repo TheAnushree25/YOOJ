@@ -33,6 +33,11 @@ export interface QuantumOptions {
   comets?: number;
   /** How many copies of the mark are in the corridor at once. */
   shells?: number;
+  /**
+   * Where in the section the mark lets go, as scroll progress. The section
+   * knows what it is saying there and the scene does not, so it is told.
+   */
+  release?: number;
   ink?: string;
   accent?: string;
 }
@@ -537,7 +542,7 @@ export class QuantumScene {
     // Assembled early, held for most of the section, and let go before the
     // light comes up — what the reader rises out of at the end should be open
     // sky, not a diagram still hanging in it.
-    this.gather = ease((p - 0.08) / 0.14) * (1 - ease((p - 0.79) / 0.1));
+    this.gather = ease((p - 0.08) / 0.14) * (1 - ease((p - (this.options.release ?? 0.79)) / 0.1));
 
     /**
      * How far in we have come.
