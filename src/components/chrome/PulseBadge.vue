@@ -33,6 +33,13 @@ const route = useRoute();
 // are light and measures which one is under this corner.
 const paleGround = computed(() => (route.name === "solutions" ? !onDark.value : onPale.value));
 
+/**
+ * The deck has no ambience, and its own gate silences the bed while it is
+ * read. The corner control has nothing to do there, so it stands down for the
+ * whole route - as it does for the opening film.
+ */
+const onDeck = computed(() => route.name === "deck");
+
 /* ------------------------------------------------------------- the ambience */
 
 /**
@@ -61,7 +68,7 @@ const TRACE = "M1 12 H13 L15.5 12 L18 3 L21.5 21 L24.5 8.5 L26.5 12 H33 L35 9 L3
 <template>
   <button
     class="pulse"
-    :class="{ 'is-on': on, 'is-pale': paleGround, 'is-hidden': cinema }"
+    :class="{ 'is-on': on, 'is-pale': paleGround, 'is-hidden': cinema || onDeck }"
     :aria-label="title"
     :data-cursor="on ? 'Mute' : 'Sound'"
     @click="toggle"

@@ -17,11 +17,21 @@ import HomeView from "./pages/HomeView.vue";
  */
 const AlephView = () => import("./pages/AlephView.vue");
 
+/**
+ * The investor deck, at /deck.
+ *
+ * Its own chunk: it carries a fifth font weight, an email gate, a slide
+ * viewer and the code that guards the page, none of which the two public
+ * pages ever load. A visitor who never opens the deck never downloads it.
+ */
+const DeckView = () => import("./pages/DeckView.vue");
+
 export const router = createRouter({
   history: createWebHistory(),
   routes: [
     { path: "/", name: "home", component: HomeView },
     { path: "/solutions", name: "solutions", component: AlephView },
+    { path: "/deck", name: "deck", component: DeckView },
     // The page answered to /aleph until now, so that address keeps working
     // rather than falling through to the catch-all and landing on the front
     // page with no explanation.
