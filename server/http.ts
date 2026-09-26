@@ -1,7 +1,7 @@
 /**
- * What every deck response carries.
+ * What every response from the site's functions carries.
  *
- * Nothing the deck sends may be cached anywhere but the reader's own tab: a
+ * Nothing they send may be cached anywhere but the reader's own tab: a deck
  * slide is stamped for one person, and a shared cache that kept it would hand
  * that person's copy to the next.
  */
@@ -32,8 +32,9 @@ export const clientIp = (request: Request) =>
 /**
  * One line per event, as JSON, into the host's function logs.
  *
- * The record of who opened the deck and which pages they read. It lives as
- * long as the host keeps logs; a longer trail would need somewhere to send it.
+ * The technical trail - which pages of the deck were read, what Google
+ * refused. The admin's own record of visits and sign-ups is the Google Forms'
+ * sheets (server/forms.ts); this lives only as long as the host keeps its logs.
  */
 export const log = (event: string, fields: Record<string, unknown>) => {
   console.info(JSON.stringify({ event, at: new Date().toISOString(), ...fields }));

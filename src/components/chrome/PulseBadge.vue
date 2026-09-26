@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { useRoute } from "vue-router";
-import { cinema, onDark, onPale } from "../../lib/session";
+import { cinema, closeUnderPulse, onDark, onPale } from "../../lib/session";
 import { soundOn, toggleSound } from "../../lib/sound";
 
 /**
@@ -29,9 +29,14 @@ import { soundOn, toggleSound } from "../../lib/sound";
 const route = useRoute();
 
 // Each page reports its ground its own way: the second page is pale unless a
-// section has turned the room dark, and the front page says which sections
-// are light and measures which one is under this corner.
-const paleGround = computed(() => (route.name === "solutions" ? !onDark.value : onPale.value));
+// section has turned the room dark (or its close has come up under this
+// corner), the front page says which sections are light and measures which
+// one is under this corner, and the legal pages are pale throughout.
+const paleGround = computed(() => {
+  if (route.name === "legal") return true;
+  if (route.name === "solutions") return !onDark.value && !closeUnderPulse.value;
+  return onPale.value;
+});
 
 /**
  * The deck has no ambience, and its own gate silences the bed while it is

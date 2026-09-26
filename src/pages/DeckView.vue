@@ -2,10 +2,7 @@
 import { onBeforeUnmount, onMounted, ref, shallowRef } from "vue";
 import DeckGate from "../components/deck/DeckGate.vue";
 import DeckViewer from "../components/deck/DeckViewer.vue";
-import {
-  DeckError, dropPass, fetchMeta, keepPass, storedPass,
-  type DeckAccess, type DeckMeta,
-} from "../lib/deck-api";
+import { markSeen, rememberEmail, type DeckAccess, type DeckMeta } from "../lib/deck-api";
 import { guardDeck, type Guard } from "../lib/deck-guard";
 import { ambientLive, soundOn, startAmbient, stopAmbient } from "../lib/sound";
 // The deck's interface weight. Loaded with this page only; the rest of the
@@ -15,18 +12,23 @@ import "@fontsource/montserrat/500.css";
 /**
  * /deck: the investor deck, behind an email.
  *
- * Two screens. The gate asks for an address and trades it for a signed pass;
- * the viewer shows the deck one slide at a time, each slide fetched from the
- * server with that address already drawn into it. A reader who has a pass on
- * this device goes straight to the viewer.
+ * Two screens on one ground. The gate asks for an address and trades it for a
+ * signed pass; the viewer shows the deck one slide at a time, each slide
+ * fetched from the server with that address already drawn into it.
+ *
+ * Every visit starts at the gate. The pass is held here, in memory, for this
+ * visit only - so each sitting is a fresh entry in the admin's sheet, and a
+ * device lent to someone else does not open the deck in the last reader's
+ * name. The address is remembered to put back in the field, which keeps a
+ * returning reader one press from the deck.
  *
  * The whole route runs under lib/deck-guard: no context menu, no inspector
  * shortcuts, no selecting, copying or printing.
  */
 
-type Phase = "checking" | "gate" | "deck";
+type Phase = "gate" | "deck";
 
-const phase = ref<Phase>("checking");
+const phase = ref<Phase>("gate");
 const pass = ref<string | null>(null);
 const meta = shallowRef<DeckMeta | null>(null);
 const notice = ref("");
@@ -46,7 +48,7 @@ const swallowMute = (e: KeyboardEvent) => {
 /** Whether the bed was playing when the reader arrived, so leaving can put it back. */
 let bedWasPlaying = false;
 
-onMounted(async () => {
+onMounted(() => {
   const title = document.title;
   document.title = "The deck — YOOJ";
   const robots = document.querySelector<HTMLMetaElement>('meta[name="robots"]');
@@ -67,21 +69,6 @@ onMounted(async () => {
   }
 
   guard = guardDeck();
-
-  const saved = storedPass();
-  if (!saved) {
-    phase.value = "gate";
-    return;
-  }
-  try {
-    meta.value = await fetchMeta(saved);
-    pass.value = saved;
-    phase.value = "deck";
-  } catch (error) {
-    if (error instanceof DeckError && error.code === "pass") dropPass();
-    else notice.value = "The deck couldn’t be reached just now. Please try again.";
-    phase.value = "gate";
-  }
 });
 
 onBeforeUnmount(() => {
@@ -91,35 +78,45 @@ onBeforeUnmount(() => {
 });
 
 const admit = (access: DeckAccess) => {
-  keepPass(access.token);
+  rememberEmail(access.email);
   pass.value = access.token;
   meta.value = access;
   notice.value = "";
   phase.value = "deck";
+  // The admin's record of this visit. In the background: the deck is open.
+  markSeen(access.token);
 };
 
 const leave = (message = "") => {
-  dropPass();
   pass.value = null;
   meta.value = null;
   notice.value = message;
   phase.value = "gate";
 };
 
-const expired = () => leave("Your access has lapsed. Enter your email to open the deck again.");
+const expired = () => leave("Your session with the deck has ended. Enter your email to open it again.");
 </script>
 
 <template>
   <div class="dk">
-    <DeckGate v-if="phase === 'gate'" :notice="notice" @admit="admit" />
-    <DeckViewer
-      v-else-if="phase === 'deck' && pass && meta"
-      :pass="pass"
-      :meta="meta"
-      @expired="expired"
-      @leave="leave()"
-    />
-    <div v-else class="dk__hold" aria-busy="true" />
+    <!-- The site's pale ground, lit and drifting, under both screens: it does
+         not change as the gate hands over to the deck. -->
+    <div class="dk__ground ground-drift" aria-hidden="true" />
+    <div class="dk__bloom" aria-hidden="true" />
+
+    <!-- The gate stays on top as it leaves, playing its own launch, while the
+         deck builds up underneath it: one movement rather than two screens. -->
+    <Transition name="dk-swap" :duration="{ enter: 0, leave: 900 }">
+      <DeckGate v-if="phase === 'gate'" key="gate" :notice="notice" @admit="admit" />
+      <DeckViewer
+        v-else-if="pass && meta"
+        key="deck"
+        :pass="pass"
+        :meta="meta"
+        @expired="expired"
+        @leave="leave()"
+      />
+    </Transition>
   </div>
 </template>
 
@@ -129,13 +126,53 @@ const expired = () => leave("Your access has lapsed. Enter your email to open th
  * menu. The email field opts back in (DeckGate).
  */
 .dk {
+  position: relative;
+  isolation: isolate;
   min-height: 100dvh;
+  overflow-x: clip;
   -webkit-user-select: none;
   user-select: none;
   -webkit-touch-callout: none;
 }
 
-.dk__hold { min-height: 100dvh; }
+// The drifting pale ground every light section of the site stands on.
+.dk__ground {
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  background: var(--ground-light);
+  // Beside the shorthand, which resets it, and not in the drift class.
+  background-size: 190% 190%;
+  pointer-events: none;
+}
+
+// And a white light high on the left, as the hero has: the ground reads as
+// lit paper rather than as a flat pink.
+.dk__bloom {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background:
+    radial-gradient(52vw 46vh at 18% 12%, rgb(255 255 255 / 0.72), rgb(255 255 255 / 0) 70%),
+    radial-gradient(40vw 40vh at 88% 92%, rgb(254 179 184 / 0.28), rgb(254 179 184 / 0) 72%);
+  pointer-events: none;
+}
+
+// The leaving gate is lifted out of the flow and laid over the deck arriving
+// beneath it, and fades as its own launch plays.
+.dk-swap-leave-active {
+  position: fixed;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+  transition: opacity 0.5s var(--e-out-quart) 0.35s;
+}
+
+.dk-swap-leave-to { opacity: 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  .dk-swap-leave-active { transition-duration: 0.01ms; transition-delay: 0s; }
+}
 </style>
 
 <style lang="scss">

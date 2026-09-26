@@ -2,14 +2,19 @@ import type { IncomingMessage } from "node:http";
 import type { Plugin } from "vite";
 
 /**
- * The deck's server functions, under the dev server.
+ * The site's server functions, under the dev server.
  *
- * In production /api/deck/* are Vercel Functions. Locally the same files are
+ * In production /api/* are Vercel Functions. Locally the same files are
  * loaded through Vite and handed the same web-standard Request, so what is
  * tested at localhost is the code that ships - not a mock of it - and saving
  * one of them takes effect on the next request.
  */
-const ROUTES = new Set(["access", "meta", "slide"]);
+const ROUTES: Record<string, string> = {
+  "/api/deck/access": "/api/deck/access.ts",
+  "/api/deck/seen": "/api/deck/seen.ts",
+  "/api/deck/slide": "/api/deck/slide.ts",
+  "/api/affiliate": "/api/affiliate.ts",
+};
 
 const readBody = (req: IncomingMessage) =>
   new Promise<Buffer>((resolve, reject) => {
@@ -19,16 +24,16 @@ const readBody = (req: IncomingMessage) =>
     req.on("error", reject);
   });
 
-export const deckApi = (): Plugin => ({
-  name: "yooj-deck-api",
+export const siteApi = (): Plugin => ({
+  name: "yooj-site-api",
   apply: "serve",
   configureServer(server) {
     server.middlewares.use(async (req, res, next) => {
       const url = new URL(req.url ?? "/", `http://${req.headers.host ?? "localhost"}`);
       if (!url.pathname.startsWith("/api/")) return next();
 
-      const route = /^\/api\/deck\/([a-z]+)$/.exec(url.pathname)?.[1];
-      if (!route || !ROUTES.has(route)) {
+      const file = ROUTES[url.pathname];
+      if (!file) {
         res.statusCode = 404;
         res.setHeader("Content-Type", "application/json");
         res.end(JSON.stringify({ error: "not-found" }));
@@ -36,7 +41,7 @@ export const deckApi = (): Plugin => ({
       }
 
       try {
-        const mod = (await server.ssrLoadModule(`/api/deck/${route}.ts`)) as Record<string, unknown>;
+        const mod = (await server.ssrLoadModule(file)) as Record<string, unknown>;
         const method = (req.method ?? "GET").toUpperCase();
         const handler = mod[method];
         if (typeof handler !== "function") {

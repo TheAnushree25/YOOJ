@@ -2,7 +2,7 @@
 /**
  * Seal a PDF deck for the /deck page.
  *
- *   npm run deck:seal -- "C:\path\to\deck.pdf" [--title "YOOJ Pre-Seed Sep 2026"]
+ *   npm run deck:seal -- "C:\path\to\deck.pdf" [--title "YOOJ Pre-Seed 2026"]
  *
  * The repository is public, so the deck never enters it in a readable form.
  * Every page is rendered to WebP at the widths the viewer asks for and sealed
@@ -148,7 +148,7 @@ try {
 
   const manifest = {
     version: 1,
-    title: titleArg ?? previous?.title ?? "YOOJ Pre-Seed Sep 2026",
+    title: titleArg ?? previous?.title ?? "YOOJ Pre-Seed 2026",
     pages: report.pages,
     ratio: Number((pw / ph).toFixed(5)),
     sizes,

@@ -26,12 +26,21 @@ const AlephView = () => import("./pages/AlephView.vue");
  */
 const DeckView = () => import("./pages/DeckView.vue");
 
+/**
+ * The fine print: privacy, terms and cookies, one page between them.
+ *
+ * Reached from the footer's "Legal". Its own small chunk, like the deck: a
+ * reader who never opens it never downloads it.
+ */
+const LegalView = () => import("./pages/LegalView.vue");
+
 export const router = createRouter({
   history: createWebHistory(),
   routes: [
     { path: "/", name: "home", component: HomeView },
     { path: "/solutions", name: "solutions", component: AlephView },
     { path: "/deck", name: "deck", component: DeckView },
+    { path: "/legal/:doc(privacy|terms|cookies)", name: "legal", component: LegalView },
     // The page answered to /aleph until now, so that address keeps working
     // rather than falling through to the catch-all and landing on the front
     // page with no explanation.
@@ -41,7 +50,30 @@ export const router = createRouter({
   ],
   // Every view drives its own scroll engine and starts at the top; letting the
   // router restore a position as well fights it.
-  scrollBehavior: () => ({ top: 0 }),
+  scrollBehavior: (to, from) => {
+    // A section asked for by name. The page carries itself there once it is
+    // ready, on its own engine (composables/usePlaces); moving the window
+    // underneath it here would land the page without the engine knowing.
+    if (to.hash) return false;
+    // The name coming off the address after that landing: the same page,
+    // and nothing to move.
+    if (from.matched.length && to.path === from.path) return false;
+    return { top: 0 };
+  },
+});
+
+/**
+ * A new page is built at the top, not moved there afterwards.
+ *
+ * The scroll above runs a tick after the new page has mounted, and every
+ * section on it measures itself as it mounts - against wherever the old page
+ * was left, which after a long page is somewhere deep in the new one. Reset
+ * here, before the swap, the window is at the top before the first of them
+ * looks; a page asked to open on a section then goes there itself.
+ */
+router.afterEach((to, from, failure) => {
+  if (failure || !from.matched.length || to.path === from.path) return;
+  window.scrollTo(0, 0);
 });
 
 /**

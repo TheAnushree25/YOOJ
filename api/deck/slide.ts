@@ -1,4 +1,4 @@
-import { PRIVATE, bearer, clientIp, json, log } from "../../server/deck/http.js";
+import { PRIVATE, bearer, clientIp, json, log } from "../../server/http.js";
 import { openSlide, readManifest } from "../../server/deck/sealed.js";
 import { readPass } from "../../server/deck/token.js";
 import { stamp } from "../../server/deck/watermark.js";
@@ -33,6 +33,13 @@ export async function GET(request: Request) {
 
   return new Response(new Uint8Array(image), {
     status: 200,
-    headers: { "Content-Type": "image/webp", "Content-Length": String(image.length), ...PRIVATE },
+    headers: {
+      "Content-Type": "image/webp",
+      "Content-Length": String(image.length),
+      // Which of the sealed widths this is, so the page knows when a larger
+      // frame needs a sharper copy.
+      "X-Slide-Width": String(size.w),
+      ...PRIVATE,
+    },
   });
 }

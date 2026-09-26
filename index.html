@@ -9,25 +9,35 @@
          rather than with the script that will eventually ask for it. -->
     <link rel="preload" as="image" href="/hands/v1/1280/000.webp" type="image/webp" fetchpriority="high" />
 
-    <title>YOOJ — Healthcare closer to you</title>
+    <title>YOOJ — Better health for more lives everyday</title>
     <meta name="description" content="YOOJ is building a connected primary-care network for the people who keep India moving — clinics, pharmacies and diagnostics, joined by one health record." />
     <meta name="robots" content="index, follow" />
 
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="YOOJ" />
-    <meta property="og:title" content="YOOJ — Healthcare closer to you" />
+    <meta property="og:title" content="YOOJ — Better health for more lives everyday" />
     <meta property="og:description" content="A connected primary-care network for Tier 2 and Tier 3 India." />
-    <meta property="og:image" content="/og.svg" />
+    <!-- The link card (scripts/og/card.mjs). A JPEG: the apps that draw link
+         previews do not read SVG. -->
+    <meta property="og:image" content="/og.jpg" />
+    <meta property="og:image:type" content="image/jpeg" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="YOOJ — Better health for more lives everyday." />
 
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="YOOJ — Healthcare closer to you" />
+    <meta name="twitter:title" content="YOOJ — Better health for more lives everyday" />
     <meta name="twitter:description" content="A connected primary-care network for Tier 2 and Tier 3 India." />
-    <meta name="twitter:image" content="/og.svg" />
+    <meta name="twitter:image" content="/og.jpg" />
 
-    <!-- The mark itself, on the page's own ground. The old icon was a mint
-         ring from a palette this site no longer uses. -->
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <link rel="apple-touch-icon" href="/favicon.svg" />
+    <!-- The YOOJ icon: the mark on its wine ground. The .ico and the 96px PNG
+         are what search results show beside the address (Google asks for a
+         multiple of 48px); the rest serve phones' home screens. -->
+    <link rel="icon" href="/favicon.ico" sizes="48x48" />
+    <link rel="icon" type="image/png" sizes="96x96" href="/favicon-96x96.png" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/favicon-192x192.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/site.webmanifest" />
   </head>
   <body>
     <div id="app"></div>

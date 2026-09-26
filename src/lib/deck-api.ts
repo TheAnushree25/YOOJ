@@ -1,10 +1,14 @@
 /**
  * The deck's side of the wire: /api/deck/*.
  *
- * The pass the gate hands out is kept on this device so a reader can come back
- * to the deck without the gate, and it travels in a header rather than in a
- * URL, where it would be written into history, logs and the address a reader
- * might copy.
+ * Every visit comes through the gate - the pass it hands out lives in the
+ * page's memory for the length of the visit and is never kept on the device,
+ * so the admin's sheet has a row for every sitting, not only the first. What
+ * is kept is the address itself, to put back in the field next time: a
+ * returning reader is one press from the deck.
+ *
+ * The pass travels in a header rather than in a URL, where it would be written
+ * into history, logs and the address a reader might copy.
  */
 
 export interface DeckMeta {
@@ -22,8 +26,8 @@ export interface DeckAccess extends DeckMeta {
 /**
  * A failure the page can say something useful about.
  *
- * `code` is the server's own word - `email`, `pass`, `unavailable` - or
- * `network` when there was no answer at all.
+ * `code` is the server's own word - `email`, `pass`, `unavailable`, `busy` -
+ * or `network` when there was no answer at all.
  */
 export class DeckError extends Error {
   code: string;
@@ -37,18 +41,21 @@ export class DeckError extends Error {
   }
 }
 
-const PASS_KEY = "yooj.deck.pass";
+const EMAIL_KEY = "yooj.deck.email";
+/** Where a 30-day pass used to be kept. Cleared on sight: it would outlive the rule above. */
+const OLD_PASS_KEY = "yooj.deck.pass";
 
-export const storedPass = (): string | null => {
-  try { return localStorage.getItem(PASS_KEY); } catch { return null; }
+export const rememberedEmail = (): string => {
+  try {
+    localStorage.removeItem(OLD_PASS_KEY);
+    return localStorage.getItem(EMAIL_KEY) ?? "";
+  } catch {
+    return "";
+  }
 };
 
-export const keepPass = (token: string) => {
-  try { localStorage.setItem(PASS_KEY, token); } catch { /* private mode: the pass lasts as long as the tab */ }
-};
-
-export const dropPass = () => {
-  try { localStorage.removeItem(PASS_KEY); } catch { /* nothing was kept */ }
+export const rememberEmail = (email: string) => {
+  try { localStorage.setItem(EMAIL_KEY, email); } catch { /* private mode: nothing to remember it in */ }
 };
 
 const send = async (path: string, init: RequestInit, pass?: string) => {
@@ -77,24 +84,45 @@ export const requestAccess = async (email: string): Promise<DeckAccess> => {
   return res.json() as Promise<DeckAccess>;
 };
 
-export const fetchMeta = async (pass: string): Promise<DeckMeta> => {
-  const res = await send("/api/deck/meta", { method: "GET" }, pass);
-  if (!res.ok) throw await failure(res);
-  return res.json() as Promise<DeckMeta>;
+/**
+ * Record the visit in the admin's sheet, in the background.
+ *
+ * `keepalive`, so a reader who closes the tab at once is still recorded; one
+ * retry after a pause if the sheet did not take it. Nothing here is ever shown
+ * to the reader - the deck is already open.
+ */
+export const markSeen = (pass: string) => {
+  const attempt = () =>
+    fetch("/api/deck/seen", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${pass}` },
+      cache: "no-store",
+      credentials: "same-origin",
+      keepalive: true,
+    }).then((res) => res.ok || res.status === 401);
+  void attempt()
+    .catch(() => false)
+    .then((done) => {
+      if (!done) setTimeout(() => void attempt().catch(() => {}), 4000);
+    });
 };
 
-/** One slide, already stamped with the reader's address by the server. */
+/**
+ * One slide, already stamped with the reader's address by the server, and
+ * the width it was actually sent at - the nearest the server holds at or
+ * above the one asked for.
+ */
 export const fetchSlide = async (
   pass: string,
   page: number,
   width: number,
   options: { signal?: AbortSignal; ahead?: boolean } = {},
-): Promise<Blob> => {
+): Promise<{ blob: Blob; width: number }> => {
   const res = await send(
     `/api/deck/slide?page=${page}&w=${width}`,
     { method: "GET", signal: options.signal, priority: options.ahead ? "low" : "high" },
     pass,
   );
   if (!res.ok) throw await failure(res);
-  return res.blob();
+  return { blob: await res.blob(), width: Number(res.headers.get("X-Slide-Width")) || width };
 };

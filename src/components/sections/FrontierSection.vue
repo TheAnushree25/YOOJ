@@ -173,7 +173,7 @@ const vp = useViewport();
  *
  * The figure is the desktop's - one figure, the words inside the tiles - sized
  * to the frame, with the tracked capitals scaled to each tile's own width so
- * "Standardised" and its plus sit inside the shape on a 320px phone too.
+ * "Standardised" sits inside the shape on a 320px phone too.
  */
 const compact = computed(() => vp.handheld || vp.short);
 
@@ -213,21 +213,18 @@ const tiles = [
   {
     slot: "apex",
     label: ["Accessible"],
-    note: "Within reach physically and in hours.",
     title: ["Within reach physically", "and in hours."],
     body: "A YOOJ Primary Care Centre in the Tier 3 town itself, not the district capital 40 km away. OPD, pharmacy, pathology and radiology under one roof, so a patient does one trip, not three. Extended hours for the working day.",
   },
   {
     slot: "left",
     label: ["Affordable"],
-    note: "Priced for a daily wage, not a salary.",
     title: ["Priced for a daily wage,", "not a salary."],
     body: "$4 consultation. Generic medicines first. $3 pathology tests, $7 imaging. Prices printed on the wall, the same for every patient, every day. No surprise bills, no upsell.",
   },
   {
     slot: "right",
     label: ["Standardised"],
-    note: "The same YOOJ, everywhere.",
     title: ["The same YOOJ,", "everywhere."],
     body: "Credentialed doctors, the same clinical protocols, the same JeevanBhar patient record, quarterly quality audits. A patient in an affiliate clinic gets the same guarantee as one in the flagship centre.",
   },
@@ -236,8 +233,8 @@ const tiles = [
 /**
  * The reading panel is HIDDEN FOR NOW (2026-09-24): pressing a tile opens
  * nothing, and the tiles are not offered as controls. A pointer's hover still
- * swaps each tile's word for its sentence. The panel, its copy and its styles
- * are all still here; set this to true to bring it back.
+ * lights the tile it is over and sets its word larger. The panel, its copy
+ * and its styles are all still here; set this to true to bring it back.
  */
 const SHOW_PANEL = false;
 
@@ -360,13 +357,9 @@ onBeforeUnmount(() => { trigger?.kill(); arrival?.kill(); });
           </svg>
 
           <div class="fr__plate" :style="i === 0 ? { opacity: beat(0.62, 0.76) } : undefined">
-            <div class="fr__words">
-              <p class="fr__label">
-                <span v-for="line in tile.label" :key="line">{{ line }}</span>
-              </p>
-              <p class="fr__caption">{{ tile.note }}</p>
-            </div>
-            <span class="fr__plus" aria-hidden="true">+</span>
+            <p class="fr__label">
+              <span v-for="line in tile.label" :key="line">{{ line }}</span>
+            </p>
           </div>
         </div>
       </div>
@@ -497,6 +490,13 @@ onBeforeUnmount(() => { trigger?.kill(); arrival?.kill(); });
   // The centroid, not the box centre. A triangle spun about the middle of its
   // bounding box wobbles; spun about its balance point it turns.
   transform-origin: 50% 66.667%;
+  // A size container, so a word can be sized against the shape it sits in -
+  // on the compact layouts at rest, and everywhere when a pointer asks.
+  container-type: inline-size;
+  // The box is a rectangle and the tile is not: its corners either side of
+  // the point are open ground. Only the shape itself answers the pointer (see
+  // `.fr__face`), so the hover begins where the triangle does.
+  pointer-events: none;
 
   &.is-lead { will-change: transform, filter; }
 }
@@ -516,7 +516,12 @@ onBeforeUnmount(() => { trigger?.kill(); arrival?.kill(); });
 .fr__face {
   fill: url(#fr-face);
   opacity: 0;
+  // Hit on its fill whatever its opacity: the outlined tiles are unlit, not
+  // absent, and have to be found by a pointer as much as the lit one.
+  pointer-events: fill;
   transition: opacity var(--t-hover) var(--e-out-quart);
+
+  .fr__trio.is-live & { cursor: pointer; }
 }
 
 .fr__edge {
@@ -533,99 +538,84 @@ onBeforeUnmount(() => { trigger?.kill(); arrival?.kill(); });
 .is-lead .fr__face { opacity: 1; }
 
 .fr__trio.is-aside .is-lead .fr__face { opacity: 0; }
-.fr__trio.is-aside .is-lead .fr__label,
-.fr__trio.is-aside .is-lead .fr__plus { color: var(--c-indigo); }
+.fr__trio.is-aside .is-lead .fr__label { color: var(--c-indigo); }
 .fr__trio.is-aside .fr__tile[aria-expanded="true"] .fr__face { opacity: 1; }
-.fr__trio.is-aside .fr__tile[aria-expanded="true"] .fr__label,
-.fr__trio.is-aside .fr__tile[aria-expanded="true"] .fr__plus { color: var(--c-bone); }
+.fr__trio.is-aside .fr__tile[aria-expanded="true"] .fr__label { color: var(--c-bone); }
 
+// The word, centred on the tile's base: the widest part of the shape, and the
+// one place a single tracked word sits in it squarely.
 .fr__plate {
   position: absolute;
-  left: 17%;
-  right: 16%;
+  left: 10%;
+  right: 10%;
   bottom: 7.5%;
   display: flex;
   align-items: flex-end;
-  justify-content: space-between;
-  gap: 0.9em;
+  justify-content: center;
 }
 
-// Holds the label and the sentence that replaces it, both anchored to the same
-// baseline. Stacking them is what keeps the words in the wide part of the
-// triangle — laid out in sequence, opening a caption pushed the label up into
-// the point, where there is no room for it and it was clipped.
-.fr__words {
-  position: relative;
-  flex: 1;
-  min-width: 0;
-}
-
+/**
+ * The word, and the size it grows to when a pointer asks about its tile.
+ *
+ * The grown size is capped against the tile's own width, in container units:
+ * the tile is a quarter of the viewport on a wide screen, and at the narrow
+ * end of that range "Standardised" at a fixed multiple would run into the
+ * shape's sloping sides. All three words share one tile width, so the cap
+ * holds them at one size together.
+ *
+ * Grown by its size, not by a scale: the word is set again at every step
+ * rather than magnified, so it stays sharp the whole way up and anchors on its
+ * own baseline. The tracking closes a little as it grows - a label's spacing
+ * at a heading's size reads as loose.
+ */
 .fr__label {
+  --fs: var(--t-label);
+  --fs-up: min(calc(var(--fs) * 1.75), 7cqi);
+  --track: 0.2em;
+
   font-family: "Space Grotesk", ui-monospace, monospace;
-  font-size: var(--t-label);
-  letter-spacing: 0.2em;
+  font-size: var(--fs);
+  letter-spacing: var(--track);
+  // Tracking trails the last letter as well; taken back out, the word is
+  // centred on its ink rather than on its box.
+  margin-right: calc(var(--track) * -1);
   line-height: 1.55;
+  text-align: center;
+  white-space: nowrap;
   text-transform: uppercase;
   color: var(--c-indigo);
-  transition: opacity var(--t-hover) var(--e-out-quart), color var(--t-hover) var(--e-out-quart);
+  transition:
+    font-size 0.7s var(--e-out-expo),
+    letter-spacing 0.7s var(--e-out-expo),
+    margin 0.7s var(--e-out-expo),
+    color var(--t-hover) var(--e-out-quart);
 
   span { display: block; }
 }
 
-.fr__plus {
-  font-family: "Space Grotesk", ui-monospace, monospace;
-  font-size: calc(var(--t-label) * 1.5);
-  line-height: 1;
-  color: var(--c-indigo);
-  transition: color var(--t-hover) var(--e-out-quart), transform var(--t-hover) var(--e-out-quart);
-}
+.is-lead .fr__label { color: var(--c-bone); }
 
-// Held back until the tile is asked about. The three labels are the figure;
-// the sentences are what the figure is for, and showing all three at once
-// turns a diagram into a paragraph.
-.fr__caption {
-  position: absolute;
-  left: 0;
-  bottom: 0;
-  width: 100%;
-  font-size: var(--t-body);
-  line-height: 1.4;
-  font-weight: 300;
-  color: rgb(var(--rgb-bone) / 0.86);
-  opacity: 0;
-  transition: opacity var(--t-hover) var(--e-out-quart);
-}
-
-.is-lead .fr__label,
-.is-lead .fr__plus { color: var(--c-bone); }
-
-// All three answer a pointer's hover. While the reading panel is shown they
-// are controls as well (`is-live`), and only then do they offer a hand.
+// All three answer a pointer's hover: the tile lights, and its word grows.
+// While the reading panel is shown they are controls as well (`is-live`).
 //
 // The hover is for a pointer only. On a touch screen it stuck to whichever
 // tile had last been tapped, so a second tile read as selected beside the one
 // actually open.
-.fr__tile--apex,
-.fr__tile--left,
-.fr__tile--right {
-  pointer-events: auto;
+@mixin asked {
+  .fr__face { opacity: 1; }
 
-  .fr__trio.is-live & { cursor: pointer; }
-
-  &:focus-visible {
-    .fr__face { opacity: 1; }
-    .fr__plus { color: var(--c-bone); transform: translateY(-2px); }
-    .fr__label { opacity: 0; }
-    .fr__caption { opacity: 1; }
+  .fr__label {
+    --track: 0.16em;
+    font-size: var(--fs-up);
+    color: var(--c-bone);
   }
+}
+
+.fr__tile {
+  &:focus-visible { @include asked; }
 
   @include hover {
-    &:hover {
-      .fr__face { opacity: 1; }
-      .fr__plus { color: var(--c-bone); transform: translateY(-2px); }
-      .fr__label { opacity: 0; }
-      .fr__caption { opacity: 1; }
-    }
+    &:hover { @include asked; }
   }
 }
 
@@ -633,7 +623,7 @@ onBeforeUnmount(() => { trigger?.kill(); arrival?.kill(); });
 // read as one thing.
 .fr__tile[aria-expanded="true"] {
   .fr__face { opacity: 1; }
-  .fr__plus { color: var(--c-bone); transform: translateY(-2px); }
+  .fr__label { color: var(--c-bone); }
 }
 
 /* --------------------------------------------------------------- the panel */
@@ -752,7 +742,7 @@ onBeforeUnmount(() => { trigger?.kill(); arrival?.kill(); });
  * things, the opposite of the section's argument. The figure is sized to the
  * frame instead, and the tracked capitals to each tile: a tile is a size
  * container, so its word scales with the shape it has to sit in, and
- * "Standardised" and its plus stay inside on a 320px phone as on a tablet.
+ * "Standardised" stays inside on a 320px phone as on a tablet.
  *
  * The sizes live on the stage: `--k-tri` is a tile's side, `--k-x`/`--k-y`
  * the figure's centre.
@@ -764,35 +754,21 @@ onBeforeUnmount(() => { trigger?.kill(); arrival?.kill(); });
     top: var(--k-y, 50%);
   }
 
-  .fr__tile { container-type: inline-size; }
-
   // Nearer the corners than the wide layout sets it: at this size the word
   // needs the width of the tile's base, which is where it sits.
   .fr__plate {
-    left: 12.5%;
-    right: 12%;
+    left: 8%;
+    right: 8%;
     bottom: 8.5%;
-    align-items: center;
-    gap: 0.45em;
   }
 
+  // Already sized to the tile at rest, so a hover has less room to grow into.
   .fr__label {
-    font-size: clamp(0.56rem, 6.8cqi, 0.8rem);
+    --fs: clamp(0.56rem, 6.8cqi, 0.8rem);
+    --fs-up: min(calc(var(--fs) * 1.3), 8.6cqi);
     letter-spacing: 0.12em;
+    margin-right: -0.12em;
     line-height: 1.3;
-    white-space: nowrap;
-  }
-
-  .fr__plus { font-size: clamp(0.75rem, 8cqi, 1rem); }
-
-  // The sentence a pointer's hover swaps in has no room in a tile this size.
-  // The word stays.
-  .fr__caption { display: none; }
-
-  .fr__tile:focus-visible .fr__label { opacity: 1; }
-
-  @include hover {
-    .fr__tile:hover .fr__label { opacity: 1; }
   }
 
   // The heading is keyed to the width so "everyday healthcare" holds one line
@@ -939,8 +915,8 @@ onBeforeUnmount(() => { trigger?.kill(); arrival?.kill(); });
 }
 
 // Without motion the section is one settled frame: the statement, then the
-// figure it resolves into, with every caption already open. Last in the
-// block, so it stands over the compact layouts' positions as well.
+// figure it resolves into. Last in the block, so it stands over the compact
+// layouts' positions as well.
 @media (prefers-reduced-motion: reduce) {
   .fr { height: auto; }
 
@@ -957,7 +933,7 @@ onBeforeUnmount(() => { trigger?.kill(); arrival?.kill(); });
   }
 
   // Nothing to slide in from: the panel's content is not reachable without the
-  // motion that opens it, so every tile shows its own sentence instead.
+  // motion that opens it.
   .fr__panel { display: none; }
 
   .fr__copy {
@@ -977,7 +953,6 @@ onBeforeUnmount(() => { trigger?.kill(); arrival?.kill(); });
 
   .fr__tile.is-lead { transform: none !important; filter: none !important; opacity: 1 !important; }
   .fr__tile { opacity: 1 !important; }
-  .fr__caption { opacity: 1; transform: none; }
   .fr__tile--left .fr__face, .fr__tile--right .fr__face { opacity: 0.16; }
 }
 </style>

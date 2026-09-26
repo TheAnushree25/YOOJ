@@ -7,7 +7,8 @@
   "functions": {
     "api/deck/slide.ts": { "includeFiles": "deck/**" },
     "api/deck/access.ts": { "includeFiles": "deck/sealed/manifest.json" },
-    "api/deck/meta.ts": { "includeFiles": "deck/sealed/manifest.json" }
+    "api/deck/seen.ts": { "includeFiles": "integrations/google-forms/forms.json" },
+    "api/affiliate.ts": { "includeFiles": "integrations/google-forms/forms.json" }
   },
   "rewrites": [
     { "source": "/((?!api/).*)", "destination": "/index.html" }

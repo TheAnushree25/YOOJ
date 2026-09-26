@@ -13,7 +13,7 @@ import { HANDS_COUNT, handsFrame, heroImageReady } from "../../lib/hero-image";
  * moves.
  *
  * The statement is the landing. Everything else on the screen is quiet around
- * it: the lockup above and a note in one corner. The ground is alive the way every ground
+ * it: the lockup above, and nothing more. The ground is alive the way every ground
  * on the site is - a soft light walking slowly across the blush - and the
  * page's thread, which falls from the lockup behind the words and into the
  * hands, carries a drop of light down its length every few seconds: the eye
@@ -60,14 +60,6 @@ defineExpose({ play: () => { shown.value = true; } });
 /** The statement, a word at a time: each is its own entrance. */
 const lineOne = ["Better", "health", "for", "more", "lives"];
 
-/**
- * The note in the corner, as one sentence given a measure rather than four
- * lines broken by hand, so it sets its own rag at any width.
- */
-const aside =
-  "Good healthcare shouldn’t depend on where you live. YOOJ is building a "
-  + "connected primary-care network for the people who keep India moving.";
-
 /* ------------------------------------------------------ the control's pull */
 
 /**
@@ -105,8 +97,8 @@ const smooth = (t: number) => t * t * (3 - 2 * t);
  * corners hold two small marks, and it can fade across most of the film. On a
  * phone the header is a bar the width of the screen and the statement is set
  * the full width of the column, so the same timing slid half-struck words
- * under the menu word. Here the whole first screen - lockup, thread, words,
- * control and note - falls back as one, at a little under half the page's
+ * under the menu word. Here the whole first screen - lockup, thread, words
+ * and control - falls back as one, at a little under half the page's
  * speed, and is gone by the time its first line would reach the bar. The
  * distance is read off the layout (`measure`), so it holds on any phone.
  */
@@ -300,8 +292,6 @@ onBeforeUnmount(() => {
           </RouterLink>
         </div>
       </div>
-
-      <p class="hero__aside">{{ aside }}</p>
     </div>
 
     <!-- The film: full width, hemming the foot of the first screen and
@@ -457,9 +447,8 @@ onBeforeUnmount(() => {
 
 /**
  * The first screen's composition: everything above the film. A column - the
- * lockup at the top, the statement standing in the room that is left, the
- * note in the lower corner - so it holds its proportions on a window of any
- * shape.
+ * lockup at the top, the statement standing in the room that is left - so it
+ * holds its proportions on a window of any shape.
  */
 .hero__frame {
   position: relative;
@@ -797,28 +786,10 @@ onBeforeUnmount(() => {
   svg + svg { transform: none; }
 }
 
-/* ------------------------------------------------------- the corner */
-
-// In the corner, against the right edge, ragged left.
-.hero__aside {
-  position: absolute;
-  right: var(--gutter);
-  bottom: clamp(1rem, 3.4vh, 2.6rem);
-  z-index: 2;
-  max-width: min(32ch, 34vw);
-  text-align: right;
-  text-wrap: pretty;
-  font-family: var(--font-say);
-  font-weight: 400;
-  font-size: clamp(0.8rem, 0.93vw, 1.02rem);
-  line-height: 1.55;
-  color: #121212;
-  pointer-events: auto;
-}
+/* ------------------------------------------------------- the entrance */
 
 .hero__brand,
-.hero__cta,
-.hero__aside {
+.hero__cta {
   translate: 0 0.9rem;
   transition:
     opacity 1.1s var(--e-out-quart),
@@ -826,31 +797,28 @@ onBeforeUnmount(() => {
 }
 
 .hero__brand,
-.hero__cta,
-.hero__aside { opacity: 0; }
+.hero__cta { opacity: 0; }
 
 .hero__cta { transition-delay: 0.62s; }
-.hero__aside { transition-delay: 0.78s; }
 
 .is-shown {
   .hero__brand,
-  .hero__cta,
-  .hero__aside { opacity: 1; translate: none; }
+  .hero__cta { opacity: 1; translate: none; }
 }
 
 /**
  * Held upright: the same screen, stacked.
  *
  * The lockup at the head, clear of the header's bar; the thread hanging from
- * it to the statement; the control and the note under that; and the hands the
- * hem below - taller than the film's own shape and cropped to the clasp, so
- * the arms run off both sides as they do on a wide screen, and a little more
- * of them on the first screen than a desktop shows, because a phone's first
- * screen is most of what it sees of them before they move.
+ * it to the statement; the control under that; and the hands the hem below -
+ * taller than the film's own shape and cropped to the clasp, so the arms run
+ * off both sides as they do on a wide screen, and a little more of them on
+ * the first screen than a desktop shows, because a phone's first screen is
+ * most of what it sees of them before they move.
  *
  * Whatever height is left over goes two parts to the thread and one under the
- * note: the statement always hangs from the thread, and on a tall phone sits
- * low enough that the words and the hands read together.
+ * statement: the statement always hangs from the thread, and on a tall phone
+ * sits low enough that the words and the hands read together.
  */
 @include portrait {
   .hero {
@@ -878,7 +846,7 @@ onBeforeUnmount(() => {
     );
   }
 
-  // The share of the spare height that sits under the note.
+  // The share of the spare height that sits under the statement.
   .hero__frame::after {
     content: "";
     flex: 1 1 0;
@@ -902,7 +870,10 @@ onBeforeUnmount(() => {
     align-self: center;
     width: 1px;
     min-height: clamp(1.5rem, calc(var(--vh, 1vh) * 4.5), 3rem);
-    max-height: calc(var(--vh, 1vh) * 18);
+    // Long enough to take its two parts of the spare height on a phone. At
+    // 18vh it ran out, and the rest collected under the statement as a blank
+    // band between the words and the hands.
+    max-height: calc(var(--vh, 1vh) * 30);
     margin: clamp(0.55rem, calc(var(--vh, 1vh) * 1.5), 0.9rem) 0 clamp(0.75rem, calc(var(--vh, 1vh) * 2), 1.15rem);
     // On the run's line: both are a hairline 2.5px right of centre.
     translate: 3px 0;
@@ -938,16 +909,6 @@ onBeforeUnmount(() => {
   .hero__line { white-space: normal; }
 
   .hero__go-label { font-size: 0.95rem; }
-
-  // No corner to stand in: the note goes under the statement.
-  .hero__aside {
-    position: static;
-    margin-top: clamp(1.25rem, calc(var(--vh, 1vh) * 3.6), 2.25rem);
-    max-width: 34ch;
-    text-align: center;
-    font-size: 0.9rem;
-    line-height: 1.5;
-  }
 }
 
 // The pendant's drop: down its length in the first stretch of the cycle, when
@@ -962,11 +923,10 @@ onBeforeUnmount(() => {
 /**
  * A phone on its side.
  *
- * The wide composition in a frame a third of its height: the note, parked in
- * the lower right corner, landed on top of the control. Here the note goes
- * under the control, centred, in the flow - so the film starts beneath it
- * rather than behind it - and the long thread, which would have run through
- * the middle of that note, stands down; the run through the hands remains.
+ * The wide composition in a frame a third of its height. The long thread
+ * stands down - in a band this shallow it is a rule through the words rather
+ * than a line they hang on - and the run through the hands remains. The
+ * statement stands in the middle of the room between the lockup and the film.
  */
 @include short {
   .hero {
@@ -983,21 +943,11 @@ onBeforeUnmount(() => {
   // Clear of the header's bar, which on a wide phone is the desktop's: the
   // readout in the right-hand corner would otherwise touch the first line.
   .hero__say {
-    flex: none;
     gap: clamp(0.9rem, calc(var(--vh, 1vh) * 4.2), 1.4rem);
     padding-top: clamp(1.4rem, calc(var(--vh, 1vh) * 7), 2.2rem);
   }
 
   .hero__go-label { font-size: 0.9rem; }
-
-  .hero__aside {
-    position: static;
-    margin: clamp(0.9rem, calc(var(--vh, 1vh) * 4.2), 1.4rem) 0 clamp(1rem, calc(var(--vh, 1vh) * 5), 1.6rem);
-    max-width: 60ch;
-    text-align: center;
-    font-size: 0.82rem;
-    line-height: 1.5;
-  }
 }
 
 /**

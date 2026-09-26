@@ -34,6 +34,27 @@ export const isJumping = () =>
 export const pageScrollTo = (top: number, duration = 1.1) =>
   engine?.scrollTo(top, { duration, userData: JUMP });
 
+/**
+ * Carries the page to an element, as one of its own jumps.
+ *
+ * The header's readout jumps this way; so do the footer's links and the
+ * menu's call to the form, which are not inside a view and have no handle on
+ * its engine. `immediate` is for a page the reader has only just arrived on:
+ * they asked for a place, not a ride down everything above it. The engine is
+ * told the document's height first, because a page laid out a moment ago may
+ * be taller than the engine last measured, and it clamps to what it knows.
+ */
+export const pageJumpTo = (el: HTMLElement, immediate = false) => {
+  const lenis = engine;
+  if (!lenis) return;
+  if (immediate) {
+    lenis.resize();
+    lenis.scrollTo(el, { immediate: true, force: true, userData: JUMP });
+    return;
+  }
+  lenis.scrollTo(el, { userData: JUMP });
+};
+
 /** Quick out, long settle: the page arriving somewhere rather than being thrown. */
 const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
 

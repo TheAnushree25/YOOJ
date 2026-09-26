@@ -1,0 +1,21 @@
+{
+  "deck": {
+    "form": "1FAIpQLSfBmGRYmAQMPAG1gYqNKYI32gVFqbi-YwNz28a9hPmWEZy53g",
+    "entries": {
+      "Email": "entry.1979959855",
+      "Location": "",
+      "Device": ""
+    }
+  },
+  "affiliate": {
+    "form": "1FAIpQLScIqvInFGD9fhycmGS5m6x5x5ix8qucywobxzwyO6MIdJcncA",
+    "entries": {
+      "Name": "entry.1212859517",
+      "Phone Number": "entry.410474664",
+      "City": "entry.148896796",
+      "Email": "entry.425357786",
+      "Business Name": "entry.1521095330",
+      "You are": "entry.800200235"
+    }
+  }
+}

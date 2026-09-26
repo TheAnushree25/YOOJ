@@ -15,8 +15,14 @@ export interface Pass {
   expires: number;
 }
 
-/** Thirty days: long enough to come back to, short enough to lapse. */
-const LIFETIME_S = 30 * 24 * 60 * 60;
+/**
+ * Twelve hours: one sitting with the deck, with room to spare.
+ *
+ * The page no longer keeps a pass between visits - every visit comes through
+ * the gate, so every visit is recorded - and a pass only has to outlast the
+ * tab it was issued to. It was thirty days while it was kept on the device.
+ */
+const LIFETIME_S = 12 * 60 * 60;
 
 const sign = (key: Buffer, body: string) => createHmac("sha256", key).update(`v1.${body}`).digest();
 

@@ -30,10 +30,17 @@ const font = () => {
   return face;
 };
 
-/** The lattice, in fractions of the slide's width. Measured off the reference. */
+/**
+ * The lattice, in fractions of the slide's width.
+ *
+ * Opened out from the reference's 0.3 x 0.175 (2026-09-26): at that density
+ * the address sat over nearly every photograph and line of type, and read as
+ * noise over the deck rather than a name on it. The cell is now 0.4 x 0.24,
+ * a little over half as many marks - still no quarter of a slide without one.
+ */
 const TYPE = 0.0148;
-const STEP_X = 0.3;
-const STEP_Y = 0.175;
+const STEP_X = 0.4;
+const STEP_Y = 0.24;
 const ANGLE = -30;
 
 const svgFor = (email: string, w: number, h: number) => {
