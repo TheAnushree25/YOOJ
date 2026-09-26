@@ -6,13 +6,19 @@ entry, with a timestamp.
 
 | Website | Google Form | Questions (Short answer, titled exactly) |
 | --- | --- | --- |
-| Email entered at the `/deck` login | YOOJ_Deck | Email (required), Location, Device |
-| "Join the YOOJ network" on `/solutions` | YOOJ_Affiliate | Name, Phone Number, City, Email, Business Name, You are |
+| Email entered at the `/deck` login | YOOJ_Deck | Email (required) |
+| "Join the YOOJ network" on `/solutions` | YOOJ_Leads_Form (`affiliate`) | Name, Phone Number, City, Email, Business Name, You are |
 
-The website's server fills in the form on the visitor's behalf, the way a
-person would, and only shows "thank you" once Google has accepted it. For the
-deck form, Location is the visitor's city and Device is their phone or
-computer and browser.
+The visitor's own browser sends each entry straight to the Google Form
+(`src/lib/google-forms.ts`). No server of ours is involved, so it works the
+same wherever the site runs - yooj.care on Cloudflare, Vercel, or a laptop.
+The deck's email is sent the moment "View the deck" is pressed.
+
+Google doesn't let another website read its reply, so the site can't see a
+refusal. That is why it checks every field first, the way the form would:
+every question answered, and "You are" exactly one of the form's options. A
+form that asks for anything more - a new required question, a sign-in - makes
+Google quietly drop every entry, so keep the forms set up as below.
 
 ## Setting up a form (once per form)
 
@@ -32,13 +38,14 @@ computer and browser.
 
    ```
    npm run forms:link -- deck "<YOOJ_Deck responder link>"
-   npm run forms:link -- affiliate "<YOOJ_Affiliate responder link>"
+   npm run forms:link -- affiliate "<YOOJ_Leads_Form responder link>"
    ```
 
    This reads the form, matches each question to the website field with the
    same title, writes `forms.json` beside this file, and lists what it matched.
-   Commit `forms.json` and redeploy. There are no passwords or keys involved,
-   because a form's link and question numbers are public anyway.
+   Commit `forms.json`; the next build of each site picks it up. There are no
+   passwords or keys involved, because a form's link and question numbers are
+   public anyway.
 
 If you later **delete** a question and add it again, or add a new one, run the
 command again. Renaming a question is fine.

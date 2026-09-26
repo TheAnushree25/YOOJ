@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, onMounted, ref, shallowRef, watch } from "vu
 import { prefersReduced } from "../../composables/useMotion";
 import { useViewport } from "../../composables/useViewport";
 import { DeckError, fetchSlide, type DeckMeta } from "../../lib/deck-api";
+import { stampSlide } from "../../lib/deck-stamp";
 
 /**
  * The deck itself, one slide at a time - and the slide is the page.
@@ -15,7 +16,8 @@ import { DeckError, fetchSlide, type DeckMeta } from "../../lib/deck-api";
  *
  * Slides are fetched as blobs and cached in a small ring; the two either side
  * of the reader are warmed ahead so a press is a swap, not a wait. Each blob
- * is stamped with the reader's address on the server. Object URLs are revoked
+ * is stamped with the reader's address - on the server, or here where the
+ * host cannot draw on images (yooj.care's Worker). Object URLs are revoked
  * when they age out of the ring and when the deck unmounts, so no decoded
  * slide is left behind.
  */
@@ -79,6 +81,8 @@ const load = (n: number, ahead = false, sharper = false): Promise<string> => {
   if (already) return already;
 
   const job = fetchSlide(props.pass, n, askWidth(), { ahead })
+    // A slide the host could not stamp (yooj.care) is stamped here, before anything shows it.
+    .then(async ({ blob, width, stamped }) => ({ blob: stamped ? blob : await stampSlide(blob, props.meta.email), width }))
     .then(({ blob, width }) => {
       const objectUrl = URL.createObjectURL(blob);
       const old = cache.get(n);

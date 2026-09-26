@@ -2,7 +2,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from "vue";
 import { prefersReduced, scrubThrough } from "../../../composables/useMotion";
 import { onDark } from "../../../lib/session";
-import { sendAffiliate, type AffiliateField } from "../../../lib/affiliate-api";
+import { sendToForm } from "../../../lib/google-forms";
 
 /**
  * The ask: join the network.
@@ -29,9 +29,11 @@ const beat = (from: number, to: number) => ease(clamp01((p.value - from) / (to -
  *
  * Five fields and one choice, in two columns: the business name and the choice
  * share the last row, since they are the two halves of one question. It goes
- * to /api/affiliate, which writes it into the admin's Google Sheet; the thank-
- * you appears only once the row is written.
+ * from the visitor's browser straight to the affiliate Google Form, and so
+ * into the sheet linked to it (lib/google-forms) - on any host, yooj.care
+ * included.
  */
+type AffiliateField = "name" | "phone" | "city" | "email" | "business" | "who";
 const fields = [
   { name: "name", label: "Name", type: "text", autocomplete: "name", inputmode: "text" },
   { name: "phone", label: "Phone Number", type: "tel", autocomplete: "tel", inputmode: "tel" },
@@ -39,7 +41,7 @@ const fields = [
   { name: "email", label: "Email", type: "email", autocomplete: "email", inputmode: "email" },
   { name: "business", label: "Business Name", type: "text", autocomplete: "organization", inputmode: "text" },
 ] as const;
-/** The choices. The server checks against the same four (api/affiliate.ts). */
+/** The choices: the Google Form's own four, word for word - it keeps nothing else. */
 const whoOptions = ["Clinic OPDs", "Pathology", "Radiology", "Pharmacy"] as const;
 const entry = ref<Record<AffiliateField | "website", string>>({
   name: "", phone: "", city: "", email: "", business: "", who: "", website: "",
@@ -50,7 +52,7 @@ const entry = ref<Record<AffiliateField | "website", string>>({
 type Status = "idle" | "sending" | "sent";
 const status = ref<Status>("idle");
 const message = ref("");
-/** The fields to point at: the ones the check below, or the server, turned back. */
+/** The fields to point at: the ones the check below turned back. */
 const bad = ref(new Set<AffiliateField>());
 const formEl = ref<HTMLFormElement | null>(null);
 
@@ -69,8 +71,9 @@ const listed = (words: string[]) =>
   words.length < 2 ? words.join("") : `${words.slice(0, -1).join(", ")} and ${words[words.length - 1]}`;
 
 /**
- * The same checks the server makes, so almost every refusal is answered here,
- * at once, and names the field rather than the request.
+ * Every answer the Google Form requires, and in a shape worth keeping, checked
+ * here: Google's own answer cannot be read from another site, so nothing it
+ * would refuse is sent. A refusal names the field, at once.
  */
 const check = (): AffiliateField[] => {
   const e = entry.value;
@@ -103,21 +106,28 @@ const submit = async () => {
 
   status.value = "sending";
   message.value = "";
-  const result = await sendAffiliate({ ...entry.value } as Parameters<typeof sendAffiliate>[0]);
-  if (result.ok) {
+  const e = entry.value;
+  // The honeypot: a field no person sees or fills. A bot that fills it is
+  // thanked and forgotten.
+  if (e.website.trim()) {
+    status.value = "sent";
+    return;
+  }
+  const line = (v: string) => v.replace(/\s+/g, " ").trim();
+  const sent = await sendToForm("affiliate", {
+    Name: line(e.name),
+    "Phone Number": line(e.phone),
+    City: line(e.city),
+    Email: e.email.trim().toLowerCase(),
+    "Business Name": line(e.business),
+    "You are": e.who,
+  });
+  if (sent) {
     status.value = "sent";
     return;
   }
   status.value = "idle";
-  if (result.reason === "fields") {
-    bad.value = new Set(result.fields);
-    message.value = `Please check your ${listed(result.fields.map((f) => NAMED[f]))}.`;
-    void focusFirstBad();
-  } else if (result.reason === "busy") {
-    message.value = "That’s a few tries in a row. Please wait a minute and send it again.";
-  } else {
-    message.value = "We couldn’t send this just now. Please try again, or write to hello@yooj.example.";
-  }
+  message.value = "We couldn’t send this just now. Please try again, or write to hello@yooj.example.";
 };
 
 /** Typing in a field takes back the complaint about it. */

@@ -2,7 +2,7 @@
 import { onBeforeUnmount, onMounted, ref, shallowRef } from "vue";
 import DeckGate from "../components/deck/DeckGate.vue";
 import DeckViewer from "../components/deck/DeckViewer.vue";
-import { markSeen, rememberEmail, type DeckAccess, type DeckMeta } from "../lib/deck-api";
+import { rememberEmail, type DeckAccess, type DeckMeta } from "../lib/deck-api";
 import { guardDeck, type Guard } from "../lib/deck-guard";
 import { ambientLive, soundOn, startAmbient, stopAmbient } from "../lib/sound";
 // The deck's interface weight. Loaded with this page only; the rest of the
@@ -83,8 +83,6 @@ const admit = (access: DeckAccess) => {
   meta.value = access;
   notice.value = "";
   phase.value = "deck";
-  // The admin's record of this visit. In the background: the deck is open.
-  markSeen(access.token);
 };
 
 const leave = (message = "") => {

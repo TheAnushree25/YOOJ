@@ -3,9 +3,10 @@
  *
  * Every visit comes through the gate - the pass it hands out lives in the
  * page's memory for the length of the visit and is never kept on the device,
- * so the admin's sheet has a row for every sitting, not only the first. What
- * is kept is the address itself, to put back in the field next time: a
- * returning reader is one press from the deck.
+ * so the admin's sheet (written by the gate itself, lib/google-forms) has a
+ * row for every sitting, not only the first. What is kept is the address
+ * itself, to put back in the field next time: a returning reader is one press
+ * from the deck.
  *
  * The pass travels in a header rather than in a URL, where it would be written
  * into history, logs and the address a reader might copy.
@@ -85,29 +86,6 @@ export const requestAccess = async (email: string): Promise<DeckAccess> => {
 };
 
 /**
- * Record the visit in the admin's sheet, in the background.
- *
- * `keepalive`, so a reader who closes the tab at once is still recorded; one
- * retry after a pause if the sheet did not take it. Nothing here is ever shown
- * to the reader - the deck is already open.
- */
-export const markSeen = (pass: string) => {
-  const attempt = () =>
-    fetch("/api/deck/seen", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${pass}` },
-      cache: "no-store",
-      credentials: "same-origin",
-      keepalive: true,
-    }).then((res) => res.ok || res.status === 401);
-  void attempt()
-    .catch(() => false)
-    .then((done) => {
-      if (!done) setTimeout(() => void attempt().catch(() => {}), 4000);
-    });
-};
-
-/**
  * One slide, already stamped with the reader's address by the server, and
  * the width it was actually sent at - the nearest the server holds at or
  * above the one asked for.
@@ -117,12 +95,18 @@ export const fetchSlide = async (
   page: number,
   width: number,
   options: { signal?: AbortSignal; ahead?: boolean } = {},
-): Promise<{ blob: Blob; width: number }> => {
+): Promise<{ blob: Blob; width: number; stamped: boolean }> => {
   const res = await send(
     `/api/deck/slide?page=${page}&w=${width}`,
     { method: "GET", signal: options.signal, priority: options.ahead ? "low" : "high" },
     pass,
   );
   if (!res.ok) throw await failure(res);
-  return { blob: await res.blob(), width: Number(res.headers.get("X-Slide-Width")) || width };
+  return {
+    blob: await res.blob(),
+    width: Number(res.headers.get("X-Slide-Width")) || width,
+    // "0" from a host that cannot draw on an image (yooj.care's Cloudflare
+    // Worker): the viewer stamps the slide itself (lib/deck-stamp).
+    stamped: res.headers.get("X-Slide-Stamped") !== "0",
+  };
 };

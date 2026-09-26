@@ -1,5 +1,8 @@
+import { cp } from 'node:fs/promises'
+import { existsSync } from 'node:fs'
+import { resolve } from 'node:path'
 import vue from '@vitejs/plugin-vue'
-import { defineConfig, loadEnv } from 'vite'
+import { defineConfig, loadEnv, type Plugin } from 'vite'
 import { siteApi } from './server/dev-api.ts'
 
 /**
@@ -10,6 +13,21 @@ import { siteApi } from './server/dev-api.ts'
  */
 const SERVER_ENV = ['DECK_KEY']
 
+/**
+ * The sealed deck, copied into the built site at /_sealed, for yooj.care's
+ * Cloudflare Worker (cloudflare/worker.js), which reads its slides from the
+ * site's own files. Ciphertext, and already in the repository - a Node host
+ * reads deck/sealed directly and simply never asks for these.
+ */
+const sealedDeck = (): Plugin => ({
+  name: 'yooj-sealed-deck',
+  apply: 'build',
+  async writeBundle(options) {
+    const from = resolve(process.cwd(), 'deck', 'sealed')
+    if (options.dir && existsSync(from)) await cp(from, resolve(options.dir, '_sealed'), { recursive: true })
+  },
+})
+
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
@@ -18,6 +36,6 @@ export default defineConfig(({ mode }) => {
   }
 
   return {
-    plugins: [vue(), siteApi()],
+    plugins: [vue(), siteApi(), sealedDeck()],
   }
 })

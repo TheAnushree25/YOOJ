@@ -11,9 +11,7 @@ import type { Plugin } from "vite";
  */
 const ROUTES: Record<string, string> = {
   "/api/deck/access": "/api/deck/access.ts",
-  "/api/deck/seen": "/api/deck/seen.ts",
   "/api/deck/slide": "/api/deck/slide.ts",
-  "/api/affiliate": "/api/affiliate.ts",
 };
 
 const readBody = (req: IncomingMessage) =>
