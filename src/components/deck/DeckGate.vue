@@ -123,14 +123,11 @@ const submit = async () => {
 
       <div class="gt__say">
         <h1 class="gt__statement">
-          <span class="gt__line">Better health</span>
-          <span class="gt__line">for more lives</span>
-          <span class="gt__line gt__line--strong">everyday<span class="gt__dot">.</span></span>
+          <span class="gt__line">India’s primary</span>
+          <span class="gt__line">healthcare needs</span>
+          <span class="gt__line">a new trusted</span>
+          <span class="gt__line gt__line--strong">identity<span class="gt__dot">.</span></span>
         </h1>
-        <p class="gt__aside">
-          Connecting the doctors, pharmacies, diagnostics and records that already
-          exist into one trusted network.
-        </p>
       </div>
     </div>
 
@@ -156,7 +153,7 @@ const submit = async () => {
             required
             :disabled="busy"
             :aria-invalid="error ? 'true' : undefined"
-            :aria-describedby="error ? 'gt-error gt-fine' : 'gt-fine'"
+            :aria-describedby="error ? 'gt-error' : undefined"
             @input="error = ''"
           />
         </label>
@@ -166,16 +163,10 @@ const submit = async () => {
         </button>
         <p v-if="error" id="gt-error" class="gt__error" role="alert">{{ error }}</p>
 
-        <p class="gt__tagline">India’s primary healthcare needs a new trusted identity.</p>
-
         <RouterLink class="gt__back" to="/" data-cursor="scale">
           <span aria-hidden="true">←</span> Back to site
         </RouterLink>
       </form>
-
-      <p id="gt-fine" class="gt__fine">
-        Every page carries your email as a watermark, and each visit is recorded.
-      </p>
     </div>
   </section>
 </template>
@@ -304,12 +295,14 @@ const submit = async () => {
 }
 
 // The hero's own voice: regular lines and a bold last word. Sized to that
-// ground, so the longest line ("for more lives", about 6.35 of its own
-// heights wide) ends before she begins at any width.
+// ground, so the longest line ("healthcare needs", 8.24 of its own heights
+// wide) ends before she begins at any width. The top bound keeps it to the
+// reach the earlier statement had at its largest; the bottom one keeps it on
+// one line in the narrowest column, a 961px window's.
 .gt__statement {
   font-family: var(--font-say);
   font-weight: 400;
-  font-size: clamp(2.2rem, calc((45cqw - 5.5rem) / 6.4), 5.6rem);
+  font-size: clamp(1.4rem, calc((45cqw - 5.5rem) / 8.3), 4.3rem);
   line-height: 1.02;
   letter-spacing: -0.028em;
   text-shadow: 0 2px 30px rgb(20 3 9 / 0.35);
@@ -321,7 +314,7 @@ const submit = async () => {
   transform: translate3d(0, 1.4rem, 0);
   transition: opacity 1s var(--e-out-quart), transform 1.3s var(--e-out-expo);
 
-  @for $i from 1 through 3 {
+  @for $i from 1 through 4 {
     &:nth-child(#{$i}) { transition-delay: #{0.25s + $i * 0.09s}; }
   }
 
@@ -331,21 +324,6 @@ const submit = async () => {
 .gt__line--strong { font-weight: 700; }
 
 .gt__hero .gt__dot { color: #FEB3B8; }
-
-.gt__aside {
-  margin-top: clamp(1.25rem, 3vh, 2rem);
-  max-width: min(33rem, 100%);
-  font-family: var(--font-say);
-  font-size: clamp(1rem, 1.3vw, 1.4rem);
-  line-height: 1.5;
-  color: rgb(255 255 255 / 0.9);
-  text-wrap: pretty;
-  opacity: 0;
-  transform: translate3d(0, 1rem, 0);
-  transition: opacity 1s var(--e-out-quart) 0.65s, transform 1.3s var(--e-out-expo) 0.65s;
-
-  .is-ready & { opacity: 1; transform: none; }
-}
 
 /* ------------------------------------------------------------------ panel */
 
@@ -512,16 +490,6 @@ const submit = async () => {
   color: var(--ga-dot);
 }
 
-.gt__tagline {
-  margin-top: clamp(1.25rem, 2.6vh, 1.6rem);
-  font-family: var(--font-say);
-  font-weight: 500;
-  font-size: clamp(0.98rem, 1.05vw, 1.08rem);
-  line-height: 1.5;
-  color: rgb(60 1 14 / 0.72);
-  text-wrap: balance;
-}
-
 .gt__back {
   display: inline-block;
   margin-top: clamp(1.75rem, 4.5vh, 2.75rem);
@@ -536,25 +504,6 @@ const submit = async () => {
     outline-offset: 4px;
     border-radius: 4px;
   }
-}
-
-// The small print, on the floor of the panel: what giving the address means.
-.gt__fine {
-  position: absolute;
-  left: clamp(1.75rem, 3vw, 3.25rem);
-  right: max(clamp(1.75rem, 3vw, 3.25rem), var(--safe-r));
-  bottom: calc(clamp(1.25rem, 3vh, 2rem) + var(--safe-b));
-  font-family: var(--font-say);
-  font-size: 0.78rem;
-  line-height: 1.45;
-  text-align: center;
-  color: rgb(60 1 14 / 0.5);
-  text-wrap: balance;
-  opacity: 0;
-  transition: opacity 1s var(--e-out-quart) 0.9s;
-
-  .is-ready & { opacity: 1; }
-  .is-launching & { opacity: 0; transition-delay: 0s; transition-duration: 0.3s; }
 }
 
 /* -------------------------------------------------------------- handheld */
@@ -601,27 +550,14 @@ const submit = async () => {
     max-width: none;
   }
 
-  .gt__statement { font-size: clamp(2.1rem, 8.4vw, 3.6rem); }
-
-  .gt__aside { font-size: 1rem; }
+  // Its longest line is 8.24 of its heights: 9.2vw keeps it inside the
+  // band's gutters on any phone, down to a 320px screen.
+  .gt__statement { font-size: clamp(1.75rem, 9.2vw, 3.6rem); }
 
   .gt__panel {
     align-items: start;
     padding: 2.5rem max(1.5rem, var(--safe-r)) calc(1.75rem + var(--safe-b)) max(1.5rem, var(--safe-l));
-    grid-template-rows: 1fr auto;
-    gap: 2rem;
   }
-
-  // In the flow on a phone: under the form rather than pinned to a floor
-  // the keyboard can lift into it.
-  .gt__fine {
-    position: static;
-    align-self: end;
-  }
-}
-
-@include phone {
-  .gt__aside { display: none; }
 }
 
 /** A phone on its side: side by side again, and everything a size down. */
@@ -635,11 +571,9 @@ const submit = async () => {
   .gt__photo { object-position: 84% 14%; }
   .gt__say { margin-top: auto; margin-bottom: 0; padding-top: 1rem; }
   .gt__statement { font-size: clamp(1.6rem, 4.2vw, 2.3rem); }
-  .gt__aside { display: none; }
 
   .gt__panel {
     align-items: center;
-    grid-template-rows: none;
     padding-block: 1.25rem;
   }
 
@@ -649,17 +583,13 @@ const submit = async () => {
   .gt__input,
   .gt__submit { height: 3.1rem; }
   .gt__submit { margin-top: 0.6rem; }
-  .gt__tagline { margin-top: 0.8rem; font-size: 0.9rem; }
-  .gt__back { margin-top: 0.9rem; font-size: 0.92rem; }
-  .gt__fine { display: none; }
+  .gt__back { margin-top: 1.25rem; font-size: 0.92rem; }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .gt__photo,
   .gt__line,
-  .gt__aside,
-  .gt__form > *,
-  .gt__fine {
+  .gt__form > * {
     transition-duration: 0.01ms !important;
     transition-delay: 0s !important;
     animation: none !important;
