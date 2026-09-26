@@ -1,3 +1,5 @@
+import { viaCloudflare } from "./http.js";
+
 /**
  * A visitor, described for a person reading a spreadsheet.
  *
@@ -41,5 +43,10 @@ export const placeOf = (request: Request) => {
     if (!value) return "";
     try { return decodeURIComponent(value).trim(); } catch { return value.trim(); }
   };
+  // Handed on from yooj.care: where Cloudflare, not Vercel, placed the visitor.
+  if (viaCloudflare(request)) {
+    const place = [read("x-yooj-city"), read("x-yooj-country")].filter(Boolean).join(", ");
+    if (place) return place;
+  }
   return [read("x-vercel-ip-city"), read("x-vercel-ip-country")].filter(Boolean).join(", ");
 };
