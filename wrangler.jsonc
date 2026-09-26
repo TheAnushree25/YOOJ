@@ -6,12 +6,17 @@
 // hands everything else to the files. The Google Forms need nothing here: the
 // page posts to them itself.
 //
+// `wrangler deploy` runs that build itself (build.command), so a deploy never
+// depends on a build step set in Cloudflare's dashboard. Without it a fresh
+// checkout has no ./dist and every deploy stops there.
+//
 // DECK_KEY is a secret on the Worker (dashboard > yooj-web-app > Settings >
 // Variables and Secrets) - never in this file. keep_vars keeps whatever is set
 // there across deploys.
 {
   "name": "yooj-web-app",
   "main": "cloudflare/worker.js",
+  "build": { "command": "npm run build" },
   "compatibility_date": "2025-09-01",
   "assets": {
     "directory": "./dist",
