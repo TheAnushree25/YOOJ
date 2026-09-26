@@ -9,6 +9,9 @@
  * with AES-256-GCM under a key derived from DECK_KEY; only that ciphertext is
  * written to deck/sealed. The PDF itself stays wherever it was.
  *
+ * deck/sealed and deck/fonts are committed, so the host builds with them: after
+ * sealing a new deck, commit both and deploy. Without DECK_KEY they are noise.
+ *
  * DECK_KEY lives in .env.local (git-ignored) and in the host's environment
  * settings, never in the repository. If there is no key yet, one is generated
  * and written to .env.local. Changing the key means sealing again, and it signs
