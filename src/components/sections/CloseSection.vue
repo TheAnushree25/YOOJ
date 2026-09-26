@@ -85,8 +85,8 @@ const legal: Link[] = [
   { label: "Cookie Policy", path: "/legal/cookies" },
 ];
 
-/** "Start your journey": the solutions page - or, already on it, its top. */
-const JOURNEY: Place = { path: "/solutions" };
+/** "Affiliate with us": the sign-up form on the solutions page, as the menu's own button. */
+const AFFILIATE: Place = { path: "/solutions", id: "affiliate" };
 
 const year = new Date().getFullYear();
 
@@ -169,8 +169,7 @@ onBeforeUnmount(() => {
         </h2>
 
         <div v-reveal="300" class="cl__acts">
-          <ActionButton label="Partner with us" href="mailto:hello@yooj.example" variant="solid" />
-          <ActionButton label="Start your journey" :href="href(JOURNEY)" @activate="go(JOURNEY, $event)" />
+          <ActionButton label="Affiliate with us" variant="solid" :href="href(AFFILIATE)" @activate="go(AFFILIATE, $event)" />
         </div>
       </div>
 
