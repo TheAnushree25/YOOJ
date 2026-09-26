@@ -11,8 +11,9 @@ import { issuePass } from "../../server/deck/token.js";
  * The gate. An address in, a signed pass out - and with it everything the
  * viewer needs to lay the deck out before the first slide arrives.
  *
- * The visit is written to the admin's sheet by /api/deck/seen, which the page
- * calls once it is in, so this answer never waits on Google.
+ * The visit is written to the admin's sheet by the gate itself, straight to
+ * the deck's Google Form (src/lib/google-forms.ts), so this answer never waits
+ * on Google.
  */
 export async function POST(request: Request) {
   const ip = clientIp(request);

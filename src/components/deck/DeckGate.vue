@@ -4,6 +4,7 @@ import { RouterLink } from "vue-router";
 import BrandMark from "../ui/BrandMark.vue";
 import { prefersReduced } from "../../composables/useMotion";
 import { DeckError, rememberedEmail, requestAccess, type DeckAccess } from "../../lib/deck-api";
+import { sendToForm } from "../../lib/google-forms";
 
 /**
  * The gate: an address for the deck.
@@ -62,12 +63,23 @@ const MESSAGES: Record<string, string> = {
   network: "We couldn’t reach the deck. Check your connection and try again.",
 };
 
+/** Addresses this sitting has already sent: a second press after an error is not a second visit. */
+const recorded = new Set<string>();
+
 const submit = async () => {
   if (busy.value || launching.value) return;
   if (!valid.value) {
     error.value = MESSAGES.email;
     field.value?.focus();
     return;
+  }
+  // The admin's record of the visit: from this browser straight to the deck's
+  // Google Form, and so into its sheet - on any host, and whatever the deck's
+  // own server answers below.
+  const address = email.value.trim().toLowerCase();
+  if (!recorded.has(address)) {
+    recorded.add(address);
+    void sendToForm("deck", { Email: address }).then((sent) => { if (!sent) recorded.delete(address); });
   }
   busy.value = true;
   error.value = "";

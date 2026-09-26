@@ -1,0 +1,24 @@
+// yooj.care: the Cloudflare Worker "yooj-web-app", built by Workers Builds
+// from the DGKhan copy of this repository on every push to main.
+//
+// The site's files are the Vite build (dist, with the sealed deck at
+// /_sealed). cloudflare/worker.js answers the deck's requests to a server and
+// hands everything else to the files. The Google Forms need nothing here: the
+// page posts to them itself.
+//
+// DECK_KEY is a secret on the Worker (dashboard > yooj-web-app > Settings >
+// Variables and Secrets) - never in this file. keep_vars keeps whatever is set
+// there across deploys.
+{
+  "name": "yooj-web-app",
+  "main": "cloudflare/worker.js",
+  "compatibility_date": "2025-09-01",
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*", "/_sealed/*"]
+  },
+  "keep_vars": true,
+  "observability": { "enabled": true }
+}
