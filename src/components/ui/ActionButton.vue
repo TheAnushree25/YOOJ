@@ -25,7 +25,11 @@ const props = withDefaults(defineProps<{
   variant?: "line" | "solid" | "pill";
 }>(), { href: "#", variant: "line" });
 
-const emit = defineEmits<{ activate: [] }>();
+/**
+ * Pressed. The event comes with it, so a caller that routes the reader itself
+ * can keep the browser from following the href as well.
+ */
+const emit = defineEmits<{ activate: [event: MouseEvent] }>();
 
 const root = ref<HTMLElement | null>(null);
 const labelEl = ref<HTMLElement | null>(null);
@@ -90,7 +94,7 @@ onBeforeUnmount(() => revert?.());
     data-cursor="scale"
     @pointerenter="enter"
     @pointerleave="leave"
-    @click="emit('activate')"
+    @click="emit('activate', $event)"
   >
     <span v-if="variant !== 'pill'" ref="dot" class="act__dot" aria-hidden="true" />
     <span ref="labelEl" class="act__label">{{ label }}</span>

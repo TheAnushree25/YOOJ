@@ -1,0 +1,13 @@
+{
+  "name": "YOOJ",
+  "short_name": "YOOJ",
+  "description": "Better health for more lives everyday.",
+  "start_url": "/",
+  "display": "browser",
+  "background_color": "#3C010E",
+  "theme_color": "#3C010E",
+  "icons": [
+    { "src": "/favicon-192x192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icon-512x512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}

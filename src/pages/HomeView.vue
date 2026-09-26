@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { Backdrop } from "../webgl/Backdrop";
 import { usePointer } from "../composables/usePointer";
 import { pageGlideTo, useSmoothScroll } from "../composables/useSmoothScroll";
+import { usePlaces } from "../composables/usePlaces";
 import { ScrollTrigger } from "../composables/useMotion";
 import { cinema, entered, onPale, pulseCorner } from "../lib/session";
 import { heroImageReady } from "../lib/hero-image";
@@ -42,6 +43,8 @@ const town = ref<InstanceType<typeof TownSection> | null>(null);
 
 const { progress, scrolled, mount, scrollTo, lock, unlock, toTop } = useSmoothScroll();
 const { x, y } = usePointer();
+// A link from the other page, or an address, can name a section to open on.
+const { land } = usePlaces();
 
 let backdrop: Backdrop | null = null;
 
@@ -221,6 +224,8 @@ const onEnter = () => {
     ScrollTrigger.refresh(true);
     unlock();
     hero.value?.play();
+    // An address naming a section - "/#about" - lifts the gate onto it.
+    land();
   }, 0);
 };
 
@@ -290,8 +295,14 @@ onMounted(() => {
   }
   // Arrived from the second page, with the gate already answered: no gate
   // will call the entrance, and the hero's parts start hidden. A timer rather
-  // than a frame, for the reason given above.
-  if (entered.value) setTimeout(() => hero.value?.play(), 0);
+  // than a frame, for the reason given above. The footer there links to
+  // sections here, so the page may be asked to open on one of them.
+  if (entered.value) {
+    setTimeout(() => {
+      hero.value?.play();
+      land();
+    }, 0);
+  }
   // Read once before any scroll arrives. A reload lands at the browser's
   // restored position, and until the first scroll event the header still read
   // the first chapter from the middle of the second section.
@@ -333,7 +344,7 @@ onBeforeUnmount(() => {
     @menu="openMenu"
   />
 
-  <SiteMenu :open="menuOpen" contact-href="#contact" @close="closeMenu" />
+  <SiteMenu :open="menuOpen" @close="closeMenu" />
 
   <main class="content">
     <HeroSection ref="hero" />
@@ -357,7 +368,7 @@ onBeforeUnmount(() => {
     <SolutionSection />
   </main>
 
-  <CloseSection @jump="jump" />
+  <CloseSection />
 </template>
 
 <style scoped lang="scss">

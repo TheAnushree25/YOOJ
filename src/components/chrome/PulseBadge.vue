@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { useRoute } from "vue-router";
-import { cinema, onDark, onPale } from "../../lib/session";
+import { cinema, closeUnderPulse, onDark, onPale } from "../../lib/session";
 import { soundOn, toggleSound } from "../../lib/sound";
 
 /**
@@ -29,9 +29,21 @@ import { soundOn, toggleSound } from "../../lib/sound";
 const route = useRoute();
 
 // Each page reports its ground its own way: the second page is pale unless a
-// section has turned the room dark, and the front page says which sections
-// are light and measures which one is under this corner.
-const paleGround = computed(() => (route.name === "solutions" ? !onDark.value : onPale.value));
+// section has turned the room dark (or its close has come up under this
+// corner), the front page says which sections are light and measures which
+// one is under this corner, and the legal pages are pale throughout.
+const paleGround = computed(() => {
+  if (route.name === "legal") return true;
+  if (route.name === "solutions") return !onDark.value && !closeUnderPulse.value;
+  return onPale.value;
+});
+
+/**
+ * The deck has no ambience, and its own gate silences the bed while it is
+ * read. The corner control has nothing to do there, so it stands down for the
+ * whole route - as it does for the opening film.
+ */
+const onDeck = computed(() => route.name === "deck");
 
 /* ------------------------------------------------------------- the ambience */
 
@@ -61,7 +73,7 @@ const TRACE = "M1 12 H13 L15.5 12 L18 3 L21.5 21 L24.5 8.5 L26.5 12 H33 L35 9 L3
 <template>
   <button
     class="pulse"
-    :class="{ 'is-on': on, 'is-pale': paleGround, 'is-hidden': cinema }"
+    :class="{ 'is-on': on, 'is-pale': paleGround, 'is-hidden': cinema || onDeck }"
     :aria-label="title"
     :data-cursor="on ? 'Mute' : 'Sound'"
     @click="toggle"

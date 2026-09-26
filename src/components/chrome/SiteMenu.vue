@@ -2,6 +2,7 @@
 import { onBeforeUnmount, nextTick, ref, watch } from "vue";
 import { useRoute } from "vue-router";
 import ActionButton from "../ui/ActionButton.vue";
+import { usePlaces, type Place } from "../../composables/usePlaces";
 
 /**
  * The site's menu: two pages, three ways to reach us, one thing to do.
@@ -15,15 +16,26 @@ import ActionButton from "../ui/ActionButton.vue";
  * take you are the front page and the solutions page, and the solutions page
  * is light. The menu is the hinge between them and is lit like the destination.
  */
-const props = withDefaults(defineProps<{
-  open: boolean;
-  /** Where "Invest with us" goes on the page that mounted this. */
-  contactHref?: string;
-}>(), { contactHref: "#contact" });
+const props = defineProps<{ open: boolean }>();
 
 const emit = defineEmits<{ close: [] }>();
 
 const route = useRoute();
+const { href, go } = usePlaces();
+
+/**
+ * The one thing to do: join the network, on the form at the foot of the
+ * solutions page. From the front page that is the other page, landed on the
+ * form; on the solutions page it is a glide down to it.
+ */
+const AFFILIATE: Place = { path: "/solutions", id: "affiliate" };
+
+// The panel goes first: the page is held still while it is open, and the
+// glide cannot start until it lets go.
+const affiliate = (e: MouseEvent) => {
+  emit("close");
+  go(AFFILIATE, e);
+};
 const panel = ref<HTMLElement | null>(null);
 const closeBtn = ref<HTMLButtonElement | null>(null);
 
@@ -159,10 +171,10 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKeydown));
 
         <div class="mn__act">
           <ActionButton
-            label="Invest with us"
+            label="Affiliate with us"
             variant="solid"
-            :href="props.contactHref"
-            @activate="emit('close')"
+            :href="href(AFFILIATE)"
+            @activate="affiliate"
           />
         </div>
       </div>

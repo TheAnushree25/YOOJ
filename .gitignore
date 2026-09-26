@@ -36,3 +36,10 @@ dist-ssr
 # OS
 Thumbs.db
 ehthumbs.db
+
+# The investor deck: the PDF is sealed into deck/sealed by scripts/deck/seal.mjs
+# and the watermark font is copied into deck/fonts from node_modules. Both are
+# generated, derived from a private source, and must never enter this public
+# repo. Re-run `npm run deck:seal -- <deck.pdf>` on any machine that serves it.
+/deck/sealed/
+/deck/fonts/

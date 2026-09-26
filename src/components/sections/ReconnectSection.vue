@@ -52,6 +52,18 @@ const P0 = 0.213;
 const END = 0.83;
 
 /**
+ * Where the footer's "About YOOJ" lands: the first passage ("YOOJ exists to
+ * make quality primary healthcare accessible…") with every line in and the
+ * field standing behind it.
+ *
+ * A place on the timeline, turned into a place in the document - the share of
+ * the stage's held run it falls at - so a link can scroll to it like any other
+ * section. See `.rc__anchor`.
+ */
+const ABOUT_AT = 0.395;
+const aboutRun = (ABOUT_AT - P0) / (END - P0);
+
+/**
  * The approach, on its own clock: the stage sliding up into place under the
  * hero. The perspective screen makes its entrance on this, so it is settled
  * by the moment the stage locks rather than beginning then.
@@ -291,6 +303,10 @@ onBeforeUnmount(() => { trigger?.kill(); arrival?.kill(); });
 
 <template>
   <section id="reconnect" ref="root" class="rc">
+    <!-- The first passage, as somewhere a link can go. Outside the stage: the
+         stage is held still, and this has to travel with the section. -->
+    <span id="about" class="rc__anchor" :style="{ '--run': aboutRun }" aria-hidden="true" />
+
     <!-- Without motion there is no stage to hold the perspective screen, so it
          stands on its own ahead of the frame the section resolves to. -->
     <div v-if="reduced" class="rc__still">
@@ -458,6 +474,18 @@ onBeforeUnmount(() => { trigger?.kill(); arrival?.kill(); });
   position: relative;
   height: 666vh;
   height: calc(var(--sv) * 666);
+}
+
+// A point in the section's travel, set in the document. The stage is held from
+// the section's top to one viewport short of its bottom, and the timeline runs
+// across exactly that stretch - so a share of it is a moment on the timeline.
+.rc__anchor {
+  position: absolute;
+  left: 0;
+  top: calc((100% - var(--vh, 1vh) * 100) * var(--run, 0));
+  width: 1px;
+  height: 1px;
+  pointer-events: none;
 }
 
 .rc__stage {

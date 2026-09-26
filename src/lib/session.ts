@@ -37,6 +37,16 @@ export const onPale = ref(false);
 export const pulseCorner = () => ({ x: window.innerWidth - 74, y: window.innerHeight - 60 });
 
 /**
+ * Whether the solutions page's close has risen under the pulse.
+ *
+ * That page reports its ground as one flag, `onDark`, taken at the header. Its
+ * close brings its own wine and comes up from the foot of the screen, so it is
+ * under the pulse a whole viewport before it reaches the header - and for all
+ * of that stretch the pulse would stand in wine ink on a wine ground.
+ */
+export const closeUnderPulse = ref(false);
+
+/**
  * Whether the opening film has the screen.
  *
  * The one stretch of the visit with nothing to read and nothing to press: the

@@ -10,10 +10,11 @@ import AlephMeet from "../components/sections/aleph/AlephMeet.vue";
 // import AlephHero from "../components/sections/aleph/AlephHero.vue";
 import AlephCard from "../components/sections/aleph/AlephCard.vue";
 import AlephQuantum from "../components/sections/aleph/AlephQuantum.vue";
-import AlephFound from "../components/sections/aleph/AlephFound.vue";
 import AlephAccess from "../components/sections/aleph/AlephAccess.vue";
-import { entered, onDark } from "../lib/session";
+import CloseSection from "../components/sections/CloseSection.vue";
+import { closeUnderPulse, entered, onDark } from "../lib/session";
 import { ScrollTrigger } from "../composables/useMotion";
+import { usePlaces } from "../composables/usePlaces";
 import { afterPaint } from "../lib/schedule";
 import SplashGate from "../components/chrome/SplashGate.vue";
 import SiteMenu from "../components/chrome/SiteMenu.vue";
@@ -34,6 +35,15 @@ import BrandMark from "../components/ui/BrandMark.vue";
 const canvas = ref<HTMLCanvasElement | null>(null);
 const { progress, mount, lock, unlock, toTop } = useSmoothScroll();
 const { x, y } = usePointer();
+// The menu's "Affiliate with us", from the front page, opens this page on its form.
+const { land } = usePlaces();
+
+// The page's ground is its own. Whatever the last visit left in these flags -
+// it may have ended in the dark corridor or on the close - this one starts at
+// the top, on the pale landing. Set before the sections mount, so it can only
+// ever be the default they overwrite and never the other way about.
+onDark.value = false;
+closeUnderPulse.value = false;
 
 let backdrop: Backdrop | null = null;
 // Cleared on unmount, so a field scheduled for after the paint is not built
@@ -88,6 +98,10 @@ onMounted(() => {
     const settle = () => requestAnimationFrame(() => { if (!entered.value) toTop(); });
     if (document.readyState === "complete") settle();
     else window.addEventListener("load", settle, { once: true });
+  } else {
+    // Through the gate already, on the front page: if the link that brought
+    // the reader named a section, open on it.
+    setTimeout(land, 0);
   }
 });
 
@@ -104,6 +118,8 @@ const onEnter = () => {
     toTop();
     unlock();
     ScrollTrigger.refresh(true);
+    // An address naming a section - "/solutions#affiliate" - lifts the gate onto it.
+    land();
   }, 0);
 };
 
@@ -174,13 +190,17 @@ const advance = () => backdrop?.setProgress(progress.value);
       <!-- <AlephHero /> -->
       <AlephCard />
       <AlephQuantum />
-      <AlephFound />
+      <!-- "Join the YOOJ network": the form, on the light the corridor ends in. -->
       <AlephAccess />
     </main>
 
+    <!-- The front page's close, word for word. It brings its own wine: the
+         field behind this page is pale. -->
+    <CloseSection grounded />
+
     <p class="al__hint" :class="{ 'is-gone': progress > 0.02 || !entered }">Scroll to explore</p>
 
-    <SiteMenu :open="menuOpen" contact-href="#aleph-access" @close="closeMenu" />
+    <SiteMenu :open="menuOpen" @close="closeMenu" />
   </div>
 </template>
 
