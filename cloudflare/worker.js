@@ -23,6 +23,9 @@
  *
  * The visits and sign-ups themselves never come here: the page sends them
  * straight to the Google Forms (src/lib/google-forms.ts).
+ *
+ * The films do (/film, /intro): Cloudflare will not answer a request for part
+ * of a file, and Safari will not play a video without that. See `film`.
  */
 
 const PRIVATE = {
@@ -216,6 +219,101 @@ const openSlide = async (env, request, keys, page, width) => {
   }
 };
 
+/* ------------------------------------------------------------- the films */
+
+/**
+ * The site's films, answered in pieces.
+ *
+ * Cloudflare serves the site's own files whole: asked for a range of bytes,
+ * it sends all of them with a 200. Safari - every iPhone, iPad and Mac - will
+ * not play a video from a server that does that; it asks for two bytes first
+ * and gives up when it gets twenty megabytes. Other browsers play it but can
+ * only move to a point they have already downloaded. So the films come through
+ * here, and a request for a range gets exactly that range, as a 206.
+ */
+const isFilm = (pathname) => /^\/(?:film|intro)\/.+\.mp4$/.test(pathname);
+
+/** "bytes=a-b", "bytes=a-" or "bytes=-n" against a file of `size` bytes; null if unanswerable. */
+const byteRange = (header, size) => {
+  const m = /^bytes=(\d*)-(\d*)$/.exec(header.trim());
+  if (!m || (m[1] === "" && m[2] === "")) return null;
+  if (m[1] === "") {
+    const n = Number(m[2]);
+    return n > 0 ? { start: Math.max(0, size - n), end: size - 1 } : null;
+  }
+  const start = Number(m[1]);
+  const end = m[2] === "" ? size - 1 : Math.min(Number(m[2]), size - 1);
+  return { start, end };
+};
+
+/** Writes bytes [start, start + length) of `body` into `writable`, and lets go. */
+const copyRange = async (body, writable, start, length) => {
+  const reader = body.getReader();
+  const writer = writable.getWriter();
+  let skip = start;
+  let left = length;
+  try {
+    while (left > 0) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      let chunk = value;
+      if (skip > 0) {
+        if (chunk.byteLength <= skip) { skip -= chunk.byteLength; continue; }
+        chunk = chunk.subarray(skip);
+        skip = 0;
+      }
+      if (chunk.byteLength > left) chunk = chunk.subarray(0, left);
+      await writer.write(chunk);
+      left -= chunk.byteLength;
+    }
+    await writer.close();
+  } catch (error) {
+    // The browser let go of the range - Safari does, constantly, as it seeks.
+    await writer.abort(error).catch(() => {});
+  } finally {
+    reader.cancel().catch(() => {});
+  }
+};
+
+const film = async (request, env, ctx) => {
+  const asked = request.headers.get("range");
+  if (!asked) {
+    // Whole, as before - saying that pieces can be asked for.
+    const whole = await env.ASSETS.fetch(request);
+    const headers = new Headers(whole.headers);
+    headers.set("Accept-Ranges", "bytes");
+    return new Response(whole.body, { status: whole.status, statusText: whole.statusText, headers });
+  }
+
+  const asset = await env.ASSETS.fetch(new Request(request.url, { method: "GET" }));
+  const size = Number(asset.headers.get("content-length"));
+  const type = asset.headers.get("content-type") ?? "";
+  // Not a film after all (the single-page fallback), or a size nobody said: send what there is.
+  if (!asset.ok || !asset.body || !type.startsWith("video/") || !Number.isFinite(size) || size <= 0) return asset;
+
+  const range = byteRange(asked, size);
+  const headers = new Headers(asset.headers);
+  headers.set("Accept-Ranges", "bytes");
+  if (!range || range.start >= size || range.start > range.end) {
+    await asset.body.cancel();
+    headers.delete("Content-Length");
+    headers.set("Content-Range", `bytes */${size}`);
+    return new Response(null, { status: 416, headers });
+  }
+
+  const length = range.end - range.start + 1;
+  headers.set("Content-Range", `bytes ${range.start}-${range.end}/${size}`);
+  headers.set("Content-Length", String(length));
+  if (request.method === "HEAD") {
+    await asset.body.cancel();
+    return new Response(null, { status: 206, headers });
+  }
+
+  const { readable, writable } = new FixedLengthStream(length);
+  ctx.waitUntil(copyRange(asset.body, writable, range.start, length));
+  return new Response(readable, { status: 206, headers });
+};
+
 /* ------------------------------------------------------------- the routes */
 
 /** POST /api/deck/access { email } - the gate: an address in, a signed pass out. */
@@ -277,7 +375,7 @@ const slide = async (request, env) => {
 };
 
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     const { pathname } = new URL(request.url);
 
     if (pathname === "/api/deck/access") return request.method === "POST" ? access(request, env) : json(405, { error: "method" });
@@ -285,6 +383,7 @@ export default {
     if (pathname.startsWith("/api/")) return json(404, { error: "not found" });
     // Only this script reads the sealed deck, through ASSETS; nobody fetches it by address.
     if (pathname.startsWith("/_sealed/")) return new Response("Not found", { status: 404, headers: PRIVATE });
+    if (isFilm(pathname) && (request.method === "GET" || request.method === "HEAD")) return film(request, env, ctx);
 
     return env.ASSETS.fetch(request);
   },
