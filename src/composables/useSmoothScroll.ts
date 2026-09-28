@@ -55,6 +55,24 @@ export const pageJumpTo = (el: HTMLElement, immediate = false) => {
   lenis.scrollTo(el, { userData: JUMP });
 };
 
+/**
+ * Holds the page for something that has taken the screen - a film opened over
+ * it - and lets it go again.
+ *
+ * Twice over, as the clinic film holds it: the engine stops answering the
+ * wheel and the finger, and `is-cinema` takes the keyboard and the scrollbar,
+ * which are the browser's own.
+ */
+export const pageHold = () => {
+  document.documentElement.classList.add("is-cinema");
+  engine?.stop();
+};
+
+export const pageRelease = () => {
+  document.documentElement.classList.remove("is-cinema");
+  engine?.start();
+};
+
 /** Quick out, long settle: the page arriving somewhere rather than being thrown. */
 const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
 

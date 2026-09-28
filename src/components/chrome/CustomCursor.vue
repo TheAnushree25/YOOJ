@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref } from "vue";
+import { onBeforeUnmount, onMounted, ref, watch } from "vue";
 
 const props = defineProps<{ x: number; y: number; down: boolean; enabled: boolean }>();
 
@@ -41,10 +41,20 @@ const scaleFor = () => {
   return 1;
 };
 
+/**
+ * Drawn while the ring is still catching up, and asleep once it has: a cursor
+ * at rest was writing the same two transforms sixty times a second for as long
+ * as the page was open. Any movement, press or change of shape wakes it.
+ */
+let running = false;
+
 const tick = () => {
-  frame = requestAnimationFrame(tick);
   rx += (props.x - rx) * 0.14;
   ry += (props.y - ry) * 0.14;
+  const resting = Math.abs(props.x - rx) < 0.05 && Math.abs(props.y - ry) < 0.05;
+  if (resting) { rx = props.x; ry = props.y; }
+  running = !resting;
+  if (running) frame = requestAnimationFrame(tick);
   if (dot.value) {
     dot.value.style.transform = `translate3d(${props.x}px, ${props.y}px, 0) translate(-50%, -50%)`;
   }
@@ -71,9 +81,17 @@ const onOver = (event: PointerEvent) => {
   }
 };
 
+const wake = () => {
+  if (running) return;
+  running = true;
+  frame = requestAnimationFrame(tick);
+};
+
+watch(() => [props.x, props.y, props.down, mode.value, label.value], wake);
+
 onMounted(() => {
   rx = props.x; ry = props.y;
-  frame = requestAnimationFrame(tick);
+  wake();
   window.addEventListener("pointerover", onOver, { passive: true });
 });
 

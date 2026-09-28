@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref } from "vue";
+import { onBeforeUnmount, onMounted, ref } from "vue";
 import { SEED_FIELD, SEED_INK, SEED_RINGS } from "../../lib/seed";
 import { preloadSound, primeSound, startAmbient } from "../../lib/sound";
 import BrandMark from "../ui/BrandMark.vue";
@@ -36,14 +36,21 @@ const ready = ref(false);
 const leaving = ref(false);
 const opened = ref(false);
 const pct = ref(0);
+/** The count has reached a hundred; the word takes its place. */
+const done = ref(false);
 
+/**
+ * How long the count takes to finish once the page is ready: quick, so the
+ * reader is not kept waiting, and long enough that the last numbers are read
+ * as a count rather than a jump.
+ */
+const FINISH_MS = 520;
 
-// A real gate, not a fake timer: it waits on the browser's own load event and
-// on the fonts, because those are what actually cause the first paint to jump.
-// The counter is eased toward the truth so it never stalls on a long asset.
+let raf = 0;
+let finishTimer = 0;
+let readyTimer = 0;
+
 onMounted(async () => {
-  let target = 0;
-
   // The bed is fetched and decoded now, so the press below has nothing to
   // wait for. See lib/sound.
   preloadSound();
@@ -54,50 +61,74 @@ onMounted(async () => {
   requestAnimationFrame(() => { opened.value = true; });
 
   /**
-   * Readiness is decided by the load signals themselves, never by the animation
-   * that displays them. An earlier cut flipped `ready` inside a
-   * requestAnimationFrame loop, and rAF is paused in a background tab — so a
-   * page opened in one and returned to later sat on a dead counter with
-   * nothing to press. The number is decoration; the gate is not.
+   * The count, on a clock of its own.
+   *
+   * It used to ease toward a target that jumped in steps, and the word replaced
+   * it the moment the page was ready - wherever the count had got to. On a fast
+   * load that was "17, 18, 19" and then "Click to enter". Now it climbs on a
+   * curve that slows toward ninety and never stops while the page loads, and
+   * once the page is ready it runs on to a hundred before the word arrives.
    */
-  const bump = (value: number) => {
-    target = Math.max(target, value);
-    if (target >= 100) ready.value = true;
+  // Counted from the gate's first painted frame, not from its mount: the rest
+  // of the page mounts behind it before anything is painted, and a clock
+  // started earlier opened on a number the reader never saw climb.
+  let born = 0;
+  let loaded = 0;
+  let from = 0;
+  const easeOut = (t: number) => 1 - Math.pow(1 - t, 3);
+
+  const finish = () => {
+    cancelAnimationFrame(raf);
+    clearTimeout(finishTimer);
+    pct.value = 100;
+    if (done.value) return;
+    done.value = true;
+    // The word settles in before it can be pressed.
+    readyTimer = window.setTimeout(() => { ready.value = true; }, 220);
   };
 
-  // Eased purely for looks, and it stops as soon as it has arrived.
-  const settle = () => {
-    pct.value += (target - pct.value) * 0.12;
-    if (pct.value > 99.2) { pct.value = 100; return; }
-    requestAnimationFrame(settle);
+  const frame = () => {
+    const now = performance.now();
+    if (!born) born = now;
+    if (!loaded) {
+      pct.value = 90 * (1 - Math.exp(-(now - born) / 800));
+    } else {
+      const k = Math.min(1, Math.max(0, now - loaded) / FINISH_MS);
+      pct.value = from + (100 - from) * easeOut(k);
+      if (k >= 1) { finish(); return; }
+    }
+    raf = requestAnimationFrame(frame);
   };
-  requestAnimationFrame(settle);
-
-  bump(18);
-  try { await document.fonts.ready; } catch { /* fonts are a nicety, not a gate */ }
-  bump(64);
+  raf = requestAnimationFrame(frame);
 
   /**
-   * Whatever the page behind the gate has said it needs. A gate that opened
-   * before the hero's subject had arrived put the reader on a hero with a
-   * hole in it for a second, which is the one thing a loading screen exists
-   * to prevent. Ceilinged, so a stalled fetch cannot trap anyone.
+   * Ready means what the first screen needs: the fonts, which move every line
+   * when they land, and whatever the page behind the gate has said it needs -
+   * on the front page, the hero's first frame, decoded. Not the window's
+   * `load`, which waits on every image anywhere on the page, none of which the
+   * reader can see from here. Ceilinged, so a stalled fetch cannot trap anyone.
    */
-  if (props.waitFor) {
-    await Promise.race([
-      props.waitFor.catch(() => {}),
-      new Promise((resolve) => setTimeout(resolve, 6000)),
-    ]);
-  }
-  bump(84);
+  await Promise.race([
+    Promise.all([
+      document.fonts?.ready.catch(() => {}),
+      props.waitFor?.catch(() => {}),
+    ]),
+    new Promise((resolve) => setTimeout(resolve, 5000)),
+  ]);
 
-  if (document.readyState === "complete") bump(100);
-  else window.addEventListener("load", () => bump(100), { once: true });
+  loaded = performance.now();
+  from = pct.value;
 
-  // A hard ceiling so a stalled third-party request can never trap the reader
-  // behind the gate. `setTimeout` keeps running where rAF does not. Counted
-  // from here — after the page's own wait — not from mount.
-  setTimeout(() => bump(100), 500);
+  // Readiness is decided by the load signals, never by the animation that
+  // displays them: requestAnimationFrame does not run in a background tab, so
+  // a timer finishes the count there, and the gate is open on return.
+  finishTimer = window.setTimeout(finish, FINISH_MS + 300);
+});
+
+onBeforeUnmount(() => {
+  cancelAnimationFrame(raf);
+  clearTimeout(finishTimer);
+  clearTimeout(readyTimer);
 });
 
 const enter = () => {
@@ -143,10 +174,15 @@ const enter = () => {
         class="sg__enter"
         :class="{ 'is-ready': ready }"
         :disabled="!ready"
+        :aria-label="ready ? enterWord : 'Loading'"
+        :aria-busy="!ready"
         data-cursor="scale"
         @click="enter"
       >
-        <span class="sg__label">{{ ready ? enterWord : `${Math.round(pct)}` }}</span>
+        <span class="sg__label" :class="{ 'is-done': done }" aria-hidden="true">
+          <span class="sg__count">{{ Math.round(pct) }}</span>
+          <span class="sg__word">{{ enterWord }}</span>
+        </span>
       </button>
     </div>
 
@@ -276,6 +312,36 @@ const enter = () => {
   // The word and the number swap in the same place; without this the count
   // jumps as it passes each power of ten.
   text-indent: 0.3em;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+
+  // One cell, the count and the word in it: the count lifts away as it
+  // reaches a hundred, and the word rises into its place.
+  > span {
+    grid-area: 1 / 1;
+    transition:
+      opacity 0.45s var(--e-out-quart),
+      transform 0.7s var(--e-out-expo);
+  }
+}
+
+.sg__word {
+  opacity: 0;
+  transform: translate3d(0, 0.9em, 0);
+}
+
+.sg__label.is-done {
+  .sg__count {
+    opacity: 0;
+    transform: translate3d(0, -0.9em, 0);
+  }
+
+  .sg__word {
+    opacity: 1;
+    transform: none;
+    transition-delay: 0.08s;
+  }
 }
 
 /**

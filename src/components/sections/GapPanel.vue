@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { onBeforeUnmount, ref, watch } from "vue";
-import { duckAmbient, soundOn } from "../../lib/sound";
+import { ref } from "vue";
+import FilmPlayer from "../ui/FilmPlayer.vue";
 
 /**
  * The second screen: the people living the gap.
@@ -10,11 +10,9 @@ import { duckAmbient, soundOn } from "../../lib/sound";
  * rises over - so the wine ground climbs over *this* screen when the reader
  * moves on, exactly as it used to climb over the old belief statement.
  *
- * The picture is a film's poster: dimmed, with the play mark over it. The
- * film itself is not part of the site yet. Drop it in at GAP_FILM and the
- * mark becomes a control; until then it is the design's mark and nothing
- * more - not focusable, not announced, and not promising a film that is not
- * there.
+ * The picture is the film's poster: dimmed, with the play mark over it. The
+ * whole poster is the control. Pressed, the film rises out of it and takes the
+ * screen (ui/FilmPlayer); closed, it comes back down into the same place.
  */
 
 const props = withDefaults(defineProps<{
@@ -22,44 +20,31 @@ const props = withDefaults(defineProps<{
   entry?: number;
 }>(), { entry: 1 });
 
-const GAP_FILM = "/gap/people.mp4";
 const POSTER = "/gap/people.webp";
 
-const video = ref<HTMLVideoElement | null>(null);
 /**
- * Whether there is a film to play. Asked of the element itself rather than
- * of the server: the site's rewrite answers every missing path with the page,
- * so a request succeeding says nothing - a video that cannot decode does.
+ * The film, in two cuts. Versioned by folder, so a new cut ships under a new
+ * name rather than over one a browser may be holding.
  */
-const available = ref(false);
-const playing = ref(false);
+const FILM = [
+  { width: 1280, src: "/film/v1/720.mp4" },
+  { width: 1920, src: "/film/v1/1080.mp4" },
+] as const;
+
+/** The page's dimming of the poster, which the film matches as it lifts off. */
+const SHADE = 0.5;
+
+const film = ref<HTMLElement | null>(null);
+const player = ref<InstanceType<typeof FilmPlayer> | null>(null);
+/** The film is up, and the poster it rose from stands empty under it. */
+const lifted = ref(false);
 
 const clamp01 = (v: number) => Math.min(1, Math.max(0, v));
 const ease = (t: number) => t * t * (3 - 2 * t);
 const arrive = (from: number, to: number) => ease(clamp01((props.entry - from) / (to - from)));
 
-const toggle = async () => {
-  const v = video.value;
-  if (!v || !available.value) return;
-  if (!v.paused) { v.pause(); return; }
-  v.muted = !soundOn.value;
-  try {
-    await v.play();
-  } catch {
-    v.muted = true;
-    await v.play().catch(() => {});
-  }
-};
-
-// The bed steps aside while the film is sounding, and comes back after.
-const onPlay = () => { playing.value = true; if (!video.value?.muted) duckAmbient(true); };
-const onStop = () => { playing.value = false; duckAmbient(false); };
-
-watch(soundOn, (on) => { if (video.value) video.value.muted = !on; });
-
-onBeforeUnmount(() => {
-  if (playing.value) duckAmbient(false);
-});
+const play = () => player.value?.open();
+const warm = () => player.value?.warm();
 </script>
 
 <template>
@@ -77,51 +62,54 @@ onBeforeUnmount(() => {
       </h2>
 
       <div
+        ref="film"
         class="gp__film"
-        :class="{ 'is-playing': playing, 'is-live': available }"
+        :class="{ 'is-lifted': lifted }"
         :style="{
           opacity: arrive(0.45, 0.95),
           transform: `translate3d(0, ${(1 - arrive(0.45, 1)) * 5}%, 0)`,
+          '--shade': SHADE,
         }"
       >
         <img class="gp__poster" :src="POSTER" alt="" decoding="async" loading="lazy" draggable="false">
-        <video
-          ref="video"
-          class="gp__video"
-          :src="GAP_FILM"
-          preload="metadata"
-          playsinline
-          disablepictureinpicture
-          @loadedmetadata="available = true"
-          @error="available = false"
-          @play="onPlay"
-          @pause="onStop"
-          @ended="onStop"
-          @click="toggle"
-        />
         <div class="gp__shade" aria-hidden="true" />
 
+        <!-- The whole poster is the control; the mark is what it looks like. -->
         <button
-          v-if="available"
-          class="gp__play"
+          class="gp__press"
           type="button"
-          :aria-label="playing ? 'Pause the film' : 'Play the film'"
-          data-cursor="scale"
-          @click="toggle"
+          aria-label="Play the film: The people living the gap"
+          aria-haspopup="dialog"
+          data-cursor="Play"
+          @click="play"
+          @pointerenter="warm"
+          @focus="warm"
         >
-          <i class="gp__ring" aria-hidden="true" />
-          <i class="gp__tri" aria-hidden="true" />
+          <span class="gp__play" data-film-mark aria-hidden="true">
+            <i class="gp__pulse" />
+            <i class="gp__ring" />
+            <i class="gp__tri" />
+          </span>
         </button>
-        <span v-else class="gp__play" aria-hidden="true">
-          <i class="gp__ring" />
-          <i class="gp__tri" />
-        </span>
       </div>
     </div>
+
+    <FilmPlayer
+      ref="player"
+      :origin="film"
+      :sources="FILM"
+      :poster="POSTER"
+      :shade="SHADE"
+      eyebrow="The perspective"
+      :title="['The people living', 'the gap']"
+      @lifted="lifted = $event"
+    />
   </div>
 </template>
 
 <style scoped lang="scss">
+@use "../../styles/media" as *;
+
 /**
  * The design's frame is 917 x 718, fitted whole into the screen and centred
  * in it. White ground: the section behind supplies it (see ReconnectSection's
@@ -210,8 +198,7 @@ onBeforeUnmount(() => {
   will-change: transform, opacity;
 }
 
-.gp__poster,
-.gp__video {
+.gp__poster {
   position: absolute;
   inset: 0;
   width: 100%;
@@ -219,27 +206,36 @@ onBeforeUnmount(() => {
   max-width: none;
   object-fit: cover;
   object-position: center;
-}
-
-// Hidden until it is actually playing: the poster is the picture, and a
-// video element that failed to load draws nothing useful.
-.gp__video {
-  opacity: 0;
-  transition: opacity 0.5s var(--e-out-quart);
-
-  .is-playing & { opacity: 1; }
-  .is-live & { cursor: pointer; }
+  transition: transform 1.4s var(--e-out-expo);
 }
 
 // Half-dark, as the design dims it: the play mark has to read over any frame.
 .gp__shade {
   position: absolute;
   inset: 0;
-  background: rgb(0 0 0 / 0.5);
+  background: #000000;
+  opacity: var(--shade, 0.5);
   pointer-events: none;
-  transition: opacity 0.6s var(--e-out-quart);
+  transition: opacity 0.8s var(--e-out-quart);
+}
 
-  .is-playing & { opacity: 0; }
+// The film has risen out of this poster and stands over the page; the place
+// it came from is left empty under it, and taken back when it comes home.
+.gp__film.is-lifted { visibility: hidden; }
+
+// The whole poster is the control.
+.gp__press {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+
+  &:focus-visible {
+    outline: none;
+    box-shadow: inset 0 0 0 3px rgb(var(--rgb-accent) / 0.7);
+  }
 }
 
 .gp__play {
@@ -252,18 +248,22 @@ onBeforeUnmount(() => {
   height: calc(78 * var(--u));
   margin: calc(-39 * var(--u)) 0 0 calc(-39 * var(--u));
   border-radius: 50%;
-  transition: opacity 0.4s var(--e-out-quart), transform var(--t-hover) var(--e-out-quart);
+  transition: transform 0.7s var(--e-out-expo);
 
   > i { grid-area: 1 / 1; }
-
-  .is-playing & { opacity: 0; }
-  .is-playing &:hover,
-  .is-playing &:focus-visible { opacity: 1; }
 }
 
-button.gp__play {
-  &:hover { transform: scale(1.05); }
-  &:focus-visible { outline: none; box-shadow: 0 0 0 3px rgb(var(--rgb-accent) / 0.6); }
+// Pointed at, the picture leans in and lightens and the mark comes forward:
+// the poster saying it is a film before it is pressed.
+@include hover {
+  .gp__press:hover {
+    .gp__play { transform: scale(1.08); }
+  }
+
+  .gp__film:has(.gp__press:hover) {
+    .gp__poster { transform: scale(1.035); }
+    .gp__shade { opacity: calc(var(--shade, 0.5) - 0.14); }
+  }
 }
 
 .gp__ring {
@@ -271,6 +271,24 @@ button.gp__play {
   height: 100%;
   border-radius: 50%;
   border: 1px solid rgb(255 255 255 / 0.85);
+}
+
+// A slow ring breathing out of the mark, so the still reads as something that
+// plays. Transform and opacity only: it runs on the compositor and costs the
+// page nothing while it is being scrolled.
+.gp__pulse {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  border: 1px solid rgb(255 255 255 / 0.6);
+  opacity: 0;
+  animation: gp-pulse 3.2s var(--e-out-quart) 1.2s infinite;
+}
+
+@keyframes gp-pulse {
+  0%   { transform: scale(1); opacity: 0.55; }
+  70%  { transform: scale(1.75); opacity: 0; }
+  100% { transform: scale(1.75); opacity: 0; }
 }
 
 // A triangle pointing right, its balance point on the ring's centre: the box
@@ -282,6 +300,10 @@ button.gp__play {
   margin-left: calc(28 * var(--u) / 3);
   background: #FEB3B8;
   clip-path: polygon(0 0, 100% 50%, 0 100%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gp__pulse { animation: none; }
 }
 
 /**

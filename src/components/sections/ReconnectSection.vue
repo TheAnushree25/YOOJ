@@ -562,6 +562,10 @@ onBeforeUnmount(() => { trigger?.kill(); arrival?.kill(); });
   left: var(--gutter);
   bottom: clamp(5rem, 14vh, 8rem);
   z-index: 3;
+  // Words only, and in the frame long before they are read: invisible, the
+  // centred passage stood over the middle of the perspective's film poster
+  // and took the presses meant for it.
+  pointer-events: none;
   // In ch so the measure tracks the type size, and capped against the viewport
   // so the guarantee that each line fits survives a narrow screen. Fifty-two:
   // the longest line is forty-six characters of proportional type, and at
@@ -619,6 +623,7 @@ onBeforeUnmount(() => { trigger?.kill(); arrival?.kill(); });
   left: 46%;
   top: 22%;
   z-index: 4;
+  pointer-events: none;
   transition: opacity 0.5s var(--e-out-quart);
 
   // Top left on a phone, where the reference puts its chapter count: the
@@ -869,6 +874,7 @@ onBeforeUnmount(() => { trigger?.kill(); arrival?.kill(); });
   left: var(--gutter);
   bottom: clamp(1.6rem, 4.5vh, 2.8rem);
   z-index: 4;
+  pointer-events: none;
   color: var(--c-accent);
 }
 

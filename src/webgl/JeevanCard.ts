@@ -281,6 +281,19 @@ export class JeevanCard {
       this.faceMat.map = tex;
       this.faceMat.emissiveMap = tex;
       this.faceMat.needsUpdate = true;
+      /**
+       * The card's programs, compiled before it is first drawn. The physical
+       * materials are the heaviest shaders on the page, and compiled by the
+       * first render they stalled the page for as long as the driver took -
+       * during the loading screen, where the count froze. compileAsync hands
+       * them to the driver in parallel where it can; the card simply appears
+       * once they are ready, far down the page from where anyone is reading.
+       */
+      this.card.visible = true;
+      this.shadow.visible = true;
+      return this.renderer.compileAsync(this.scene, this.camera).catch(() => {});
+    }).then(() => {
+      if (!this.faceMat.map) return;
       this.ready = true;
       onReady?.();
     }).catch(() => { /* no artwork: the page keeps its still */ });
