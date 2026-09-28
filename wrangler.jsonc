@@ -3,7 +3,8 @@
 //
 // The site's files are the Vite build (dist, with the sealed deck at
 // /_sealed). cloudflare/worker.js answers the deck's requests to a server and
-// hands everything else to the files. The Google Forms need nothing here: the
+// hands everything else to the files - except the films, which it answers in
+// byte ranges so Safari can play them. The Google Forms need nothing here: the
 // page posts to them itself.
 //
 // `wrangler deploy` runs that build itself (build.command), so a deploy never
@@ -22,7 +23,7 @@
     "directory": "./dist",
     "binding": "ASSETS",
     "not_found_handling": "single-page-application",
-    "run_worker_first": ["/api/*", "/_sealed/*"]
+    "run_worker_first": ["/api/*", "/_sealed/*", "/film/*", "/intro/*"]
   },
   "keep_vars": true,
   "observability": { "enabled": true }
