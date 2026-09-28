@@ -5,7 +5,7 @@ import { usePointer } from "../composables/usePointer";
 import { pageGlideTo, useSmoothScroll } from "../composables/useSmoothScroll";
 import { usePlaces } from "../composables/usePlaces";
 import { ScrollTrigger } from "../composables/useMotion";
-import { cinema, entered, onPale, pulseCorner } from "../lib/session";
+import { cinema, entered, filmOpen, onPale, pulseCorner } from "../lib/session";
 import { heroImageReady } from "../lib/hero-image";
 
 import SiteHeader from "../components/chrome/SiteHeader.vue";
@@ -108,9 +108,40 @@ const paleInReconnect = (x: number, y: number) => {
 
 /** Resolved once rather than per scroll frame; the ids are fixed. */
 let chapterEls: Array<HTMLElement | null> = [];
+
+/**
+ * Where each chapter lies in the document, top and bottom.
+ *
+ * Measured when the layout changes - every trigger refresh, which follows the
+ * fonts, a resize and a hot swap - rather than on every scroll frame. Read
+ * per frame it was seven layout queries straight after the sections had
+ * written their styles, which forced the browser to lay the page out again
+ * before it could paint the frame.
+ */
+let spans: Array<[number, number] | null> = [];
+
+const measureChapters = () => {
+  const y = window.scrollY;
+  spans = chapterEls.map((el) => {
+    if (!el) return null;
+    const r = el.getBoundingClientRect();
+    return [r.top + y, r.bottom + y];
+  });
+};
+
 const findChapters = () => {
   chapterEls = chapters.map((c) => document.getElementById(c.id));
+  measureChapters();
 };
+
+/**
+ * Whether the field shows anywhere on screen.
+ *
+ * Every section but two paints an opaque ground over it: the second section
+ * lets it through once its white has gone, and the close stands on it. The
+ * field is only drawn while one of those is on screen (see Backdrop.stop).
+ */
+const fieldSeen = ref(false);
 
 /**
  * Whichever section fills most of the viewport is the one being read.
@@ -134,22 +165,34 @@ const updateChapter = () => {
   }
 
   const view = window.innerHeight;
+  const scrollY = window.scrollY;
   let best = 0;
   let most = -1;
+  let field = false;
   // The section under the pulse.
   const { x: px, y: corner } = pulseCorner();
   let under = -1;
 
-  chapterEls.forEach((el, i) => {
-    if (!el) return;
-    const { top, bottom } = el.getBoundingClientRect();
+  spans.forEach((span, i) => {
+    if (!span) return;
+    const top = span[0] - scrollY;
+    const bottom = span[1] - scrollY;
     // Clipped against the viewport, so a section half off screen counts only
     // the half that is on it. Never negative.
     const seen = Math.max(0, Math.min(view, bottom) - Math.max(0, top));
     if (seen > most) { most = seen; best = i; }
     if (top <= corner && bottom >= corner) under = i;
+    if (seen > 0) {
+      const id = chapters[i]?.id;
+      if (id === "contact") field = true;
+      else if (id === "reconnect") {
+        const white = document.querySelector<HTMLElement>(".rc__ground");
+        if (!white || parseFloat(white.style.opacity || "1") < 0.999) field = true;
+      }
+    }
   });
 
+  fieldSeen.value = field;
   chapterIndex.value = best;
   // On the stage the panel says how present it is; without motion it stands
   // on its own ahead of the stage, and is present while it spans the middle
@@ -265,6 +308,14 @@ const releaseFilm = () => {
 // sections write from the same scroll event, and a pre-flush watcher would
 // measure the previous frame's dome against this frame's position.
 watch(scrolled, updateChapter, { flush: "post" });
+
+// The field is drawn while it can be seen, and never under the perspective's
+// film, which has the whole screen.
+const runField = () => {
+  if (fieldSeen.value && !filmOpen.value) backdrop?.start();
+  else backdrop?.stop();
+};
+watch([fieldSeen, filmOpen], runField);
 watch([x, y], () => backdrop?.setPointer(x.value, y.value));
 watch(progress, (p) => backdrop?.setProgress(p));
 
@@ -278,6 +329,7 @@ onMounted(() => {
   }
   findChapters();
   mount();
+  ScrollTrigger.addEventListener("refresh", measureChapters);
   // Held at the top until the gate is answered.
   //
   // Asserted twice. Setting `history.scrollRestoration` to manual does not
@@ -307,9 +359,11 @@ onMounted(() => {
   // restored position, and until the first scroll event the header still read
   // the first chapter from the middle of the second section.
   updateChapter();
+  runField();
 });
 
 onBeforeUnmount(() => {
+  ScrollTrigger.removeEventListener("refresh", measureChapters);
   if (backdrop) window.removeEventListener("resize", backdrop.resize);
   backdrop?.dispose();
   // The next page measures its own ground.

@@ -55,3 +55,11 @@ export const closeUnderPulse = ref(false);
  * taken the screen, so the film says so here and each of them reads it.
  */
 export const cinema = ref(false);
+
+/**
+ * Whether a film has been opened over the page (the perspective's).
+ *
+ * The page is entirely behind it while it is up, so the page's own running
+ * work - the field's shader above all - can stop until it closes.
+ */
+export const filmOpen = ref(false);

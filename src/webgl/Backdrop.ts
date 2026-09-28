@@ -1,5 +1,5 @@
 import {
-  Clock, Color, Mesh, OrthographicCamera, PlaneGeometry,
+  Color, Mesh, OrthographicCamera, PlaneGeometry,
   Scene, ShaderMaterial, Vector2, WebGLRenderer,
 } from "three";
 import { fragment, vertex } from "./shaders/backdrop.glsl";
@@ -78,8 +78,18 @@ export class Backdrop {
   private scene = new Scene();
   private camera = new OrthographicCamera(-1, 1, 1, -1, 0, 1);
   private material: ShaderMaterial;
-  private clock = new Clock();
   private frame = 0;
+  /**
+   * The field's own clock, which only runs while it is drawn. Paused behind
+   * an opaque section and resumed, it carries on from where it was rather
+   * than jumping to wherever a wall clock would have taken it.
+   */
+  private elapsed = 0;
+  private last = 0;
+  private compiled = false;
+  private compiling = false;
+  /** Asked to run: kept apart from `running`, which the compile can hold up. */
+  private wanted = false;
   private pointer = new Vector2(0.5, 0.5);
   private pointerTarget = new Vector2(0.5, 0.5);
   private progress = 0;
@@ -180,11 +190,13 @@ export class Backdrop {
     this.renderer.setPixelRatio(drawRatio());
     this.renderer.setSize(w, h, false);
     this.material.uniforms.uResolution.value.set(w * this.renderer.getPixelRatio(), h * this.renderer.getPixelRatio());
+    // Resizing clears the canvas; a paused field puts its frame straight back.
+    if (this.compiled && !this.running) this.draw();
   };
 
   start() {
+    this.wanted = true;
     if (this.running) return;
-    this.running = true;
     /**
      * Shaders first, and off the main thread.
      *
@@ -193,36 +205,69 @@ export class Backdrop {
      * several hundred milliseconds of the page not answering, measured.
      * compileAsync links them under KHR_parallel_shader_compile and resolves
      * once they are ready, so the first frame is only a frame. Without the
-     * extension it compiles in place, which is no worse than before; and if
-     * the scene is stopped before it resolves, nothing starts.
+     * extension it compiles in place, which is no worse than before.
+     *
+     * One frame is always drawn once it is ready, asked for or not, so a
+     * canvas that is uncovered before its loop has run is never blank.
      */
-    this.renderer.compileAsync(this.scene, this.camera)
-      .catch(() => {})
-      .then(() => {
-        if (!this.running) return;
-        this.clock.start();
-        this.tick();
-      });
+    if (!this.compiled) {
+      if (this.compiling) return;
+      this.compiling = true;
+      this.renderer.compileAsync(this.scene, this.camera)
+        .catch(() => {})
+        .then(() => {
+          this.compiling = false;
+          this.compiled = true;
+          this.draw();
+          if (this.wanted) this.run();
+        });
+      return;
+    }
+    this.run();
   }
 
+  /**
+   * Stops drawing, keeping the last frame on the canvas.
+   *
+   * The field is only ever seen through two parts of the front page - the
+   * second section once its white has gone, and the close - and every other
+   * section paints an opaque ground over it. Drawing a full-screen shader
+   * sixty times a second behind those was most of the GPU the page spent
+   * while it was being scrolled.
+   */
   stop() {
+    this.wanted = false;
     this.running = false;
     cancelAnimationFrame(this.frame);
   }
 
-  private tick = () => {
+  private run() {
+    this.running = true;
+    this.last = performance.now();
+    cancelAnimationFrame(this.frame);
+    this.frame = requestAnimationFrame(this.tick);
+  }
+
+  private tick = (now: number) => {
     if (!this.running) return;
     this.frame = requestAnimationFrame(this.tick);
+    // Capped, so a frame after a stall - or after the tab comes back - moves
+    // the field by one frame's worth rather than by the whole gap.
+    this.elapsed += Math.min(0.05, Math.max(0, (now - this.last) / 1000));
+    this.last = now;
+    this.draw();
+  };
 
+  private draw() {
     // Both inputs are eased here rather than at the call site, so however
     // jittery the source is the shader only ever sees a smooth value.
     this.pointer.lerp(this.pointerTarget, 0.045);
     this.progress += (this.progressTarget - this.progress) * 0.06;
 
-    this.material.uniforms.uTime.value = this.clock.getElapsedTime();
+    this.material.uniforms.uTime.value = this.elapsed;
     this.material.uniforms.uProgress.value = this.progress;
     this.renderer.render(this.scene, this.camera);
-  };
+  }
 
   dispose() {
     this.stop();
